@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+
+    <!-- Welcome Section -->
+    <div class="text-center mb-5">
+        <h1 class="display-3">Sheikh Agro</h1>
+        <p class="lead">Welcome, {{ user.username }}! You are logged in as <strong>{{ user.role }}</strong>.</p>
+    </div>
+
+    <!-- Main Dashboard Cards -->
+    <div class="row g-4">
+
+        <!-- Fish Farm Module -->
+        <div class="col-md-3">
+            <div class="card text-white bg-primary h-100 shadow-sm">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">Fish Farm</h5>
+                    <p class="card-text flex-grow-1">Manage ponds, feed, and fish production.</p>
+                    <a href="#" class="btn btn-light mt-auto">Go</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dairy Farm Module -->
+        <div class="col-md-3">
+            <div class="card text-white bg-success h-100 shadow-sm">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">Dairy Farm</h5>
+                    <p class="card-text flex-grow-1">Track cows, milk production, and health.</p>
+                    <a href="#" class="btn btn-light mt-auto">Go</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agriculture Module -->
+        <div class="col-md-3">
+            <div class="card text-white bg-warning h-100 shadow-sm">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">Agriculture</h5>
+                    <p class="card-text flex-grow-1">Manage crops, fertilizers, and harvest planning.</p>
+                    <a href="#" class="btn btn-light mt-auto">Go</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Finance / Family Cost Module -->
+        <div class="col-md-3">
+            <div class="card text-white bg-danger h-100 shadow-sm">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">Finance / Family Cost</h5>
+                    <p class="card-text flex-grow-1">Track expenses, income, and budget planning.</p>
+                    <a href="#" class="btn btn-light mt-auto">Go</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Tasks / Planning -->
+    <div class="row g-4 mt-4">
+        <div class="col-md-3">
+            <div class="card text-dark bg-info h-100 shadow-sm">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">Tasks / Planning</h5>
+                    <p class="card-text flex-grow-1">Manage daily tasks and farm planning schedules.</p>
+                    <a href="#" class="btn btn-light mt-auto">Go</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
