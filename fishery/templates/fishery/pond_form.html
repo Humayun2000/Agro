@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-5">
+    <div class="card shadow-lg">
+        <div class="card-header bg-success text-white">
+            <h4>{{ view.object|default:"Create New Pond" }}</h4>
+        </div>
+
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+
+                {% for field in form %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            {{ field.label }}
+                        </label>
+                        {{ field }}
+
+                        {% if field.errors %}
+                            <div class="text-danger small">
+                                {{ field.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                <button type="submit" class="btn btn-success">
+                    Save
+                </button>
+
+                <a href="{% url 'pond_list' %}" class="btn btn-secondary">
+                    Cancel
+                </a>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

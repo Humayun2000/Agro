@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold">Pond Management</h3>
+        <a href="{% url 'pond_create' %}" class="btn btn-success">
+            + Add Pond
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            <table class="table table-hover table-bordered align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Name</th>
+                        <th>Size (Acres)</th>
+                        <th>Water Source</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for pond in ponds %}
+                    <tr>
+                        <td>{{ pond.name }}</td>
+                        <td>{{ pond.size_in_acres }}</td>
+                        <td>{{ pond.water_source }}</td>
+                        <td>
+                            <a href="{% url 'pond_detail' pond.id %}" class="btn btn-sm btn-info">View</a>
+                            <a href="{% url 'pond_update' pond.id %}" class="btn btn-sm btn-warning">Edit</a>
+                            <a href="{% url 'pond_delete' pond.id %}" class="btn btn-sm btn-danger">Delete</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center">No ponds available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

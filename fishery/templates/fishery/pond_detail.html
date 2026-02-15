@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4>Pond Details</h4>
+        </div>
+
+        <div class="card-body">
+            <p><strong>Name:</strong> {{ object.name }}</p>
+            <p><strong>Size:</strong> {{ object.size_in_acres }} acres</p>
+            <p><strong>Water Source:</strong> {{ object.water_source }}</p>
+            <p><strong>Location:</strong> {{ object.location }}</p>
+
+            <a href="{% url 'pond_update' object.id %}" class="btn btn-warning">
+                Edit
+            </a>
+            <a href="{% url 'pond_list' %}" class="btn btn-secondary">
+                Back
+            </a>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
