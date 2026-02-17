@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="card shadow border-0">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Update Fish Species</h5>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label">Species Name</label>
+                {{ form.name }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Average Growth Days</label>
+                {{ form.average_growth_days }}
+            </div>
+
+            <button type="submit" class="btn btn-success">Save</button>
+            <a href="{% url 'fishspecies_list' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

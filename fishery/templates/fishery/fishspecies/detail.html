@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="card shadow border-0">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">Species Details</h5>
+    </div>
+    <div class="card-body">
+        <p><strong>Name:</strong> {{ species.name }}</p>
+        <p><strong>Growth Duration:</strong> {{ species.average_growth_days }} days</p>
+
+        <a href="{% url 'fishspecies_update' species.id %}" class="btn btn-warning">Edit</a>
+        <a href="{% url 'fishspecies_list' %}" class="btn btn-secondary">Back</a>
+    </div>
+</div>
+
+{% endblock %}

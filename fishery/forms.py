@@ -32,10 +32,26 @@ class PondForm(BootstrapFormMixin, forms.ModelForm):
 
 
 # ---------- Fish Species Form ----------
-class FishSpeciesForm(BootstrapFormMixin, forms.ModelForm):
+class FishSpeciesForm(forms.ModelForm):
     class Meta:
         model = FishSpecies
-        fields = '__all__'
+        fields = ['name', 'average_growth_days']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter fish species name'
+            }),
+            'average_growth_days': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Average growth duration (days)'
+            }),
+        }
+
+    def clean_average_growth_days(self):
+        days = self.cleaned_data.get('average_growth_days')
+        if days <= 0:
+            raise forms.ValidationError("Growth days must be greater than zero.")
+        return days
 
 
 # ---------- Stock Form ----------

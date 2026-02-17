@@ -1,0 +1,81 @@
+{% extends 'fishery/base_fishery.html' %}
+
+{% block fishery_content %}
+
+<h3 class="fw-bold mb-4">Fish Farm Dashboard</h3>
+
+<div class="row g-4">
+
+    <div class="col-md-4">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <h5>Ponds</h5>
+                <a href="{% url 'pond_list' %}" class="btn btn-outline-primary btn-sm mt-2">
+                    Manage
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <h5>Fish Species</h5>
+                <a href="{% url 'fishspecies_list' %}" class="btn btn-outline-primary btn-sm mt-2">
+                    Manage
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <h5>Stock</h5>
+                <a href="#" class="btn btn-outline-primary btn-sm mt-2">
+                    Manage
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="row g-4 mt-2">
+
+    <div class="col-md-4">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <h5>Feed Records</h5>
+                <a href="#" class="btn btn-outline-success btn-sm mt-2">
+                    Manage
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <h5>Mortality</h5>
+                <a href="#" class="btn btn-outline-warning btn-sm mt-2">
+                    Manage
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <h5>Harvest & Sales</h5>
+                <a href="#" class="btn btn-outline-danger btn-sm mt-2">
+                    Manage
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
