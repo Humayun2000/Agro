@@ -1,0 +1,45 @@
+{% extends 'fishery/base_fishery.html' %}
+{% block fishery_content %}
+
+<div class="card shadow border-0">
+<div class="card-header bg-primary text-white">
+    <h5 class="mb-0"> Update Stock</h5>
+</div>
+
+<div class="card-body">
+<form method="post">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label class="form-label">Pond</label>
+        {{ form.pond }}
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Species</label>
+        {{ form.species }}
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Quantity</label>
+        {{ form.quantity }}
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Stocking Date</label>
+        {{ form.stocking_date }}
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Cost</label>
+        {{ form.cost }}
+    </div>
+
+    <button type="submit" class="btn btn-success">Save</button>
+    <a href="{% url 'stock_list' %}" class="btn btn-secondary">Cancel</a>
+
+</form>
+</div>
+</div>
+
+{% endblock %}

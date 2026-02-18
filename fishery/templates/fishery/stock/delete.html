@@ -1,0 +1,23 @@
+{% extends 'fishery/base_fishery.html' %}
+{% block fishery_content %}
+
+<div class="card shadow border-0">
+<div class="card-body text-center">
+
+<h5 class="text-danger mb-3">Confirm Delete</h5>
+
+<p>
+Are you sure you want to delete
+<strong>{{ object.species.name }} - {{ object.pond.name }}</strong> ?
+</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Yes, Delete</button>
+    <a href="{% url 'stock_list' %}" class="btn btn-secondary">Cancel</a>
+</form>
+
+</div>
+</div>
+
+{% endblock %}

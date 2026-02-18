@@ -4,9 +4,9 @@ from django.views.generic import (
     UpdateView, DeleteView, TemplateView
 )
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .models import Pond, FishSpecies
+from .models import Pond, FishSpecies, Stock, FeedRecord
+from .forms import PondForm, FishSpeciesForm, StockForm, FeedRecordForm
 from django.contrib import messages
-from .forms import PondForm, FishSpeciesForm 
 
 
 # base fishery views  
@@ -95,3 +95,89 @@ class FishSpeciesDeleteView(DeleteView):
     def delete(self, request, *args, **kwargs):
         messages.success(self.request, "Fish Species deleted successfully.")
         return super().delete(request, *args, **kwargs)
+    
+
+# stock views  
+
+class StockListView(ListView):
+    model = Stock
+    template_name = "fishery/stock/list.html"
+    context_object_name = "stocks"
+
+
+class StockDetailView(DetailView):
+    model = Stock
+    template_name = "fishery/stock/detail.html"
+    context_object_name = "stock"
+
+
+class StockCreateView(CreateView):
+    model = Stock
+    form_class = StockForm
+    template_name = "fishery/stock/create.html"
+    success_url = reverse_lazy('stock_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, "Stock created successfully.")
+        return super().form_valid(form)
+
+
+class StockUpdateView(UpdateView):
+    model = Stock
+    form_class = StockForm
+    template_name = "fishery/stock/update.html"
+    success_url = reverse_lazy('stock_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, "Stock updated successfully.")
+        return super().form_valid(form)
+
+
+class StockDeleteView(DeleteView):
+    model = Stock
+    template_name = "fishery/stock/delete.html"
+    success_url = reverse_lazy('stock_list')
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(self.request, "Stock deleted successfully.")
+        return super().delete(request, *args, **kwargs)
+    
+
+# Feed record views 
+
+# List all feed records
+class FeedListView(LoginRequiredMixin, ListView):
+    model = FeedRecord
+    template_name = 'fishery/feed/feed_list.html'
+    context_object_name = 'feeds'
+    ordering = ['-date']
+
+# Create new feed record
+class FeedCreateView(LoginRequiredMixin, CreateView):
+    model = FeedRecord
+    form_class = FeedRecordForm
+    template_name = 'fishery/feed/feed_form.html'
+    success_url = reverse_lazy('feed_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Add Feed Record'
+        return context
+
+# Update existing feed record
+class FeedUpdateView(LoginRequiredMixin, UpdateView):
+    model = FeedRecord
+    form_class = FeedRecordForm
+    template_name = 'fishery/feed/feed_form.html'
+    success_url = reverse_lazy('feed_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Edit Feed Record'
+        return context
+
+# Delete a feed record
+class FeedDeleteView(LoginRequiredMixin, DeleteView):
+    model = FeedRecord
+    template_name = 'fishery/feed/feed_confirm_delete.html'
+    success_url = reverse_lazy('feed_list')

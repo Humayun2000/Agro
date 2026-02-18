@@ -1,0 +1,28 @@
+{% extends 'fishery/base_fishery.html' %}
+{% block fishery_content %}
+
+<div class="card shadow border-0">
+<div class="card-header bg-info text-white">
+    <h5 class="mb-0">Stock Details</h5>
+</div>
+
+<div class="card-body">
+
+<p><strong>Pond:</strong> {{ stock.pond.name }}</p>
+<p><strong>Species:</strong> {{ stock.species.name }}</p>
+<p><strong>Stocked:</strong> {{ stock.quantity }}</p>
+<p><strong>Total Mortality:</strong> {{ stock.total_mortality }}</p>
+<p><strong>Total Harvest:</strong> {{ stock.total_harvest }}</p>
+<p><strong>Remaining:</strong>
+    <span class="text-success fw-bold">
+        {{ stock.remaining_quantity }}
+    </span>
+</p>
+
+<a href="{% url 'stock_update' stock.id %}" class="btn btn-warning">Edit</a>
+<a href="{% url 'stock_list' %}" class="btn btn-secondary">Back</a>
+
+</div>
+</div>
+
+{% endblock %}

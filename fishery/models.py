@@ -1,5 +1,8 @@
 from django.db import models
 
+from django.db.models import Sum
+from django.core.exceptions import ValidationError
+
 class Pond(models.Model):
     name = models.CharField(max_length=100)
     size_in_acres = models.FloatField()
@@ -18,15 +21,41 @@ class FishSpecies(models.Model):
         return self.name
 
 class Stock(models.Model):
-    pond = models.ForeignKey(Pond, on_delete=models.CASCADE)
-    species = models.ForeignKey(FishSpecies, on_delete=models.CASCADE)
-    quantity = models.IntegerField()
+    pond = models.ForeignKey(
+        'Pond',
+        on_delete=models.CASCADE,
+        related_name='stocks'
+    )
+    species = models.ForeignKey(
+        'FishSpecies',
+        on_delete=models.CASCADE,
+        related_name='stocks'
+    )
+    quantity = models.PositiveIntegerField()
     stocking_date = models.DateField()
-    cost = models.DecimalField(max_digits=10, decimal_places=2)
+    cost = models.DecimalField(max_digits=12, decimal_places=2)
+
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True) 
+
+    class Meta:
+        ordering = ['-stocking_date']
+
+    def total_mortality(self):
+        return self.mortalityrecord_set.aggregate(
+            total=Sum('quantity_dead')
+        )['total'] or 0
+
+    def total_harvest(self):
+        return self.harvest_set.aggregate(
+            total=Sum('quantity_kg')
+        )['total'] or 0
+
+    def remaining_quantity(self):
+        return self.quantity - self.total_mortality() - self.total_harvest()
 
     def __str__(self):
         return f"{self.species.name} - {self.pond.name}"
-
+    
 
 class FeedRecord(models.Model):
     pond = models.ForeignKey(Pond, on_delete=models.CASCADE)
@@ -39,24 +68,44 @@ class FeedRecord(models.Model):
         return f"{self.pond.name} - {self.feed_type}"
 
 class MortalityRecord(models.Model):
-    pond = models.ForeignKey(Pond, on_delete=models.CASCADE)
-    species = models.ForeignKey(FishSpecies, on_delete=models.CASCADE)
-    quantity_dead = models.IntegerField()
+    stock = models.ForeignKey(
+        Stock,
+        on_delete=models.CASCADE,
+        related_name='mortalityrecord_set',
+        null=True,   # ✅ allows existing rows to stay valid
+        blank=True
+    )
+    quantity_dead = models.PositiveIntegerField()
     date = models.DateField()
     reason = models.TextField(blank=True)
 
+    def clean(self):
+        if self.stock and self.quantity_dead > self.stock.remaining_quantity():
+            raise ValidationError("Mortality exceeds remaining stock.")
+
     def __str__(self):
-        return f"{self.species.name} - {self.quantity_dead}"
+        # ✅ safe display even if stock is null
+        if self.stock:
+            return f"{self.stock.species.name} - {self.quantity_dead}"
+        return f"No Stock - {self.quantity_dead}"
 
 class Harvest(models.Model):
-    pond = models.ForeignKey(Pond, on_delete=models.CASCADE)
-    species = models.ForeignKey(FishSpecies, on_delete=models.CASCADE)
-    quantity_kg = models.FloatField()
+    stock = models.ForeignKey(
+        Stock,
+        on_delete=models.CASCADE,
+        related_name='harvest_set',
+        null=True,          # ✅ Added
+        blank=True          # ✅ Added
+    )
+    quantity_kg = models.PositiveIntegerField()
     harvest_date = models.DateField()
 
-    def __str__(self):
-        return f"Harvest - {self.pond.name}"
+    def clean(self):
+        if self.stock and self.quantity_kg > self.stock.remaining_quantity():
+            raise ValidationError("Harvest exceeds remaining stock.")
 
+    def __str__(self):
+        return f"Harvest - {self.stock.pond.name if self.stock else 'No Stock'}"
 class FishSale(models.Model):
     harvest = models.ForeignKey(Harvest, on_delete=models.CASCADE)
     buyer_name = models.CharField(max_length=100)

@@ -70,7 +70,11 @@ class FeedRecordForm(BootstrapFormMixin, forms.ModelForm):
         model = FeedRecord
         fields = '__all__'
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'})
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'pond': forms.Select(attrs={'class': 'form-select'}),
+            'feed_type': forms.TextInput(attrs={'class': 'form-control'}),
+            'quantity_kg': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'cost': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
 
 
