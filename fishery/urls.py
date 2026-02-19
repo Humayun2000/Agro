@@ -33,4 +33,16 @@ urlpatterns = [
     path('feed/add/', FeedCreateView.as_view(), name='feed_create'),
     path('feed/<int:pk>/edit/', FeedUpdateView.as_view(), name='feed_update'),
     path('feed/<int:pk>/delete/', FeedDeleteView.as_view(), name='feed_delete'),
+
+    # mortality record all urls
+    path('mortality/', MortalityListView.as_view(), name='mortality_list'),
+    path('mortality/add/', MortalityCreateView.as_view(), name='mortality_create'),
+    path('mortality/<int:pk>/edit/', MortalityUpdateView.as_view(), name='mortality_update'),
+    path('mortality/<int:pk>/delete/', MortalityDeleteView.as_view(), name='mortality_delete'),
+
+    # harvest all urls
+    path('harvest/', HarvestListView.as_view(), name='harvest_list'),
+    path('harvest/add/', HarvestCreateView.as_view(), name='harvest_create'),
+    path('harvest/<int:pk>/edit/', HarvestUpdateView.as_view(), name='harvest_update'),
+    path('harvest/<int:pk>/delete/', HarvestDeleteView.as_view(), name='harvest_delete'),
 ]

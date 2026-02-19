@@ -1,0 +1,53 @@
+{% extends "fishery/base_fishery.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between mb-3">
+        <h4>Mortality Records</h4>
+        <a href="{% url 'mortality_create' %}" class="btn btn-primary">
+            Add Mortality
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Stock</th>
+                        <th>Quantity Dead</th>
+                        <th>Date</th>
+                        <th>Reason</th>
+                        <th width="150">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>
+                            {% if record.stock %}
+                                {{ record.stock.species.name }}
+                            {% else %}
+                                No Stock
+                            {% endif %}
+                        </td>
+                        <td>{{ record.quantity_dead }}</td>
+                        <td>{{ record.date }}</td>
+                        <td>{{ record.reason }}</td>
+                        <td>
+                            <a href="{% url 'mortality_update' record.pk %}" class="btn btn-sm btn-warning">Edit</a>
+                            <a href="{% url 'mortality_delete' record.pk %}" class="btn btn-sm btn-danger">Delete</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

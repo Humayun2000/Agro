@@ -58,7 +58,7 @@
         <div class="card shadow border-0">
             <div class="card-body text-center">
                 <h5>Mortality</h5>
-                <a href="#" class="btn btn-outline-warning btn-sm mt-2">
+                <a href="{% url 'mortality_list' %}" class="btn btn-outline-warning btn-sm mt-2">
                     Manage
                 </a>
             </div>
@@ -68,7 +68,19 @@
     <div class="col-md-4">
         <div class="card shadow border-0">
             <div class="card-body text-center">
-                <h5>Harvest & Sales</h5>
+                <h5>Harvest</h5>
+                <a href="{% url 'harvest_list' %}" class="btn btn-outline-danger btn-sm mt-2">
+                    Manage
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+    <div class="col-md-4 g-4 mt-2">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <h5>Sales</h5>
                 <a href="#" class="btn btn-outline-danger btn-sm mt-2">
                     Manage
                 </a>

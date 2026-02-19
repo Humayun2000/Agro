@@ -4,8 +4,8 @@ from django.views.generic import (
     UpdateView, DeleteView, TemplateView
 )
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .models import Pond, FishSpecies, Stock, FeedRecord
-from .forms import PondForm, FishSpeciesForm, StockForm, FeedRecordForm
+from .models import Pond, FishSpecies, Stock, FeedRecord, MortalityRecord, Harvest
+from .forms import PondForm, FishSpeciesForm, StockForm, FeedRecordForm, MortalityRecordForm, HarvestForm
 from django.contrib import messages
 
 
@@ -181,3 +181,80 @@ class FeedDeleteView(LoginRequiredMixin, DeleteView):
     model = FeedRecord
     template_name = 'fishery/feed/feed_confirm_delete.html'
     success_url = reverse_lazy('feed_list')
+
+
+# Mortality record views 
+
+class MortalityListView(LoginRequiredMixin, ListView):
+    model = MortalityRecord
+    template_name = 'fishery/mortality/mortality_list.html'
+    context_object_name = 'records'
+    ordering = ['-date']
+
+
+class MortalityCreateView(LoginRequiredMixin, CreateView):
+    model = MortalityRecord
+    form_class = MortalityRecordForm
+    template_name = 'fishery/mortality/mortality_form.html'
+    success_url = reverse_lazy('mortality_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Add Mortality Record'
+        return context
+
+
+class MortalityUpdateView(LoginRequiredMixin, UpdateView):
+    model = MortalityRecord
+    form_class = MortalityRecordForm
+    template_name = 'fishery/mortality/mortality_form.html'
+    success_url = reverse_lazy('mortality_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Edit Mortality Record'
+        return context
+
+
+class MortalityDeleteView(LoginRequiredMixin, DeleteView):
+    model = MortalityRecord
+    template_name = 'fishery/mortality/mortality_confirm_delete.html'
+    success_url = reverse_lazy('mortality_list')
+
+# Harvest views will be implemented in the next phase of development.
+
+class HarvestListView(LoginRequiredMixin, ListView):
+    model = Harvest
+    template_name = 'fishery/harvest/harvest_list.html'
+    context_object_name = 'harvests'
+    ordering = ['-harvest_date']
+
+
+class HarvestCreateView(LoginRequiredMixin, CreateView):
+    model = Harvest
+    form_class = HarvestForm
+    template_name = 'fishery/harvest/harvest_form.html'
+    success_url = reverse_lazy('harvest_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Add Harvest Record'
+        return context
+
+
+class HarvestUpdateView(LoginRequiredMixin, UpdateView):
+    model = Harvest
+    form_class = HarvestForm
+    template_name = 'fishery/harvest/harvest_form.html'
+    success_url = reverse_lazy('harvest_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Edit Harvest Record'
+        return context
+
+
+class HarvestDeleteView(LoginRequiredMixin, DeleteView):
+    model = Harvest
+    template_name = 'fishery/harvest/harvest_confirm_delete.html'
+    success_url = reverse_lazy('harvest_list')

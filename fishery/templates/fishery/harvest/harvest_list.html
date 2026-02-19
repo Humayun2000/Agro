@@ -1,0 +1,57 @@
+{% extends "fishery/base_fishery.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between mb-3">
+        <h4>Harvest Records</h4>
+        <a href="{% url 'harvest_create' %}" class="btn btn-primary">
+            Add Harvest
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Pond</th>
+                        <th>Species</th>
+                        <th>Quantity (kg)</th>
+                        <th>Date</th>
+                        <th width="150">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for harvest in harvests %}
+                    <tr>
+                        <td>
+                            {% if harvest.stock %}
+                                {{ harvest.stock.pond.name }}
+                            {% else %}
+                                No Stock
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if harvest.stock %}
+                                {{ harvest.stock.species.name }}
+                            {% endif %}
+                        </td>
+                        <td>{{ harvest.quantity_kg }}</td>
+                        <td>{{ harvest.harvest_date }}</td>
+                        <td>
+                            <a href="{% url 'harvest_update' harvest.pk %}" class="btn btn-sm btn-warning">Edit</a>
+                            <a href="{% url 'harvest_delete' harvest.pk %}" class="btn btn-sm btn-danger">Delete</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No harvest records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

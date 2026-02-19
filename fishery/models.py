@@ -89,6 +89,8 @@ class MortalityRecord(models.Model):
             return f"{self.stock.species.name} - {self.quantity_dead}"
         return f"No Stock - {self.quantity_dead}"
 
+
+
 class Harvest(models.Model):
     stock = models.ForeignKey(
         Stock,
@@ -106,6 +108,7 @@ class Harvest(models.Model):
 
     def __str__(self):
         return f"Harvest - {self.stock.pond.name if self.stock else 'No Stock'}"
+    
 class FishSale(models.Model):
     harvest = models.ForeignKey(Harvest, on_delete=models.CASCADE)
     buyer_name = models.CharField(max_length=100)

@@ -1,0 +1,47 @@
+{% extends "fishery/base_fishery.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">{{ title }}</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.stock.label_tag }}
+                        {{ form.stock }}
+                        {{ form.stock.errors }}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        {{ form.quantity_dead.label_tag }}
+                        {{ form.quantity_dead }}
+                        {{ form.quantity_dead.errors }}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        {{ form.date.label_tag }}
+                        {{ form.date }}
+                        {{ form.date.errors }}
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                        {{ form.reason.label_tag }}
+                        {{ form.reason }}
+                        {{ form.reason.errors }}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success">Save</button>
+                <a href="{% url 'mortality_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

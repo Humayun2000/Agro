@@ -84,7 +84,10 @@ class MortalityRecordForm(BootstrapFormMixin, forms.ModelForm):
         model = MortalityRecord
         fields = '__all__'
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'})
+            'stock': forms.Select(attrs={'class': 'form-select'}),
+            'quantity_dead': forms.NumberInput(attrs={'class': 'form-control'}),
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
 
@@ -94,9 +97,13 @@ class HarvestForm(BootstrapFormMixin, forms.ModelForm):
         model = Harvest
         fields = '__all__'
         widgets = {
-            'harvest_date': forms.DateInput(attrs={'type': 'date'})
+            'stock': forms.Select(attrs={'class': 'form-select'}),
+            'quantity_kg': forms.NumberInput(attrs={'class': 'form-control'}),
+            'harvest_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-control'
+            }),
         }
-
 
 # ---------- Sale Form ----------
 class FishSaleForm(BootstrapFormMixin, forms.ModelForm):
