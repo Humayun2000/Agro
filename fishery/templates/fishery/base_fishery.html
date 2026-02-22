@@ -3,65 +3,166 @@
 
 {% block content %}
 
+<style>
+    body {
+        overflow-x: hidden;
+    }
+
+    .sidebar {
+        min-height: 100vh;
+        background: #1e293b;
+    }
+
+    .sidebar .nav-link {
+        color: #cbd5e1;
+        border-radius: 6px;
+        padding: 8px 12px;
+        transition: all 0.2s ease;
+    }
+
+    .sidebar .nav-link:hover {
+        background-color: #334155;
+        color: #ffffff;
+    }
+
+    .sidebar .nav-link.active {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+    .top-navbar {
+        background-color: #ffffff;
+        border-bottom: 1px solid #e5e7eb;
+    }
+</style>
+
 <div class="container-fluid">
     <div class="row">
 
         <!-- Sidebar -->
-        <div class="col-md-3 col-lg-2 bg-dark min-vh-100 p-3">
-            <h5 class="text-white mb-4">Fish Farm Panel</h5>
+        <nav id="sidebarMenu"
+             class="col-md-3 col-lg-2 d-md-block sidebar collapse">
 
-            <ul class="nav flex-column">
+            <div class="position-sticky pt-3 p-3">
 
-                <li class="nav-item mb-2">
-                    <a class="nav-link text-light" href="{% url 'pond_list' %}">
-                        🏞 Pond Management
-                    </a>
-                </li>
+                <h5 class="text-white mb-4 fw-bold">
+                    🐟 Sheikh-Agro
+                </h5>
 
-                <li class="nav-item mb-2">
-                    <a class="nav-link text-light" href="{% url 'fishspecies_list' %}">
-                        🐟 Fish Species
-                    </a>
-                </li>
+                <ul class="nav flex-column">
 
-                <li class="nav-item mb-2">
-                    <a class="nav-link text-light" href="{% url 'stock_list' %}">
-                        📦 Stock
-                    </a>
-                </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+                           href="{% url 'dashboard' %}">
+                            📊 Dashboard
+                        </a>
+                    </li>
 
-                <li class="nav-item mb-2">
-                    <a class="nav-link text-light" href="{% url 'feed_list' %}">
-                        🌾 Feed Records
-                    </a>
-                </li>
+                    <hr class="text-secondary">
 
-                <li class="nav-item mb-2">
-                    <a class="nav-link text-light" href="{% url 'mortality_list' %}">
-                        ⚠ Mortality
-                    </a>
-                </li>
+                    <small class="text-secondary">Core Management</small>
 
-                <li class="nav-item mb-2">
-                    <a class="nav-link text-light" href="{% url 'harvest_list' %}">
-                        🧺 Harvest
-                    </a>
-                </li>
+                    <li class="nav-item mt-2">
+                        <a class="nav-link" href="{% url 'pond_list' %}">
+                            🏞 Pond Management
+                        </a>
+                    </li>
 
-                <li class="nav-item mb-2">
-                    <a class="nav-link text-light" href="#">
-                        💰 Fish Sales
-                    </a>
-                </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'fishspecies_list' %}">
+                            🐟 Fish Species
+                        </a>
+                    </li>
 
-            </ul>
-        </div>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'stock_list' %}">
+                            📦 Stock
+                        </a>
+                    </li>
 
-        <!-- Main Content -->
-        <div class="col-md-9 col-lg-10 p-4">
-            {% block fishery_content %}
-            {% endblock %}
-        </div>
+                    <hr class="text-secondary">
+
+                    <small class="text-secondary">Operations</small>
+
+                    <li class="nav-item mt-2">
+                        <a class="nav-link" href="{% url 'feed_list' %}">
+                            🌾 Feed Records
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'mortality_list' %}">
+                            ⚠ Mortality
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'harvest_list' %}">
+                            🧺 Harvest
+                        </a>
+                    </li>
+
+                    <hr class="text-secondary">
+
+                    <small class="text-secondary">Finance</small>
+
+                    <li class="nav-item mt-2">
+                        <a class="nav-link" href="{% url 'sale_list' %}">
+                            💰 Fish Sales
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'financialy_dashboard' %}">
+                            📈 Financial Dashboard
+                        </a>
+                    </li>
+
+                    <hr class="text-secondary">
+
+                    <li class="nav-item mt-3">
+                        <a class="nav-link text-danger" href="{% url 'logout' %}">
+                            🚪 Logout
+                        </a>
+                    </li>
+
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Area -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+
+            <!-- Top Navbar -->
+            <div class="top-navbar d-flex justify-content-between align-items-center py-3 px-2">
+
+                <!-- Mobile Toggle -->
+                <button class="btn btn-outline-secondary d-md-none"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#sidebarMenu">
+                    ☰
+                </button>
+
+                <h5 class="mb-0 fw-semibold">
+                    Fishery Management System
+                </h5>
+
+                <div>
+                    <span class="me-3 text-muted">
+                        Welcome, {{ request.user.username }}
+                    </span>
+                </div>
+
+            </div>
+
+            <!-- Page Content -->
+            <div class="py-4">
+                {% block fishery_content %}
+                {% endblock %}
+            </div>
+
+        </main>
 
     </div>
 </div>

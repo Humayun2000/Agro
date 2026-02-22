@@ -3,9 +3,20 @@ from django.views.generic import (
     ListView, CreateView, DetailView,
     UpdateView, DeleteView, TemplateView
 )
+from .services import (
+    total_stock_investment,
+    total_feed_expense,
+    total_revenue,
+    net_profit,
+    mortality_percentage,
+    harvest_yield_percentage,
+    roi_percentage,
+    total_capital
+)
+
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .models import Pond, FishSpecies, Stock, FeedRecord, MortalityRecord, Harvest
-from .forms import PondForm, FishSpeciesForm, StockForm, FeedRecordForm, MortalityRecordForm, HarvestForm
+from .models import Pond, FishSpecies, Stock, FeedRecord, MortalityRecord, Harvest, FishSale
+from .forms import PondForm, FishSpeciesForm, StockForm, FeedRecordForm, MortalityRecordForm, HarvestForm, FishSaleForm
 from django.contrib import messages
 
 
@@ -18,21 +29,21 @@ class FisheryDashboardView(TemplateView):
 # LIST
 class PondListView(LoginRequiredMixin, ListView):
     model = Pond
-    template_name = 'fishery/pond_list.html'
+    template_name = 'fishery/pond/pond_list.html'
     context_object_name = 'ponds'
 
 
 # DETAIL
 class PondDetailView(LoginRequiredMixin, DetailView):
     model = Pond
-    template_name = 'fishery/pond_detail.html'
+    template_name = 'fishery/pond/pond_detail.html'
 
 
 # CREATE
 class PondCreateView(LoginRequiredMixin, CreateView):
     model = Pond
     form_class = PondForm
-    template_name = 'fishery/pond_form.html'
+    template_name = 'fishery/pond/pond_form.html'
     success_url = reverse_lazy('pond_list')
 
 
@@ -40,14 +51,14 @@ class PondCreateView(LoginRequiredMixin, CreateView):
 class PondUpdateView(LoginRequiredMixin, UpdateView):
     model = Pond
     form_class = PondForm
-    template_name = 'fishery/pond_form.html'
+    template_name = 'fishery/pond/pond_form.html'
     success_url = reverse_lazy('pond_list')
 
 
 # DELETE
 class PondDeleteView(LoginRequiredMixin, DeleteView):
     model = Pond
-    template_name = 'fishery/pond_confirm_delete.html'
+    template_name = 'fishery/pond/pond_confirm_delete.html'
     success_url = reverse_lazy('pond_list')
 
 
@@ -258,3 +269,64 @@ class HarvestDeleteView(LoginRequiredMixin, DeleteView):
     model = Harvest
     template_name = 'fishery/harvest/harvest_confirm_delete.html'
     success_url = reverse_lazy('harvest_list')
+
+
+
+# fishery analytics view
+
+class FisheryFinancialDashboardView(LoginRequiredMixin, TemplateView):
+    template_name = 'fishery/financialy_dashboard.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context['stock_investment'] = total_stock_investment()
+        context['feed_expense'] = total_feed_expense()
+        context['revenue'] = total_revenue()
+        context['capital'] = total_capital()
+        context['profit'] = net_profit()
+
+        context['mortality_percent'] = mortality_percentage()
+        context['harvest_percent'] = harvest_yield_percentage()
+        context['roi'] = roi_percentage()
+
+        return context
+    
+
+# fish sales views 
+
+class FishSaleListView(LoginRequiredMixin, ListView):
+    model = FishSale
+    template_name = 'fishery/sale/sale_list.html'
+    context_object_name = 'sales'
+    ordering = ['-sale_date']
+
+
+class FishSaleCreateView(LoginRequiredMixin, CreateView):
+    model = FishSale
+    form_class = FishSaleForm
+    template_name = 'fishery/sale/sale_form.html'
+    success_url = reverse_lazy('sale_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Add Fish Sale'
+        return context
+
+
+class FishSaleUpdateView(LoginRequiredMixin, UpdateView):
+    model = FishSale
+    form_class = FishSaleForm
+    template_name = 'fishery/sale/sale_form.html'
+    success_url = reverse_lazy('sale_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Edit Fish Sale'
+        return context
+
+
+class FishSaleDeleteView(LoginRequiredMixin, DeleteView):
+    model = FishSale
+    template_name = 'fishery/sale/sale_confirm_delete.html'
+    success_url = reverse_lazy('sale_list')

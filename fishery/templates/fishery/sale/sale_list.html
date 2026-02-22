@@ -1,0 +1,51 @@
+{% extends "fishery/base_fishery.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between mb-3">
+        <h4>Fish Sales</h4>
+        <a href="{% url 'sale_create' %}" class="btn btn-primary">
+            Add Sale
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Pond</th>
+                        <th>Species</th>
+                        <th>Quantity (kg)</th>
+                        <th>Price/kg</th>
+                        <th>Total</th>
+                        <th>Date</th>
+                        <th width="150">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td>{{ sale.harvest.stock.pond.name }}</td>
+                        <td>{{ sale.harvest.stock.species.name }}</td>
+                        <td>{{ sale.quantity_kg }}</td>
+                        <td>{{ sale.price_per_kg }}</td>
+                        <td>{{ sale.total_amount }}</td>
+                        <td>{{ sale.sale_date }}</td>
+                        <td>
+                            <a href="{% url 'sale_update' sale.pk %}" class="btn btn-sm btn-warning">Edit</a>
+                            <a href="{% url 'sale_delete' sale.pk %}" class="btn btn-sm btn-danger">Delete</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No sales found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

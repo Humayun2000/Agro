@@ -111,5 +111,14 @@ class FishSaleForm(BootstrapFormMixin, forms.ModelForm):
         model = FishSale
         fields = '__all__'
         widgets = {
-            'sale_date': forms.DateInput(attrs={'type': 'date'})
+            'harvest': forms.Select(attrs={'class': 'form-select'}),
+            'quantity_kg': forms.NumberInput(attrs={'class': 'form-control'}),
+            'price_per_kg': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01'
+            }),
+            'sale_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-control'
+            }),
         }

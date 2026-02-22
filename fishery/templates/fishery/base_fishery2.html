@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+
+
+
+<div class="container-fluid">
+    <div class="row">
+
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 bg-dark min-vh-100 p-3">
+            <h5 class="text-white mb-4">Fish Farm Panel</h5>
+
+            <ul class="nav flex-column">
+
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-light" href="{% url 'pond_list' %}">
+                        🏞 Pond Management
+                    </a>
+                </li>
+
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-light" href="{% url 'fishspecies_list' %}">
+                        🐟 Fish Species
+                    </a>
+                </li>
+
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-light" href="{% url 'stock_list' %}">
+                        📦 Stock
+                    </a>
+                </li>
+
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-light" href="{% url 'feed_list' %}">
+                        🌾 Feed Records
+                    </a>
+                </li>
+
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-light" href="{% url 'mortality_list' %}">
+                        ⚠ Mortality
+                    </a>
+                </li>
+
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-light" href="{% url 'harvest_list' %}">
+                        🧺 Harvest
+                    </a>
+                </li>
+
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-light" href="{% url 'sale_list' %}">
+                        💰 Fish Sales
+                    </a>
+                </li>
+
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 p-4">
+            {% block fishery_content %}
+            {% endblock %}
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

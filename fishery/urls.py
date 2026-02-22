@@ -45,4 +45,16 @@ urlpatterns = [
     path('harvest/add/', HarvestCreateView.as_view(), name='harvest_create'),
     path('harvest/<int:pk>/edit/', HarvestUpdateView.as_view(), name='harvest_update'),
     path('harvest/<int:pk>/delete/', HarvestDeleteView.as_view(), name='harvest_delete'),
+
+
+    # financial overview url
+    path('financial-dashboard/', FisheryFinancialDashboardView.as_view(), name='financialy_dashboard'),
+
+    # fish sale urls 
+
+    path('sale/', FishSaleListView.as_view(), name='sale_list'),
+    path('sale/add/', FishSaleCreateView.as_view(), name='sale_create'),
+    path('sale/<int:pk>/edit/', FishSaleUpdateView.as_view(), name='sale_update'),
+    path('sale/<int:pk>/delete/', FishSaleDeleteView.as_view(), name='sale_delete'),
+
 ]

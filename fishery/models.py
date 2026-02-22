@@ -1,7 +1,8 @@
 from django.db import models
 
-from django.db.models import Sum
-from django.core.exceptions import ValidationError
+from django.db.models import Sum, F, DecimalField
+from django.core.exceptions import ValidationError 
+
 
 class Pond(models.Model):
     name = models.CharField(max_length=100)
@@ -56,6 +57,25 @@ class Stock(models.Model):
     def __str__(self):
         return f"{self.species.name} - {self.pond.name}"
     
+    def total_feed_cost(self):
+        return FeedRecord.objects.filter(
+            pond=self.pond
+        ).aggregate(total=Sum('cost'))['total'] or 0
+
+    def total_sale_revenue(self):
+        return FishSale.objects.filter(
+            harvest__stock=self
+        ).aggregate(total=Sum(
+            F('quantity_kg') * F('price_per_kg'),
+            output_field=DecimalField()
+        ))['total'] or 0
+
+    def total_capital(self):
+        return self.cost + self.total_feed_cost()
+
+    def profit(self):
+        return self.total_sale_revenue() - self.total_capital()
+        
 
 class FeedRecord(models.Model):
     pond = models.ForeignKey(Pond, on_delete=models.CASCADE)
@@ -110,12 +130,37 @@ class Harvest(models.Model):
         return f"Harvest - {self.stock.pond.name if self.stock else 'No Stock'}"
     
 class FishSale(models.Model):
-    harvest = models.ForeignKey(Harvest, on_delete=models.CASCADE)
-    buyer_name = models.CharField(max_length=100)
+    harvest = models.ForeignKey(
+        Harvest,
+        on_delete=models.CASCADE,
+        related_name='sales'
+    )
+    quantity_kg = models.PositiveIntegerField(default=True)
     price_per_kg = models.DecimalField(max_digits=10, decimal_places=2)
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     sale_date = models.DateField()
 
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-sale_date']
+
+    def clean(self):
+        if self.harvest:
+            total_sold = self.harvest.sales.aggregate(
+                total=Sum('quantity_kg')
+            )['total'] or 0
+
+            # Exclude current instance during update
+            if self.pk:
+                total_sold -= self.quantity_kg
+
+            if total_sold + self.quantity_kg > self.harvest.quantity_kg:
+                raise ValidationError("Sale exceeds harvested quantity.")
+
+    @property
+    def total_amount(self):
+        return self.quantity_kg * self.price_per_kg
+
     def __str__(self):
-        return f"Sale - {self.buyer_name}"
+        return f"Sale - {self.harvest.stock.pond.name}"
 
