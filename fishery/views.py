@@ -15,8 +15,8 @@ from .services import (
 )
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .models import Pond, FishSpecies, Stock, FeedRecord, MortalityRecord, Harvest, FishSale
-from .forms import PondForm, FishSpeciesForm, StockForm, FeedRecordForm, MortalityRecordForm, HarvestForm, FishSaleForm
+from .models import Pond, FishSpecies, Stock, FeedRecord, MortalityRecord, Harvest, FishSale, ProductionCycle
+from .forms import PondForm, FishSpeciesForm, StockForm, FeedRecordForm, MortalityRecordForm, HarvestForm, FishSaleForm, ProductionCycleForm
 from django.contrib import messages
 
 
@@ -330,3 +330,38 @@ class FishSaleDeleteView(LoginRequiredMixin, DeleteView):
     model = FishSale
     template_name = 'fishery/sale/sale_confirm_delete.html'
     success_url = reverse_lazy('sale_list')
+
+
+# production cycle views will be implemented in the next phase of development.
+
+class ProductionCycleListView(ListView):
+    model = ProductionCycle
+    template_name = 'fishery/cycle/cycle_list.html'
+    context_object_name = 'cycles'
+    ordering = ['-stocking_date']
+
+
+class ProductionCycleCreateView(CreateView):
+    model = ProductionCycle
+    form_class = ProductionCycleForm
+    template_name = 'fishery/cycle/cycle_form.html'
+    success_url = reverse_lazy('cycle_list')
+
+
+class ProductionCycleUpdateView(UpdateView):
+    model = ProductionCycle
+    form_class = ProductionCycleForm
+    template_name = 'fishery/cycle/cycle_form.html'
+    success_url = reverse_lazy('cycle_list')
+
+
+class ProductionCycleDeleteView(DeleteView):
+    model = ProductionCycle
+    template_name = 'fishery/cycle/cycle_confirm_delete.html'
+    success_url = reverse_lazy('cycle_list')
+
+
+class ProductionCycleDetailView(DetailView):
+    model = ProductionCycle
+    template_name = 'fishery/cycle/cycle_detail.html'
+    context_object_name = 'cycle'

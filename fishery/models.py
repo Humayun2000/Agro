@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.utils import timezone
 from django.db.models import Sum, F, DecimalField
 from django.core.exceptions import ValidationError 
 
@@ -79,6 +79,7 @@ class Stock(models.Model):
 
 class FeedRecord(models.Model):
     pond = models.ForeignKey(Pond, on_delete=models.CASCADE)
+    cycle = models.ForeignKey('ProductionCycle', on_delete=models.CASCADE, blank=True, null=True)
     feed_type = models.CharField(max_length=100)
     quantity_kg = models.FloatField()
     cost = models.DecimalField(max_digits=10, decimal_places=2)
@@ -95,6 +96,7 @@ class MortalityRecord(models.Model):
         null=True,   # ✅ allows existing rows to stay valid
         blank=True
     )
+    cycle = models.ForeignKey('ProductionCycle', on_delete=models.CASCADE, blank=True, null=True)
     quantity_dead = models.PositiveIntegerField()
     date = models.DateField()
     reason = models.TextField(blank=True)
@@ -119,6 +121,7 @@ class Harvest(models.Model):
         null=True,          # ✅ Added
         blank=True          # ✅ Added
     )
+    cycle = models.ForeignKey('ProductionCycle', on_delete=models.CASCADE, blank=True, null=True)  
     quantity_kg = models.PositiveIntegerField()
     harvest_date = models.DateField()
 
@@ -163,4 +166,39 @@ class FishSale(models.Model):
 
     def __str__(self):
         return f"Sale - {self.harvest.stock.pond.name}"
+
+
+# production cycle models for fishery management, including ponds,
+# fish species, stocking, feed records, mortality records, harvests, and sales.
+# Each model includes relevant fields and methods to calculate totals and profits. 
+# Validation is implemented to ensure data integrity.      
+
+
+class ProductionCycle(models.Model):
+
+    STATUS_CHOICES = (
+        ('Running', 'Running'),
+        ('Completed', 'Completed'),
+    )
+
+    pond = models.ForeignKey('Pond', on_delete=models.CASCADE)
+    species = models.ForeignKey('FishSpecies', on_delete=models.CASCADE)
+
+    stocking_date = models.DateField(default=timezone.now)
+
+    initial_quantity = models.PositiveIntegerField()
+    initial_avg_weight = models.FloatField(help_text="Weight in grams")
+
+    expected_harvest_date = models.DateField(null=True, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='Running'
+    )
+
+    notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.pond.name} - {self.species.name} ({self.status})"
 

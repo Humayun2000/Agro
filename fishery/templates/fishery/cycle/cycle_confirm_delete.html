@@ -1,0 +1,16 @@
+{% extends 'fishery/base_fishery.html' %}
+{% block fishery_content %}
+
+<h4>Delete Cycle</h4>
+
+<div class="card p-4 shadow-sm">
+    <p>Are you sure you want to delete this cycle?</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Yes, Delete</button>
+        <a href="{% url 'cycle_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+
+{% endblock %}

@@ -6,7 +6,8 @@ from .models import (
     FeedRecord,
     MortalityRecord,
     Harvest,
-    FishSale
+    FishSale,
+    ProductionCycle
 )
 
 # ---------- Base Style Mixin ----------
@@ -122,3 +123,34 @@ class FishSaleForm(BootstrapFormMixin, forms.ModelForm):
                 'class': 'form-control'
             }),
         }
+
+
+# ---------- Production Cycle Form ----------
+
+class ProductionCycleForm(forms.ModelForm):
+    class Meta:
+        model = ProductionCycle
+        fields = '__all__'
+        widgets = {
+            'stocking_date': forms.DateInput(attrs={'type': 'date'}),
+            'expected_harvest_date': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        pond = cleaned_data.get('pond')
+        status = cleaned_data.get('status')
+
+        if status == 'Running':
+            existing = ProductionCycle.objects.filter(
+                pond=pond,
+                status='Running'
+            ).exclude(pk=self.instance.pk)
+
+            if existing.exists():
+                raise forms.ValidationError(
+                    "This pond already has a running cycle."
+                )
+
+        return cleaned_data

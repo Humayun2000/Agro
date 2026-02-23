@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.db.models import Sum
-from .models import Pond, FishSpecies, Stock, FeedRecord, MortalityRecord, Harvest, FishSale
+from .models import Pond, FishSpecies, Stock, FeedRecord, MortalityRecord, Harvest, FishSale, ProductionCycle
 
 @admin.register(Pond)
 class PondAdmin(admin.ModelAdmin):
@@ -170,3 +170,8 @@ class HarvestAdmin(admin.ModelAdmin):
 # class FishSaleAdmin(admin.ModelAdmin):
 #     list_display = ('harvest', 'quantity_kg', 'sale_price_per_kg', 'sale_date')    
 
+
+@admin.register(ProductionCycle)
+class ProductionCycleAdmin(admin.ModelAdmin):
+    list_display = ('pond', 'species', 'stocking_date', 'initial_quantity', 'status')
+    list_filter = ('status', 'pond', 'species')

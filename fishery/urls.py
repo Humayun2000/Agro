@@ -57,4 +57,11 @@ urlpatterns = [
     path('sale/<int:pk>/edit/', FishSaleUpdateView.as_view(), name='sale_update'),
     path('sale/<int:pk>/delete/', FishSaleDeleteView.as_view(), name='sale_delete'),
 
+    # production cycle urls
+    path('cycles/', ProductionCycleListView.as_view(), name='cycle_list'),
+    path('cycles/create/', ProductionCycleCreateView.as_view(), name='cycle_create'),
+    path('cycles/<int:pk>/', ProductionCycleDetailView.as_view(), name='cycle_detail'),
+    path('cycles/<int:pk>/update/', ProductionCycleUpdateView.as_view(), name='cycle_update'),
+    path('cycles/<int:pk>/delete/', ProductionCycleDeleteView.as_view(), name='cycle_delete'),
+
 ]

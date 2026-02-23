@@ -1,0 +1,17 @@
+{% extends 'fishery/base_fishery.html' %}
+{% block fishery_content %}
+
+<h4>{{ view.object|default:"Create Production Cycle" }}</h4>
+
+<form method="post" class="card p-4 shadow-sm">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-success">
+        Save
+    </button>
+    <a href="{% url 'cycle_list' %}" class="btn btn-secondary">
+        Cancel
+    </a>
+</form>
+
+{% endblock %}

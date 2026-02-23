@@ -43,7 +43,7 @@
         <div class="card dashboard-card shadow-sm text-center p-4">
             <div class="dashboard-icon text-primary">🌊</div>
             <h5>Ponds</h5>
-            <p class="text-muted small">Manage pond information and structure</p>
+            <p class="text-muted small">Manage pond information </p>
             <a href="{% url 'pond_list' %}" class="btn btn-primary btn-sm mt-2">Manage</a>
         </div>
     </div>
@@ -113,6 +113,15 @@
             <h5>Sales</h5>
             <p class="text-muted small">Manage fish sales transactions</p>
             <a href="{% url 'sale_list' %}" class="btn btn-dark btn-sm mt-2">Manage</a>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card dashboard-card shadow-sm text-center p-4">
+            <div class="dashboard-icon text-dark">🚖</div>
+            <h5>Production Cycles</h5>
+            <p class="text-muted small">Manage fish sales transactions</p>
+            <a href="{% url 'cycle_list' %}" class="btn btn-primary btn-sm mt-2">Manage</a>
         </div>
     </div>
 

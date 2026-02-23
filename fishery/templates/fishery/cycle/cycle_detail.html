@@ -1,0 +1,20 @@
+{% extends 'fishery/base_fishery.html' %}
+{% block fishery_content %}
+
+<h4>Cycle Details</h4>
+
+<div class="card p-4 shadow-sm">
+    <p><strong>Pond:</strong> {{ cycle.pond }}</p>
+    <p><strong>Species:</strong> {{ cycle.species }}</p>
+    <p><strong>Stocking Date:</strong> {{ cycle.stocking_date }}</p>
+    <p><strong>Initial Quantity:</strong> {{ cycle.initial_quantity }}</p>
+    <p><strong>Initial Avg Weight:</strong> {{ cycle.initial_avg_weight }} g</p>
+    <p><strong>Status:</strong> {{ cycle.status }}</p>
+    <p><strong>Notes:</strong> {{ cycle.notes }}</p>
+</div>
+
+<a href="{% url 'cycle_list' %}" class="btn btn-secondary mt-3">
+    Back
+</a>
+
+{% endblock %}
