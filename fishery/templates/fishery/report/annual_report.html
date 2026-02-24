@@ -1,0 +1,47 @@
+{% extends 'fishery/base_fishery.html' %}
+
+{% block fishery_content %}
+
+<div class="container mt-4">
+    <h2 class="mb-3">Annual Financial Report - {{ year }}</h2>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card p-3 shadow-sm">
+                <h5>Investments</h5>
+                <ul class="list-unstyled">
+                    <li>Fish Purchase: {{ total_fish_purchase|floatformat:2 }} BDT</li>
+                    <li>Feed Purchase: {{ total_feed_purchase|floatformat:2 }} BDT</li>
+                    <li>Other Expenses (Medicine, etc.): {{ total_other_expenses|floatformat:2 }} BDT</li>
+                    <li><strong>Total Investment: {{ total_investment|floatformat:2 }} BDT</strong></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card p-3 shadow-sm">
+                <h5>Production</h5>
+                <ul class="list-unstyled">
+                    <li>Total Harvested: {{ total_harvest }} kg</li>
+                    <li>Total Mortality: {{ total_mortality }} fish</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card p-3 shadow-sm">
+                <h5>Sales & Profit</h5>
+                <ul class="list-unstyled">
+                    <li>Total Sales Revenue: {{ total_sales|floatformat:2 }} BDT</li>
+                    <li><strong>Net Profit: {{ net_profit|floatformat:2 }} BDT</strong></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'financialy_dashboard' %}" class="btn btn-primary">Back to Financial Dashboard</a>
+    </div>
+</div>
+
+{% endblock %}

@@ -15,10 +15,12 @@ from .services import (
 )
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .models import Pond, FishSpecies, Stock, FeedRecord, MortalityRecord, Harvest, FishSale, ProductionCycle
+from .models import Pond, FishSpecies, Stock, FeedRecord, MortalityRecord, Harvest, FishSale, ProductionCycle, FisheryFinancialReport, Expense
 from .forms import PondForm, FishSpeciesForm, StockForm, FeedRecordForm, MortalityRecordForm, HarvestForm, FishSaleForm, ProductionCycleForm
-from django.contrib import messages
-
+from django.contrib import messages 
+from django.db.models import Sum, F, DecimalField, ExpressionWrapper 
+from decimal import Decimal
+from django.utils import timezone
 
 # base fishery views  
 
@@ -365,3 +367,152 @@ class ProductionCycleDetailView(DetailView):
     model = ProductionCycle
     template_name = 'fishery/cycle/cycle_detail.html'
     context_object_name = 'cycle'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        cycle = self.object
+
+        # ----------------------------
+        # Harvest Summary
+        # ----------------------------
+        total_harvest = cycle.harvests.aggregate(
+            total=Sum('quantity_kg')
+        )['total'] or 0
+
+        # ----------------------------
+        # Sales Summary
+        # ----------------------------
+        sales_queryset = FishSale.objects.filter(
+            harvest__cycle=cycle
+        )
+
+        total_sales_amount = sales_queryset.aggregate(
+            total=Sum(
+                ExpressionWrapper(
+                    F('quantity_kg') * F('price_per_kg'),
+                    output_field=DecimalField(max_digits=12, decimal_places=2)
+                )
+            )
+        )['total'] or Decimal('0.00')
+
+        total_sold_kg = sales_queryset.aggregate(
+            total=Sum('quantity_kg')
+        )['total'] or 0
+
+        # ----------------------------
+        # Expense Summary
+        # ----------------------------
+        @property
+        def total_expense(self):
+            return self.expenses.aggregate(
+                total=Sum('amount')
+            )['total'] or Decimal('0.00')
+
+        # ----------------------------
+        # Mortality Summary
+        # ----------------------------
+        total_mortality = cycle.mortalities.aggregate(
+            total=Sum('quantity_dead'))['total'] or 0
+
+        # ----------------------------
+        # Survival Rate
+        # ----------------------------
+        survival_rate = 0
+        if cycle.initial_quantity and cycle.initial_quantity > 0:
+            survival_rate = (
+                (cycle.initial_quantity - total_mortality)
+                / cycle.initial_quantity
+            ) * 100
+
+        # ----------------------------
+        # Feed Summary
+        # ----------------------------
+        total_feed = cycle.feeds.aggregate(
+            total=Sum('quantity_kg')
+        )['total'] or 0
+
+        # ----------------------------
+        # FCR (Feed Conversion Ratio)
+        # ----------------------------
+        fcr = 0
+        if total_harvest > 0:
+            fcr = total_feed / total_harvest
+
+        context.update({
+            'total_harvest': total_harvest,
+            'total_sold_kg': total_sold_kg,
+            'total_sales_amount': total_sales_amount,
+            'total_expense': total_expense,
+            'net_profit': net_profit,
+            'total_mortality': total_mortality,
+            'survival_rate': round(survival_rate, 2),
+            'total_feed': total_feed,
+            'fcr': round(fcr, 2),
+        })
+
+        return context 
+    
+
+
+# Anual report view will be implemented in the next phase of development.
+
+
+class FisheryAnnualReportView(TemplateView):
+    template_name = 'fishery/report/annual_report.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Year from URL or current year
+        year = self.kwargs.get('year') or timezone.now().year
+
+        # Total Fish Purchase (Stock cost)
+        total_fish_purchase = Stock.objects.filter(
+            stocking_date__year=year
+        ).aggregate(total=Sum('cost'))['total'] or 0
+
+        # Total Feed Purchase
+        total_feed_purchase = FeedRecord.objects.filter(
+            date__year=year
+        ).aggregate(total=Sum('cost'))['total'] or 0
+
+        # Total Expenses (Medicine, other costs)
+        total_other_expenses = Expense.objects.filter(
+            cycle__stocking_date__year=year
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+        # Total Harvested KG
+        total_harvest = Harvest.objects.filter(
+            harvest_date__year=year
+        ).aggregate(total=Sum('quantity_kg'))['total'] or 0
+
+        # Total Sales Revenue
+        total_sales = FishSale.objects.filter(
+            sale_date__year=year
+        ).aggregate(total=Sum(
+            F('quantity_kg') * F('price_per_kg'),
+            output_field=DecimalField()
+        ))['total'] or 0
+
+        # Net Profit = Sales - (Fish + Feed + Other Expenses)
+        total_investment = total_fish_purchase + total_feed_purchase + total_other_expenses
+        net_profit = total_sales - total_investment
+
+        # Total Mortality
+        total_mortality = MortalityRecord.objects.filter(
+            date__year=year
+        ).aggregate(total=Sum('quantity_dead'))['total'] or 0
+
+        context.update({
+            'year': year,
+            'total_fish_purchase': total_fish_purchase,
+            'total_feed_purchase': total_feed_purchase,
+            'total_other_expenses': total_other_expenses,
+            'total_investment': total_investment,
+            'total_harvest': total_harvest,
+            'total_sales': total_sales,
+            'net_profit': net_profit,
+            'total_mortality': total_mortality,
+        })
+
+        return context

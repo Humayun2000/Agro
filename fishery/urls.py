@@ -64,4 +64,9 @@ urlpatterns = [
     path('cycles/<int:pk>/update/', ProductionCycleUpdateView.as_view(), name='cycle_update'),
     path('cycles/<int:pk>/delete/', ProductionCycleDeleteView.as_view(), name='cycle_delete'),
 
+    # report urls
+    path('report/annual/', FisheryAnnualReportView.as_view(), name='annual_report_current'),
+    path('report/annual/<int:year>/', FisheryAnnualReportView.as_view(), name='annual_report'),
+
+
 ]

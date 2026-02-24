@@ -1,20 +1,116 @@
 {% extends 'fishery/base_fishery.html' %}
+
 {% block fishery_content %}
 
-<h4>Cycle Details</h4>
+<div class="container-fluid mt-4">
+    <h3 class="fw-bold mb-4">Production Cycle: {{ cycle.pond.name }} - {{ cycle.species.name }}</h3>
+    
+    <div class="row g-4">
 
-<div class="card p-4 shadow-sm">
-    <p><strong>Pond:</strong> {{ cycle.pond }}</p>
-    <p><strong>Species:</strong> {{ cycle.species }}</p>
-    <p><strong>Stocking Date:</strong> {{ cycle.stocking_date }}</p>
-    <p><strong>Initial Quantity:</strong> {{ cycle.initial_quantity }}</p>
-    <p><strong>Initial Avg Weight:</strong> {{ cycle.initial_avg_weight }} g</p>
-    <p><strong>Status:</strong> {{ cycle.status }}</p>
-    <p><strong>Notes:</strong> {{ cycle.notes }}</p>
+        <!-- Financial Overview -->
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow text-center">
+                <div class="card-body">
+                    <h6>Total Harvest (kg)</h6>
+                    <h4 class="text-info">{{ total_harvest }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow text-center">
+                <div class="card-body">
+                    <h6>Total Sold (kg)</h6>
+                    <h4 class="text-primary">{{ total_sold_kg }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow text-center">
+                <div class="card-body">
+                    <h6>Total Sales Amount</h6>
+                    <h4 class="text-success">${{ total_sales_amount }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow text-center">
+                <div class="card-body">
+                    <h6>Total Expense</h6>
+                    <h4 class="text-danger">${{ total_expense }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profit -->
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow text-center">
+                <div class="card-body">
+                    <h6>Net Profit</h6>
+                    <h4 class="{% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ net_profit }}
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mortality -->
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow text-center">
+                <div class="card-body">
+                    <h6>Total Mortality (fish)</h6>
+                    <h4 class="text-warning">{{ total_mortality }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Survival Rate -->
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow text-center">
+                <div class="card-body">
+                    <h6>Survival Rate (%)</h6>
+                    <h4 class="text-success">{{ survival_rate }}%</h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed & FCR -->
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow text-center">
+                <div class="card-body">
+                    <h6>Total Feed (kg)</h6>
+                    <h4 class="text-secondary">{{ total_feed }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow text-center">
+                <div class="card-body">
+                    <h6>Feed Conversion Ratio (FCR)</h6>
+                    <h4 class="text-info">{{ fcr }}</h4>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Notes Section -->
+    {% if cycle.notes %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h5>Notes</h5>
+                    <p>{{ cycle.notes }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
-
-<a href="{% url 'cycle_list' %}" class="btn btn-secondary mt-3">
-    Back
-</a>
 
 {% endblock %}
