@@ -63,6 +63,11 @@ urlpatterns = [
     path('cycles/<int:pk>/', ProductionCycleDetailView.as_view(), name='cycle_detail'),
     path('cycles/<int:pk>/update/', ProductionCycleUpdateView.as_view(), name='cycle_update'),
     path('cycles/<int:pk>/delete/', ProductionCycleDeleteView.as_view(), name='cycle_delete'),
+    path('cycles/<int:cycle_id>/expense/add/', ExpenseCreateView.as_view(), name='expense_add'),
+    # Expense URLs
+    path('expense/create/', ExpenseCreateView.as_view(), name='expense_create'),
+    path('expense/<int:pk>/update/', ExpenseUpdateView.as_view(), name='expense_update'),
+    path('expense/<int:pk>/delete/', ExpenseDeleteView.as_view(), name='expense_delete'),
 
     # report urls
     path('report/annual/', FisheryAnnualReportView.as_view(), name='annual_report_current'),

@@ -2,46 +2,187 @@
 
 {% block fishery_content %}
 
-<div class="container mt-4">
-    <h2 class="mb-3">Annual Financial Report - {{ year }}</h2>
+<div class="container-fluid px-4 py-4">
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-4">
-            <div class="card p-3 shadow-sm">
-                <h5>Investments</h5>
-                <ul class="list-unstyled">
-                    <li>Fish Purchase: {{ total_fish_purchase|floatformat:2 }} BDT</li>
-                    <li>Feed Purchase: {{ total_feed_purchase|floatformat:2 }} BDT</li>
-                    <li>Other Expenses (Medicine, etc.): {{ total_other_expenses|floatformat:2 }} BDT</li>
-                    <li><strong>Total Investment: {{ total_investment|floatformat:2 }} BDT</strong></li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card p-3 shadow-sm">
-                <h5>Production</h5>
-                <ul class="list-unstyled">
-                    <li>Total Harvested: {{ total_harvest }} kg</li>
-                    <li>Total Mortality: {{ total_mortality }} fish</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card p-3 shadow-sm">
-                <h5>Sales & Profit</h5>
-                <ul class="list-unstyled">
-                    <li>Total Sales Revenue: {{ total_sales|floatformat:2 }} BDT</li>
-                    <li><strong>Net Profit: {{ net_profit|floatformat:2 }} BDT</strong></li>
-                </ul>
-            </div>
-        </div>
+    <!-- ===== HEADER ===== -->
+    <div class="mb-5">
+        <h1 class="fw-bold display-5 mb-1">
+            Annual Financial Report
+        </h1>
+        <p class="text-muted fs-5">
+            Financial Summary for Year <strong>{{ year }}</strong>
+        </p>
+        <hr>
     </div>
 
-    <div class="mt-4">
-        <a href="{% url 'financialy_dashboard' %}" class="btn btn-primary">Back to Financial Dashboard</a>
+
+    <!-- ===================== PRIMARY KPIs ===================== -->
+    <div class="row g-4 mb-5">
+
+        <!-- Investment -->
+        <div class="col-lg-3 col-md-6">
+            <div class="card shadow border-0 rounded-4 h-100">
+                <div class="card-body p-4 text-center">
+                    <div class="fs-6 text-muted mb-2">Total Investment</div>
+                    <div class="display-6 fw-bold text-primary">
+                        {{ total_investment|floatformat:2 }} BDT
+                    </div>
+                    <div class="small text-muted mt-2">
+                        Fish + Feed + Other Expenses
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales -->
+        <div class="col-lg-3 col-md-6">
+            <div class="card shadow border-0 rounded-4 h-100">
+                <div class="card-body p-4 text-center">
+                    <div class="fs-6 text-muted mb-2">Total Sales</div>
+                    <div class="display-6 fw-bold text-success">
+                        {{ total_sales|floatformat:2 }} BDT
+                    </div>
+                    <div class="small text-muted mt-2">
+                        Annual Revenue Generated
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Net Profit -->
+        <div class="col-lg-3 col-md-6">
+            <div class="card shadow border-0 rounded-4 h-100">
+                <div class="card-body p-4 text-center">
+                    <div class="fs-6 text-muted mb-2">Net Profit</div>
+
+                    <div class="display-6 fw-bold
+                        {% if net_profit > 0 %}
+                            text-success
+                        {% elif net_profit < 0 %}
+                            text-danger
+                        {% else %}
+                            text-secondary
+                        {% endif %}
+                    ">
+                        {{ net_profit|floatformat:2 }} BDT
+                    </div>
+
+                    <div class="small mt-2">
+                        {% if net_profit > 0 %}
+                            <span class="text-success">Profitable Year</span>
+                        {% elif net_profit < 0 %}
+                            <span class="text-danger">Loss Recorded</span>
+                        {% else %}
+                            <span class="text-muted">Break Even</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROI -->
+        <div class="col-lg-3 col-md-6">
+            <div class="card shadow border-0 rounded-4 h-100">
+                <div class="card-body p-4 text-center">
+                    <div class="fs-6 text-muted mb-2">Return on Investment</div>
+
+                    {% if roi %}
+                        <div class="display-6 fw-bold
+                            {% if roi > 0 %}
+                                text-success
+                            {% elif roi < 0 %}
+                                text-danger
+                            {% else %}
+                                text-secondary
+                            {% endif %}
+                        ">
+                            {% if roi > 0 %}
+                                ↑
+                            {% elif roi < 0 %}
+                                ↓
+                            {% endif %}
+                            {{ roi|floatformat:2 }} %
+                        </div>
+                    {% else %}
+                        <div class="fs-5 text-muted">
+                            Not Available
+                        </div>
+                    {% endif %}
+
+                    <div class="small text-muted mt-2">
+                        Profit ÷ Total Investment
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
+
+
+
+    <!-- ===================== SECONDARY SECTION ===================== -->
+    <div class="row g-4 mb-5">
+
+        <!-- Investment Breakdown -->
+        <div class="col-lg-6">
+            <div class="card shadow border-0 rounded-4">
+                <div class="card-header bg-white fw-bold fs-5 border-0 py-3">
+                    Investment Breakdown
+                </div>
+                <div class="card-body fs-5">
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Fish Purchase</span>
+                        <strong>{{ total_fish_purchase|floatformat:2 }} BDT</strong>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Feed Purchase</span>
+                        <strong>{{ total_feed_purchase|floatformat:2 }} BDT</strong>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <span>Other Expenses</span>
+                        <strong>{{ total_other_expenses|floatformat:2 }} BDT</strong>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Production Summary -->
+        <div class="col-lg-6">
+            <div class="card shadow border-0 rounded-4">
+                <div class="card-header bg-white fw-bold fs-5 border-0 py-3">
+                    Production Summary
+                </div>
+                <div class="card-body fs-5">
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Total Harvest</span>
+                        <strong>{{ total_harvest }} kg</strong>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <span>Total Mortality</span>
+                        <strong>{{ total_mortality }}</strong>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- ===== FOOTER ACTION ===== -->
+    <div class="text-end">
+        <a href="{% url 'financialy_dashboard' %}" class="btn btn-lg btn-outline-primary px-4">
+            Back to Financial Dashboard
+        </a>
+    </div>
+
 </div>
 
 {% endblock %}

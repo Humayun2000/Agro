@@ -1,7 +1,7 @@
 from django.urls import reverse_lazy
 from django.views.generic import (
     ListView, CreateView, DetailView,
-    UpdateView, DeleteView, TemplateView
+    UpdateView, DeleteView, TemplateView, 
 )
 from .services import (
     total_stock_investment,
@@ -16,11 +16,12 @@ from .services import (
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import Pond, FishSpecies, Stock, FeedRecord, MortalityRecord, Harvest, FishSale, ProductionCycle, FisheryFinancialReport, Expense
-from .forms import PondForm, FishSpeciesForm, StockForm, FeedRecordForm, MortalityRecordForm, HarvestForm, FishSaleForm, ProductionCycleForm
+from .forms import PondForm, FishSpeciesForm, StockForm, FeedRecordForm, MortalityRecordForm, HarvestForm, FishSaleForm, ProductionCycleForm, ExpenseForm
 from django.contrib import messages 
 from django.db.models import Sum, F, DecimalField, ExpressionWrapper 
 from decimal import Decimal
 from django.utils import timezone
+from django.shortcuts import get_object_or_404, redirect
 
 # base fishery views  
 
@@ -297,42 +298,75 @@ class FisheryFinancialDashboardView(LoginRequiredMixin, TemplateView):
 
 # fish sales views 
 
+# ---------------------------
+# List View
+# ---------------------------
 class FishSaleListView(LoginRequiredMixin, ListView):
     model = FishSale
-    template_name = 'fishery/sale/sale_list.html'
-    context_object_name = 'sales'
-    ordering = ['-sale_date']
+    template_name = "fishery/sale/sale_list.html"
+    context_object_name = "sales"
+    paginate_by = 15
 
+    def get_queryset(self):
+        # Select related harvest → stock → pond & cycle → species
+        return FishSale.objects.select_related(
+            "harvest__stock__pond",
+            "harvest__cycle__species"
+        ).annotate(
+            pond_name=F("harvest__stock__pond__name"),
+            species_name=F("harvest__cycle__species__name")
+        ).order_by("-sale_date")
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        qs = self.get_queryset()
+
+        context["total_quantity"] = qs.aggregate(total=Sum("quantity_kg"))["total"] or 0
+        context["total_sales_amount"] = qs.aggregate(
+            total=Sum(
+                ExpressionWrapper(
+                    F("quantity_kg") * F("price_per_kg"),
+                    output_field=DecimalField(max_digits=14, decimal_places=2)
+                )
+            )
+        )["total"] or 0
+        return context
+
+# ---------------------------
+# Create View
+# ---------------------------
 class FishSaleCreateView(LoginRequiredMixin, CreateView):
     model = FishSale
     form_class = FishSaleForm
-    template_name = 'fishery/sale/sale_form.html'
-    success_url = reverse_lazy('sale_list')
+    template_name = "fishery/sale/sale_form.html"
+    success_url = reverse_lazy("sale_list")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = 'Add Fish Sale'
+        context["title"] = "Add Fish Sale"
         return context
 
-
+# ---------------------------
+# Update View
+# ---------------------------
 class FishSaleUpdateView(LoginRequiredMixin, UpdateView):
     model = FishSale
     form_class = FishSaleForm
-    template_name = 'fishery/sale/sale_form.html'
-    success_url = reverse_lazy('sale_list')
+    template_name = "fishery/sale/sale_form.html"
+    success_url = reverse_lazy("sale_list")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = 'Edit Fish Sale'
+        context["title"] = "Edit Fish Sale"
         return context
 
-
+# ---------------------------
+# Delete View
+# ---------------------------
 class FishSaleDeleteView(LoginRequiredMixin, DeleteView):
     model = FishSale
-    template_name = 'fishery/sale/sale_confirm_delete.html'
-    success_url = reverse_lazy('sale_list')
-
+    template_name = "fishery/sale/sale_confirm_delete.html"
+    success_url = reverse_lazy("sale_list")
 
 # production cycle views will be implemented in the next phase of development.
 
@@ -342,6 +376,10 @@ class ProductionCycleListView(ListView):
     context_object_name = 'cycles'
     ordering = ['-stocking_date']
 
+class ProductionCycleDetailView(DetailView):
+    model = ProductionCycle
+    template_name = 'fishery/cycle/cycle_detail.html'
+    context_object_name = 'cycle'
 
 class ProductionCycleCreateView(CreateView):
     model = ProductionCycle
@@ -349,110 +387,46 @@ class ProductionCycleCreateView(CreateView):
     template_name = 'fishery/cycle/cycle_form.html'
     success_url = reverse_lazy('cycle_list')
 
-
 class ProductionCycleUpdateView(UpdateView):
     model = ProductionCycle
     form_class = ProductionCycleForm
     template_name = 'fishery/cycle/cycle_form.html'
     success_url = reverse_lazy('cycle_list')
 
-
 class ProductionCycleDeleteView(DeleteView):
     model = ProductionCycle
     template_name = 'fishery/cycle/cycle_confirm_delete.html'
     success_url = reverse_lazy('cycle_list')
 
+class ExpenseCreateView(CreateView):
+    model = Expense
+    form_class = ExpenseForm
+    template_name = 'fishery/cycle/expense_form.html'
+    success_url = reverse_lazy('cycle_list')  # or redirect to cycle_detail
 
-class ProductionCycleDetailView(DetailView):
-    model = ProductionCycle
-    template_name = 'fishery/cycle/cycle_detail.html'
-    context_object_name = 'cycle'
+    def get_initial(self):
+        initial = super().get_initial()
+        cycle_id = self.request.GET.get('cycle')
+        if cycle_id:
+            initial['cycle'] = cycle_id
+        return initial
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        cycle = self.object
+    def form_valid(self, form):
+        messages.success(self.request, "Expense added successfully.")
+        return super().form_valid(form)
 
-        # ----------------------------
-        # Harvest Summary
-        # ----------------------------
-        total_harvest = cycle.harvests.aggregate(
-            total=Sum('quantity_kg')
-        )['total'] or 0
 
-        # ----------------------------
-        # Sales Summary
-        # ----------------------------
-        sales_queryset = FishSale.objects.filter(
-            harvest__cycle=cycle
-        )
+class ExpenseUpdateView(UpdateView):
+    model = Expense
+    form_class = ExpenseForm
+    template_name = 'fishery/cycle/expense_form.html'
+    success_url = reverse_lazy('cycle_list')
 
-        total_sales_amount = sales_queryset.aggregate(
-            total=Sum(
-                ExpressionWrapper(
-                    F('quantity_kg') * F('price_per_kg'),
-                    output_field=DecimalField(max_digits=12, decimal_places=2)
-                )
-            )
-        )['total'] or Decimal('0.00')
 
-        total_sold_kg = sales_queryset.aggregate(
-            total=Sum('quantity_kg')
-        )['total'] or 0
-
-        # ----------------------------
-        # Expense Summary
-        # ----------------------------
-        @property
-        def total_expense(self):
-            return self.expenses.aggregate(
-                total=Sum('amount')
-            )['total'] or Decimal('0.00')
-
-        # ----------------------------
-        # Mortality Summary
-        # ----------------------------
-        total_mortality = cycle.mortalities.aggregate(
-            total=Sum('quantity_dead'))['total'] or 0
-
-        # ----------------------------
-        # Survival Rate
-        # ----------------------------
-        survival_rate = 0
-        if cycle.initial_quantity and cycle.initial_quantity > 0:
-            survival_rate = (
-                (cycle.initial_quantity - total_mortality)
-                / cycle.initial_quantity
-            ) * 100
-
-        # ----------------------------
-        # Feed Summary
-        # ----------------------------
-        total_feed = cycle.feeds.aggregate(
-            total=Sum('quantity_kg')
-        )['total'] or 0
-
-        # ----------------------------
-        # FCR (Feed Conversion Ratio)
-        # ----------------------------
-        fcr = 0
-        if total_harvest > 0:
-            fcr = total_feed / total_harvest
-
-        context.update({
-            'total_harvest': total_harvest,
-            'total_sold_kg': total_sold_kg,
-            'total_sales_amount': total_sales_amount,
-            'total_expense': total_expense,
-            'net_profit': net_profit,
-            'total_mortality': total_mortality,
-            'survival_rate': round(survival_rate, 2),
-            'total_feed': total_feed,
-            'fcr': round(fcr, 2),
-        })
-
-        return context 
-    
-
+class ExpenseDeleteView(DeleteView):
+    model = Expense
+    template_name = 'fishery/cycle/expense_confirm_delete.html'
+    success_url = reverse_lazy('cycle_list')
 
 # Anual report view will be implemented in the next phase of development.
 
@@ -463,45 +437,64 @@ class FisheryAnnualReportView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Year from URL or current year
         year = self.kwargs.get('year') or timezone.now().year
 
-        # Total Fish Purchase (Stock cost)
-        total_fish_purchase = Stock.objects.filter(
-            stocking_date__year=year
-        ).aggregate(total=Sum('cost'))['total'] or 0
+        # -------- INVESTMENTS -------- #
 
-        # Total Feed Purchase
-        total_feed_purchase = FeedRecord.objects.filter(
-            date__year=year
-        ).aggregate(total=Sum('cost'))['total'] or 0
+        total_fish_purchase = (
+            Stock.objects.filter(stocking_date__year=year)
+            .aggregate(total=Sum('cost'))['total'] or Decimal('0')
+        )
 
-        # Total Expenses (Medicine, other costs)
-        total_other_expenses = Expense.objects.filter(
-            cycle__stocking_date__year=year
-        ).aggregate(total=Sum('amount'))['total'] or 0
+        total_feed_purchase = (
+            FeedRecord.objects.filter(date__year=year)
+            .aggregate(total=Sum('cost'))['total'] or Decimal('0')
+        )
 
-        # Total Harvested KG
-        total_harvest = Harvest.objects.filter(
-            harvest_date__year=year
-        ).aggregate(total=Sum('quantity_kg'))['total'] or 0
+        total_other_expenses = (
+            Expense.objects.filter(cycle__stocking_date__year=year)
+            .aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        )
 
-        # Total Sales Revenue
-        total_sales = FishSale.objects.filter(
-            sale_date__year=year
-        ).aggregate(total=Sum(
+        total_investment = (
+            total_fish_purchase +
+            total_feed_purchase +
+            total_other_expenses
+        )
+
+        # -------- PRODUCTION -------- #
+
+        total_harvest = (
+            Harvest.objects.filter(harvest_date__year=year)
+            .aggregate(total=Sum('quantity_kg'))['total'] or Decimal('0')
+        )
+
+        total_mortality = (
+            MortalityRecord.objects.filter(date__year=year)
+            .aggregate(total=Sum('quantity_dead'))['total'] or 0
+        )
+
+        # -------- SALES -------- #
+
+        sales_expression = ExpressionWrapper(
             F('quantity_kg') * F('price_per_kg'),
-            output_field=DecimalField()
-        ))['total'] or 0
+            output_field=DecimalField(max_digits=15, decimal_places=2)
+        )
 
-        # Net Profit = Sales - (Fish + Feed + Other Expenses)
-        total_investment = total_fish_purchase + total_feed_purchase + total_other_expenses
+        total_sales = (
+            FishSale.objects.filter(sale_date__year=year)
+            .aggregate(total=Sum(sales_expression))['total'] or Decimal('0')
+        )
+
+        # -------- PROFIT -------- #
+
         net_profit = total_sales - total_investment
 
-        # Total Mortality
-        total_mortality = MortalityRecord.objects.filter(
-            date__year=year
-        ).aggregate(total=Sum('quantity_dead'))['total'] or 0
+        # -------- ROI -------- #
+
+        roi = None
+        if total_investment > 0:
+            roi = (net_profit / total_investment) * Decimal('100')
 
         context.update({
             'year': year,
@@ -513,6 +506,7 @@ class FisheryAnnualReportView(TemplateView):
             'total_sales': total_sales,
             'net_profit': net_profit,
             'total_mortality': total_mortality,
+            'roi': roi,
         })
 
         return context

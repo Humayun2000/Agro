@@ -1,116 +1,105 @@
 {% extends 'fishery/base_fishery.html' %}
-
 {% block fishery_content %}
 
-<div class="container-fluid mt-4">
-    <h3 class="fw-bold mb-4">Production Cycle: {{ cycle.pond.name }} - {{ cycle.species.name }}</h3>
-    
+<div class="mb-3 d-flex justify-content-between align-items-center">
+    <h4>{{ cycle.pond.name }} - {{ cycle.species.name }} ({{ cycle.status }})</h4>
+    <a href="{% url 'cycle_update' cycle.pk %}" class="btn btn-warning">Edit Cycle</a>
+</div>
+
+<div class="row g-4">
+
     <div class="row g-4">
 
-        <!-- Financial Overview -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Total Harvest (kg)</h6>
-                    <h4 class="text-info">{{ total_harvest }}</h4>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Total Sold (kg)</h6>
-                    <h4 class="text-primary">{{ total_sold_kg }}</h4>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Total Sales Amount</h6>
-                    <h4 class="text-success">${{ total_sales_amount }}</h4>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Total Expense</h6>
-                    <h4 class="text-danger">${{ total_expense }}</h4>
-                </div>
-            </div>
-        </div>
-
-        <!-- Profit -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Net Profit</h6>
-                    <h4 class="{% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        ${{ net_profit }}
-                    </h4>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mortality -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Total Mortality (fish)</h6>
-                    <h4 class="text-warning">{{ total_mortality }}</h4>
-                </div>
-            </div>
-        </div>
-
-        <!-- Survival Rate -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Survival Rate (%)</h6>
-                    <h4 class="text-success">{{ survival_rate }}%</h4>
-                </div>
-            </div>
-        </div>
-
-        <!-- Feed & FCR -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Total Feed (kg)</h6>
-                    <h4 class="text-secondary">{{ total_feed }}</h4>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Feed Conversion Ratio (FCR)</h6>
-                    <h4 class="text-info">{{ fcr }}</h4>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Notes Section -->
-    {% if cycle.notes %}
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-body">
-                    <h5>Notes</h5>
-                    <p>{{ cycle.notes }}</p>
-                </div>
-            </div>
+    <div class="col-md-3">
+        <div class="card shadow text-center p-3">
+            <h6>Total Harvest (kg)</h6>
+            <h3>{{ cycle.total_harvested }}</h3>
         </div>
     </div>
-    {% endif %}
 
+    <div class="col-md-3">
+        <div class="card shadow text-center p-3">
+            <h6>Total Sales (BDT)</h6>
+            <h3>{{ cycle.total_sales|floatformat:2 }}</h3>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow text-center p-3">
+            <h6>Total Expense (BDT)</h6>
+            <h3>{{ cycle.total_expense|floatformat:2 }}</h3>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow text-center p-3">
+            <h6>Net Profit (BDT)</h6>
+            <h3 class="{% if cycle.net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ cycle.net_profit|floatformat:2 }}
+            </h3>
+        </div>
+    </div>
+
+</div>
+
+<div class="row g-4 mt-4">
+
+    <div class="col-md-4">
+        <div class="card shadow text-center p-3">
+            <h6>Survival Rate (%)</h6>
+            <h3>{{ cycle.survival_rate }}%</h3>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow text-center p-3">
+            <h6>Total Feed (kg)</h6>
+            <h3>{{ cycle.total_feed }}</h3>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow text-center p-3">
+            <h6>FCR</h6>
+            <h3>{{ cycle.fcr }}</h3>
+        </div>
+    </div>
+
+</div>
+<h5 class="mt-4">Expenses</h5>
+<a href="{% url 'expense_create' %}?cycle={{ cycle.pk }}" class="btn btn-sm btn-success mb-2">Add Expense</a>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Description</th>
+            <th>Amount</th>
+            <th>Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for expense in cycle.expenses.all %}
+        <tr>
+            <td>{{ expense.description }}</td>
+            <td>{{ expense.amount }}</td>
+            <td>{{ expense.expense_date }}</td>
+            <td>
+                <a href="{% url 'expense_update' expense.pk %}" class="btn btn-sm btn-warning">Edit</a>
+                <a href="{% url 'expense_delete' expense.pk %}" class="btn btn-sm btn-danger">Delete</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="4" class="text-center">No expenses recorded</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+<div class="mt-4">
+    <a href="{% url 'cycle_list' %}" class="btn btn-primary">Back to Cycles</a>
 </div>
 
 {% endblock %}

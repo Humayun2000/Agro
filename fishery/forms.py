@@ -1,4 +1,5 @@
 from django import forms
+from django.forms import DateInput, NumberInput, Textarea
 from .models import (
     Pond,
     FishSpecies,
@@ -7,7 +8,8 @@ from .models import (
     MortalityRecord,
     Harvest,
     FishSale,
-    ProductionCycle
+    ProductionCycle, 
+    Expense
 )
 
 # ---------- Base Style Mixin ----------
@@ -108,15 +110,20 @@ class HarvestForm(BootstrapFormMixin, forms.ModelForm):
 
 # ---------- Sale Form ----------
 class FishSaleForm(BootstrapFormMixin, forms.ModelForm):
+
     class Meta:
         model = FishSale
-        fields = '__all__'
+        fields = ['harvest', 'quantity_kg', 'price_per_kg', 'sale_date']
         widgets = {
             'harvest': forms.Select(attrs={'class': 'form-select'}),
-            'quantity_kg': forms.NumberInput(attrs={'class': 'form-control'}),
+            'quantity_kg': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1
+            }),
             'price_per_kg': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'step': '0.01'
+                'step': '0.01',
+                'min': 0
             }),
             'sale_date': forms.DateInput(attrs={
                 'type': 'date',
@@ -124,33 +131,70 @@ class FishSaleForm(BootstrapFormMixin, forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
+        # Only show harvests that have remaining quantity
+        self.fields['harvest'].queryset = Harvest.objects.annotate(
+            total_sold=F('sales__quantity_kg')
+        ).select_related(
+            'stock',
+            'stock__pond',
+            'cycle',
+            'cycle__species'
+        ).filter(quantity_kg__gt=F('total_sold'))
+
+    def clean_quantity_kg(self):
+        quantity = self.cleaned_data.get('quantity_kg')
+        if quantity <= 0:
+            raise forms.ValidationError("Quantity must be greater than zero.")
+
+        harvest = self.cleaned_data.get('harvest')
+        if harvest:
+            total_sold = harvest.sales.aggregate(total=forms.models.Sum('quantity_kg'))['total'] or 0
+            remaining = harvest.quantity_kg - total_sold
+            if quantity > remaining:
+                raise forms.ValidationError(f"Quantity exceeds remaining harvest ({remaining} kg).")
+        return quantity
 # ---------- Production Cycle Form ----------
 
+# ------------------------
+# ProductionCycle Form
+# ------------------------
 class ProductionCycleForm(forms.ModelForm):
     class Meta:
         model = ProductionCycle
-        fields = '__all__'
+        fields = [
+            'pond', 
+            'species', 
+            'stocking_date', 
+            'initial_quantity', 
+            'initial_avg_weight',
+            'expected_harvest_date',
+            'status', 
+            'notes'
+        ]
         widgets = {
-            'stocking_date': forms.DateInput(attrs={'type': 'date'}),
-            'expected_harvest_date': forms.DateInput(attrs={'type': 'date'}),
-            'notes': forms.Textarea(attrs={'rows': 3}),
+            'pond': forms.Select(attrs={'class': 'form-select'}),
+            'species': forms.Select(attrs={'class': 'form-select'}),
+            'stocking_date': DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'expected_harvest_date': DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'initial_quantity': NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'initial_avg_weight': NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': 0}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'notes': Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Optional notes...'}),
         }
 
-    def clean(self):
-        cleaned_data = super().clean()
-        pond = cleaned_data.get('pond')
-        status = cleaned_data.get('status')
-
-        if status == 'Running':
-            existing = ProductionCycle.objects.filter(
-                pond=pond,
-                status='Running'
-            ).exclude(pk=self.instance.pk)
-
-            if existing.exists():
-                raise forms.ValidationError(
-                    "This pond already has a running cycle."
-                )
-
-        return cleaned_data
+# ------------------------
+# Expense Form
+# ------------------------
+class ExpenseForm(forms.ModelForm):
+    class Meta:
+        model = Expense
+        fields = ['cycle', 'description', 'amount', 'expense_date']
+        widgets = {
+            'cycle': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Expense description'}),
+            'amount': NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': 0}),
+            'expense_date': DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        }

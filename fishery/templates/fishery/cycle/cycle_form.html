@@ -1,17 +1,30 @@
 {% extends 'fishery/base_fishery.html' %}
 {% block fishery_content %}
 
-<h4>{{ view.object|default:"Create Production Cycle" }}</h4>
+<div class="card shadow p-4">
+    <h4 class="mb-3">{{ form.instance.pk|yesno:"Edit Production Cycle,Add New Production Cycle" }}</h4>
 
-<form method="post" class="card p-4 shadow-sm">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn btn-success">
-        Save
-    </button>
-    <a href="{% url 'cycle_list' %}" class="btn btn-secondary">
-        Cancel
-    </a>
-</form>
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="row g-3">
+            {% for field in form %}
+            <div class="col-md-6">
+                <label class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <div class="text-danger small">{{ field.errors|striptags }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-success">
+                {% if form.instance.pk %}Update{% else %}Create{% endif %}
+            </button>
+            <a href="{% url 'cycle_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
 
 {% endblock %}

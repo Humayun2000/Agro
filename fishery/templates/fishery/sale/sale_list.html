@@ -2,50 +2,81 @@
 {% block fishery_content %}
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between mb-3">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
         <h4>Fish Sales</h4>
-        <a href="{% url 'sale_create' %}" class="btn btn-primary">
-            Add Sale
-        </a>
+        <a href="{% url 'sale_create' %}" class="btn btn-success">+ Add Sale</a>
     </div>
 
     <div class="card shadow-sm">
         <div class="card-body table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead class="table-dark">
+            <table class="table table-hover align-middle text-center">
+                <thead class="table-success">
                     <tr>
+                        <th>Date</th>
                         <th>Pond</th>
                         <th>Species</th>
-                        <th>Quantity (kg)</th>
+                        <th>Qty (kg)</th>
                         <th>Price/kg</th>
                         <th>Total</th>
-                        <th>Date</th>
-                        <th width="150">Actions</th>
+                        <th width="140">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for sale in sales %}
                     <tr>
-                        <td>{{ sale.harvest.stock.pond.name }}</td>
-                        <td>{{ sale.harvest.stock.species.name }}</td>
+                        <td>{{ sale.sale_date|date:"d M Y" }}</td>
+                        <td>{{ sale.pond_name|default:"-" }}</td>
+                        <td>{{ sale.species_name|default:"-" }}</td>
                         <td>{{ sale.quantity_kg }}</td>
-                        <td>{{ sale.price_per_kg }}</td>
-                        <td>{{ sale.total_amount }}</td>
-                        <td>{{ sale.sale_date }}</td>
+                        <td>{{ sale.price_per_kg|floatformat:2 }}</td>
+                        <td class="fw-bold text-success">{{ sale.total_amount|floatformat:2 }}</td>
                         <td>
-                            <a href="{% url 'sale_update' sale.pk %}" class="btn btn-sm btn-warning">Edit</a>
+                            <a href="{% url 'sale_update' sale.pk %}" class="btn btn-sm btn-primary">Edit</a>
                             <a href="{% url 'sale_delete' sale.pk %}" class="btn btn-sm btn-danger">Delete</a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center">No sales found.</td>
+                        <td colspan="7" class="text-center text-muted">No sales found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
+
+                <tfoot class="table-light text-center fw-bold">
+                    <tr>
+                        <th colspan="3">Total</th>
+                        <th>{{ total_quantity }}</th>
+                        <th></th>
+                        <th class="text-success">{{ total_sales_amount|floatformat:2 }}</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </div>
-</div>
 
+    {% if is_paginated %}
+    <nav class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+            </li>
+            {% endif %}
+
+            <li class="page-item active">
+                <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            </li>
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+</div>
 {% endblock %}

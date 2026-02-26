@@ -1,0 +1,62 @@
+{% extends 'fishery/base_fishery.html' %}
+{% block fishery_content %}
+
+<div class="card shadow p-4">
+    <h4 class="mb-3">
+        {% if form.instance.pk %}
+            Edit Expense
+        {% else %}
+            Add New Expense
+        {% endif %}
+    </h4>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="row g-3">
+            <!-- Cycle Selection -->
+            <div class="col-md-6">
+                <label class="form-label">{{ form.cycle.label }}</label>
+                {{ form.cycle }}
+                {% if form.cycle.errors %}
+                    <div class="text-danger small">{{ form.cycle.errors|striptags }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Description -->
+            <div class="col-md-6">
+                <label class="form-label">{{ form.description.label }}</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="text-danger small">{{ form.description.errors|striptags }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Amount -->
+            <div class="col-md-6">
+                <label class="form-label">{{ form.amount.label }}</label>
+                {{ form.amount }}
+                {% if form.amount.errors %}
+                    <div class="text-danger small">{{ form.amount.errors|striptags }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Expense Date -->
+            <div class="col-md-6">
+                <label class="form-label">{{ form.expense_date.label }}</label>
+                {{ form.expense_date }}
+                {% if form.expense_date.errors %}
+                    <div class="text-danger small">{{ form.expense_date.errors|striptags }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-success">
+                {% if form.instance.pk %}Update Expense{% else %}Add Expense{% endif %}
+            </button>
+            <a href="{% url 'cycle_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

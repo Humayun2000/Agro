@@ -10,33 +10,28 @@
             <form method="post">
                 {% csrf_token %}
                 {{ form.non_field_errors }}
-
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         {{ form.harvest.label_tag }}
                         {{ form.harvest }}
                         {{ form.harvest.errors }}
                     </div>
-
                     <div class="col-md-6 mb-3">
                         {{ form.quantity_kg.label_tag }}
                         {{ form.quantity_kg }}
                         {{ form.quantity_kg.errors }}
                     </div>
-
                     <div class="col-md-6 mb-3">
                         {{ form.price_per_kg.label_tag }}
                         {{ form.price_per_kg }}
                         {{ form.price_per_kg.errors }}
                     </div>
-
                     <div class="col-md-6 mb-3">
                         {{ form.sale_date.label_tag }}
                         {{ form.sale_date }}
                         {{ form.sale_date.errors }}
                     </div>
                 </div>
-
                 <button type="submit" class="btn btn-success">Save</button>
                 <a href="{% url 'sale_list' %}" class="btn btn-secondary">Cancel</a>
             </form>

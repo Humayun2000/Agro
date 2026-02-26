@@ -1,67 +1,147 @@
 {% extends "fishery/base_fishery.html" %}
 {% block content %}
 
-<div class="container mt-4">
-    <h3 class="mb-4">Sheikh-Agro Fishery Dashboard</h3>
+<div class="container-fluid px-4 py-4">
 
-    <!-- Financial Section -->
-    <div class="row mb-4">
-
-        <div class="col-md-3">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Total Capital</h6>
-                    <h4 class="text-primary">{{ capital }}</h4>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card shadow text-center">
-                <h6>Total Revenue</h6>
-                <h4 class="text-success">{{ revenue }}</h4>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card shadow text-center">
-                <h6>Net Profit</h6>
-                <h4 class="{% if profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    {{ profit }}
-                </h4>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card shadow text-center">
-                <h6>ROI (%)</h6>
-                <h4>{{ roi }}%</h4>
-            </div>
-        </div>
-
+    <!-- ================= HEADER ================= -->
+    <div class="mb-5">
+        <h1 class="fw-bold display-5 mb-1">
+            Sheikh-Agro Fishery Dashboard
+        </h1>
+        <p class="text-muted fs-5">
+            Financial & Production Overview
+        </p>
+        <hr>
     </div>
 
-    <!-- Production Section -->
-    <div class="row">
 
-        <div class="col-md-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Mortality %</h6>
-                    <h4 class="text-danger">{{ mortality_percent }}%</h4>
+    <!-- ================= FINANCIAL KPIs ================= -->
+    <div class="mb-4">
+        <h4 class="fw-bold mb-3">Financial Performance</h4>
+
+        <div class="row g-4">
+
+            <!-- Capital -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card shadow border-0 rounded-4 h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="fs-6 text-muted mb-2">Total Capital</div>
+                        <div class="display-6 fw-bold text-primary">
+                            {{ capital|floatformat:2 }}
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-md-6">
-            <div class="card shadow text-center">
-                <div class="card-body">
-                    <h6>Harvest Yield %</h6>
-                    <h4 class="text-info">{{ harvest_percent }}%</h4>
+            <!-- Revenue -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card shadow border-0 rounded-4 h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="fs-6 text-muted mb-2">Total Revenue</div>
+                        <div class="display-6 fw-bold text-success">
+                            {{ revenue|floatformat:2 }}
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
+            <!-- Profit -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card shadow border-0 rounded-4 h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="fs-6 text-muted mb-2">Net Profit</div>
+
+                        <div class="display-6 fw-bold
+                            {% if profit >= 0 %}
+                                text-success
+                            {% else %}
+                                text-danger
+                            {% endif %}
+                        ">
+                            {{ profit|floatformat:2 }}
+                        </div>
+
+                        <div class="small mt-2">
+                            {% if profit >= 0 %}
+                                <span class="text-success">Profitable</span>
+                            {% else %}
+                                <span class="text-danger">Loss</span>
+                            {% endif %}
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROI -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card shadow border-0 rounded-4 h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="fs-6 text-muted mb-2">ROI (%)</div>
+
+                        <div class="display-6 fw-bold
+                            {% if roi >= 0 %}
+                                text-success
+                            {% else %}
+                                text-danger
+                            {% endif %}
+                        ">
+                            {{ roi|floatformat:2 }}%
+                        </div>
+
+                        <div class="small text-muted mt-2">
+                            Return on Investment
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- ================= PRODUCTION KPIs ================= -->
+    <div>
+        <h4 class="fw-bold mb-3">Production Metrics</h4>
+
+        <div class="row g-4">
+
+            <!-- Mortality -->
+            <div class="col-lg-6 col-md-6">
+                <div class="card shadow border-0 rounded-4 h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="fs-6 text-muted mb-2">Mortality Rate</div>
+
+                        <div class="display-6 fw-bold text-danger">
+                            {{ mortality_percent|floatformat:2 }}%
+                        </div>
+
+                        <div class="small text-muted mt-2">
+                            Fish Loss Percentage
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Harvest Yield -->
+            <div class="col-lg-6 col-md-6">
+                <div class="card shadow border-0 rounded-4 h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="fs-6 text-muted mb-2">Harvest Yield</div>
+
+                        <div class="display-6 fw-bold text-info">
+                            {{ harvest_percent|floatformat:2 }}%
+                        </div>
+
+                        <div class="small text-muted mt-2">
+                            Total Harvest Efficiency
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
 
 </div>

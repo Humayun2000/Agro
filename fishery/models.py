@@ -2,6 +2,8 @@ from django.db import models
 from django.utils import timezone
 from django.db.models import Sum, F, DecimalField, ExpressionWrapper
 from django.core.exceptions import ValidationError 
+from django.db import transaction
+from decimal import Decimal
 
 
 class Pond(models.Model):
@@ -132,42 +134,89 @@ class Harvest(models.Model):
     def __str__(self):
         return f"Harvest - {self.stock.pond.name if self.stock else 'No Stock'}"
     
+from django.db import models, transaction
+from django.db.models import Sum, F, DecimalField
+from django.core.exceptions import ValidationError
+from decimal import Decimal
+from django.utils import timezone
+from .models import Harvest  # make sure Harvest model is imported
+
+
 class FishSale(models.Model):
     harvest = models.ForeignKey(
         Harvest,
         on_delete=models.CASCADE,
-        related_name='sales'
+        related_name='sales',
+        null=False,
+        blank=False
     )
+
     quantity_kg = models.PositiveIntegerField()
     price_per_kg = models.DecimalField(max_digits=10, decimal_places=2)
-    sale_date = models.DateField()
+    sale_date = models.DateField(default=timezone.now)
 
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         ordering = ['-sale_date']
+        indexes = [
+            models.Index(fields=['sale_date']),
+        ]
 
     def clean(self):
-        if self.harvest:
-            total_sold = self.harvest.sales.aggregate(
-                total=Sum('quantity_kg')
-            )['total'] or 0
+        """Validation: Ensure sale does not exceed harvest remaining quantity."""
+        if not self.harvest:
+            raise ValidationError("Harvest must be selected.")
 
-            # Exclude current instance during update
-            if self.pk:
-                total_sold -= self.quantity_kg
+        # Total sold for this harvest excluding current instance (update)
+        total_sold = self.harvest.sales.aggregate(
+            total=Sum('quantity_kg')
+        )['total'] or 0
 
-            if total_sold + self.quantity_kg > self.harvest.quantity_kg:
-                raise ValidationError("Sale exceeds harvested quantity.")
+        if self.pk:
+            previous_qty = FishSale.objects.get(pk=self.pk).quantity_kg
+            total_sold -= previous_qty
+
+        remaining = self.harvest.quantity_kg - total_sold
+        if self.quantity_kg > remaining:
+            raise ValidationError(f"Sale exceeds harvested stock. Remaining: {remaining} kg")
 
     @property
     def total_amount(self):
-        return self.quantity_kg * self.price_per_kg
+        """Total sale amount (quantity * price per kg)."""
+        return (Decimal(self.quantity_kg) * self.price_per_kg).quantize(Decimal('0.01'))
+
+    @property
+    def pond(self):
+        """Return pond from harvest's stock, safe handling."""
+        if self.harvest and self.harvest.stock:
+            return self.harvest.stock.pond
+        return None
+
+    @property
+    def species(self):
+        """Return species from harvest's cycle, safe handling."""
+        if self.harvest and self.harvest.cycle and self.harvest.cycle.species:
+            return self.harvest.cycle.species
+        return None
+
+    @property
+    def stock(self):
+        """Return Stock linked to this sale."""
+        if self.harvest:
+            return self.harvest.stock
+        return None
+
+    def save(self, *args, **kwargs):
+        """Safe save: full validation inside a transaction."""
+        with transaction.atomic():
+            self.full_clean()
+            super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Sale - {self.harvest.stock.pond.name}"
-
-
+        pond_name = self.pond.name if self.pond else "No Pond"
+        species_name = self.species.name if self.species else "No Species"
+        return f"Sale | {pond_name} | {species_name} | {self.quantity_kg} kg"
 # production cycle models for fishery management, including ponds,
 # fish species, stocking, feed records, mortality records, harvests, and sales.
 # Each model includes relevant fields and methods to calculate totals and profits. 
@@ -175,7 +224,6 @@ class FishSale(models.Model):
 
 
 class ProductionCycle(models.Model):
-
     STATUS_CHOICES = (
         ('Running', 'Running'),
         ('Completed', 'Completed'),
@@ -183,29 +231,22 @@ class ProductionCycle(models.Model):
 
     pond = models.ForeignKey('Pond', on_delete=models.CASCADE)
     species = models.ForeignKey('FishSpecies', on_delete=models.CASCADE)
-
     stocking_date = models.DateField(default=timezone.now)
-
     initial_quantity = models.PositiveIntegerField()
     initial_avg_weight = models.FloatField(help_text="Weight in grams")
-
     expected_harvest_date = models.DateField(null=True, blank=True)
-
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default='Running'
-    )
-
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Running')
     notes = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.pond.name} - {self.species.name} ({self.status})"
 
-
+    # -----------------------------
+    # Financial Aggregates
+    # -----------------------------
     @property
     def total_sales(self):
-        result = FishSale.objects.filter(
+        return FishSale.objects.filter(
             harvest__cycle=self
         ).aggregate(
             total=Sum(
@@ -214,10 +255,7 @@ class ProductionCycle(models.Model):
                     output_field=DecimalField()
                 )
             )
-        )['total']
-
-        return result or 0
-
+        )['total'] or 0
 
     @property
     def total_expense(self):
@@ -225,17 +263,37 @@ class ProductionCycle(models.Model):
             total=Sum('amount')
         )['total'] or 0
 
-
     @property
     def net_profit(self):
-        return self.total_sales - self.total_expense  
+        return self.total_sales - self.total_expense
+
+    @property
+    def total_harvested(self):
+        return self.harvests.aggregate(total=Sum('quantity_kg'))['total'] or 0
+
+    @property
+    def total_mortality(self):
+        return self.mortalities.aggregate(total=Sum('quantity_dead'))['total'] or 0
+
+    @property
+    def survival_rate(self):
+        if self.initial_quantity > 0:
+            return round(((self.initial_quantity - self.total_mortality) / self.initial_quantity) * 100, 2)
+        return 0
+
+    @property
+    def total_feed(self):
+        return self.feeds.aggregate(total=Sum('quantity_kg'))['total'] or 0
+
+    @property
+    def fcr(self):
+        if self.total_harvested > 0:
+            return round(self.total_feed / self.total_harvested, 2)
+        return 0
+
 
 class Expense(models.Model):
-    cycle = models.ForeignKey(
-        ProductionCycle,
-        on_delete=models.CASCADE,
-        related_name='expenses'
-    )
+    cycle = models.ForeignKey(ProductionCycle, on_delete=models.CASCADE, related_name='expenses')
     description = models.CharField(max_length=200)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     expense_date = models.DateField(default=timezone.now)
