@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid mt-4">
+
+    <!-- Header -->
+    <div class="text-center mb-4">
+        <h2>Dairy Farm Management</h2>
+        <p class="text-muted">Complete Cow & Milk Production System</p>
+    </div>
+
+    <!-- KPI Section -->
+    <div class="row g-4 mb-5">
+
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow-sm text-center">
+                <div class="card-body">
+                    <h6>Total Cows</h6>
+                    <h2>{{ total_cows }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow-sm text-center">
+                <div class="card-body">
+                    <h6>Active Cows</h6>
+                    <h2>{{ active_cows }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow-sm text-center">
+                <div class="card-body">
+                    <h6>Lactating Cows</h6>
+                    <h2>{{ lactating_cows }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-info text-white shadow-sm text-center">
+                <div class="card-body">
+                    <h6>Today's Milk (L)</h6>
+                    <h2>{{ today_milk }}</h2>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Management Modules -->
+    <div class="row g-4">
+
+        <!-- Cow Management -->
+        <div class="col-md-3">
+            <div class="card bg-light shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5>Cow Management</h5>
+                    <p class="flex-grow-1">Manage cows, breed & lifecycle.</p>
+                    <a href="{% url 'cow_list' %}" class="btn btn-primary mt-auto">Manage</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Breed -->
+        <div class="col-md-3">
+            <div class="card bg-light shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5>Breed Management</h5>
+                    <p class="flex-grow-1">Manage cow breeds & genetics.</p>
+                    <a href="{% url 'breed_list' %}" class="btn btn-success mt-auto">Manage</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Milk Production -->
+        <div class="col-md-3">
+            <div class="card bg-light shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5>Milk Production</h5>
+                    <p class="flex-grow-1">Track daily milk records.</p>
+                    <a href="{% url 'milk_list' %}" class="btn btn-warning mt-auto">Manage</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Milk Sales -->
+        <div class="col-md-3">
+            <div class="card bg-light shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5>Milk Sales</h5>
+                    <p class="flex-grow-1">Track milk selling & revenue.</p>
+                    <a href="#" class="btn btn-info mt-auto">Coming Soon</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed Management -->
+        <div class="col-md-3">
+            <div class="card bg-light shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5>Feed Records</h5>
+                    <p class="flex-grow-1">Track cow feeding & cost.</p>
+                    <a href="#" class="btn btn-secondary mt-auto">Coming Soon</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Health -->
+        <div class="col-md-3">
+            <div class="card bg-light shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5>Health Records</h5>
+                    <p class="flex-grow-1">Manage treatment & vet records.</p>
+                    <a href="#" class="btn btn-danger mt-auto">Coming Soon</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vaccination -->
+        <div class="col-md-3">
+            <div class="card bg-light shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5>Vaccination</h5>
+                    <p class="flex-grow-1">Vaccination schedules & reminders.</p>
+                    <a href="#" class="btn btn-dark mt-auto">Coming Soon</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports -->
+        <div class="col-md-3">
+            <div class="card bg-light shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5>Dairy Reports</h5>
+                    <p class="flex-grow-1">Monthly & yearly production analysis.</p>
+                    <a href="#" class="btn btn-primary mt-auto">Coming Soon</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

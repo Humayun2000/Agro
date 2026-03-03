@@ -1,0 +1,24 @@
+{% extends "dairy/base_dairy.html" %}
+{% block dairy_content %}
+
+<div class="container mt-4">
+    <div class="card shadow-sm border-danger">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">Confirm Delete Milk Record</h5>
+        </div>
+        <div class="card-body">
+            <p>
+                Are you sure you want to delete the milk record of cow 
+                <strong>{{ object.cow.tag_number }} - {{ object.cow.name|default:"No Name" }}</strong> 
+                for <strong>{{ object.date }}</strong>?
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                <a href="{% url 'milk_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

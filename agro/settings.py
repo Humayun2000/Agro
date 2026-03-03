@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'accounts',
     'home',
     'fishery',
+    'dairy',
 ]
 
 MIDDLEWARE = [

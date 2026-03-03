@@ -1,0 +1,79 @@
+{% extends "dairy/base_dairy.html" %}
+{% block dairy_content %}
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">{{ view.object.pk|yesno:"Edit Cow,Add Cow" }}</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+
+                <div class="mb-3">
+                    {{ form.tag_number.label_tag }}
+                    {{ form.tag_number }}
+                    {{ form.tag_number.errors }}
+                </div>
+                <div class="mb-3">
+                    {{ form.name.label_tag }}
+                    {{ form.name }}
+                    {{ form.name.errors }}
+                </div>
+                <div class="mb-3">
+                    {{ form.breed.label_tag }}
+                    {{ form.breed }}
+                    {{ form.breed.errors }}
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.date_of_birth.label_tag }}
+                        {{ form.date_of_birth }}
+                        {{ form.date_of_birth.errors }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.purchase_date.label_tag }}
+                        {{ form.purchase_date }}
+                        {{ form.purchase_date.errors }}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    {{ form.purchase_price.label_tag }}
+                    {{ form.purchase_price }}
+                    {{ form.purchase_price.errors }}
+                </div>
+                <div class="mb-3">
+                    {{ form.current_weight.label_tag }}
+                    {{ form.current_weight }}
+                    {{ form.current_weight.errors }}
+                </div>
+                <div class="form-check mb-3">
+                    {{ form.lactating }}
+                    {{ form.lactating.label_tag }}
+                    {{ form.lactating.errors }}
+                </div>
+                <div class="mb-3">
+                    {{ form.status.label_tag }}
+                    {{ form.status }}
+                    {{ form.status.errors }}
+                </div>
+                <div class="mb-3">
+                    {{ form.mother.label_tag }}
+                    {{ form.mother }}
+                    {{ form.mother.errors }}
+                </div>
+                <div class="mb-3">
+                    {{ form.notes.label_tag }}
+                    {{ form.notes }}
+                    {{ form.notes.errors }}
+                </div>
+
+                <button type="submit" class="btn btn-success">Save</button>
+                <a href="{% url 'cow_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

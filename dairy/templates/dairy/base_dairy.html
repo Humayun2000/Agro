@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- Top Header -->
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
+        <div>
+            <h3 class="fw-bold">Dairy Farm System</h3>
+            <p class="text-muted mb-0">Sheikh-Agro Dairy Management</p>
+        </div>
+        <div>
+            <a href="{% url 'dairy_dashboard' %}" class="btn btn-outline-primary">
+                Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% block dairy_content %}
+    {% endblock %}
+
+</div>
+
+{% endblock %}

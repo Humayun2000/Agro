@@ -217,6 +217,8 @@ class FishSale(models.Model):
         pond_name = self.pond.name if self.pond else "No Pond"
         species_name = self.species.name if self.species else "No Species"
         return f"Sale | {pond_name} | {species_name} | {self.quantity_kg} kg"
+
+        
 # production cycle models for fishery management, including ponds,
 # fish species, stocking, feed records, mortality records, harvests, and sales.
 # Each model includes relevant fields and methods to calculate totals and profits. 

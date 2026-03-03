@@ -1,0 +1,45 @@
+{% extends "dairy/base_dairy.html" %}
+{% block dairy_content %}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between mb-3">
+        <h3>Cows</h3>
+        <a href="{% url 'cow_create' %}" class="btn btn-primary">Add New Cow</a>
+    </div>
+
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>Tag Number</th>
+                <th>Name</th>
+                <th>Breed</th>
+                <th>Lactating</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cow in object_list %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ cow.tag_number }}</td>
+                <td>{{ cow.name|default:"-" }}</td>
+                <td>{{ cow.breed.name|default:"-" }}</td>
+                <td>{% if cow.lactating %}Yes{% else %}No{% endif %}</td>
+                <td>{{ cow.get_status_display }}</td>
+                <td>
+                    <a href="{% url 'cow_update' cow.pk %}" class="btn btn-sm btn-warning">Edit</a>
+                    <a href="{% url 'cow_delete' cow.pk %}" class="btn btn-sm btn-danger">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center">No cows found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

@@ -1,5 +1,7 @@
 from django import forms
 from django.forms import DateInput, NumberInput, Textarea
+from django.db.models import  Sum, F, Value
+from django.db.models.functions import Coalesce
 from .models import (
     Pond,
     FishSpecies,
@@ -11,6 +13,7 @@ from .models import (
     ProductionCycle, 
     Expense
 )
+
 
 # ---------- Base Style Mixin ----------
 class BootstrapFormMixin:
@@ -134,27 +137,37 @@ class FishSaleForm(BootstrapFormMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Only show harvests that have remaining quantity
+        # Only show harvests that still have remaining quantity
         self.fields['harvest'].queryset = Harvest.objects.annotate(
-            total_sold=F('sales__quantity_kg')
+            total_sold=Coalesce(Sum('sales__quantity_kg'), Value(0))
         ).select_related(
             'stock',
             'stock__pond',
             'cycle',
             'cycle__species'
-        ).filter(quantity_kg__gt=F('total_sold'))
+        ).filter(
+            quantity_kg__gt=F('total_sold')
+        )
 
     def clean_quantity_kg(self):
         quantity = self.cleaned_data.get('quantity_kg')
-        if quantity <= 0:
+        harvest = self.cleaned_data.get('harvest')
+
+        if quantity is None or quantity <= 0:
             raise forms.ValidationError("Quantity must be greater than zero.")
 
-        harvest = self.cleaned_data.get('harvest')
         if harvest:
-            total_sold = harvest.sales.aggregate(total=forms.models.Sum('quantity_kg'))['total'] or 0
+            total_sold = harvest.sales.aggregate(
+                total=Sum('quantity_kg')
+            )['total'] or 0
+
             remaining = harvest.quantity_kg - total_sold
+
             if quantity > remaining:
-                raise forms.ValidationError(f"Quantity exceeds remaining harvest ({remaining} kg).")
+                raise forms.ValidationError(
+                    f"Quantity exceeds remaining harvest ({remaining} kg)."
+                )
+
         return quantity
 # ---------- Production Cycle Form ----------
 
