@@ -1,0 +1,403 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Delete Health Record{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 650px;">
+    <!-- Delete Confirmation Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Health Record
+            </h3>
+            <p class="mb-0 opacity-75">This action is permanent and cannot be undone</p>
+        </div>
+
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-heart-pulse-fill fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Are you absolutely sure?</h4>
+            <p class="text-muted">
+                You are about to delete a health record from 
+                <strong>{{ record.date|date:"F d, Y" }}</strong>
+            </p>
+        </div>
+
+        <!-- Record Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="cattle-avatar bg-danger text-white rounded-3 p-3">
+                        <span class="fs-2 fw-bold">{{ record.cattle.tag_number|first }}</span>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ record.cattle.tag_number }}</h5>
+                        <p class="text-muted mb-0">{{ record.cattle.name|default:"Unnamed" }}</p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="detail-item">
+                            <small class="text-muted d-block">Health Type</small>
+                            <span class="badge {% if record.health_type == 'EMERGENCY' %}bg-danger{% else %}bg-info{% endif %} fs-6">
+                                {{ record.get_health_type_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="detail-item">
+                            <small class="text-muted d-block">Date</small>
+                            <span class="fw-bold">{{ record.date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="detail-item">
+                            <small class="text-muted d-block">Diagnosis</small>
+                            <span class="fw-bold">"{{ record.diagnosis }}"</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="detail-item">
+                            <small class="text-muted d-block">Veterinarian</small>
+                            <span><i class="bi bi-person-badge me-1"></i>{{ record.veterinarian }}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="detail-item">
+                            <small class="text-muted d-block">Cost</small>
+                            <span class="fw-bold text-success">৳{{ record.treatment_cost|default:"0"|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Impact Analysis -->
+        <div class="impact-section bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-graph-down text-danger me-2"></i>
+                Impact on Records
+            </h6>
+            <div class="row g-3 text-center">
+                <div class="col-4">
+                    <div class="impact-stat">
+                        <div class="fs-3 fw-bold text-primary">{{ cattle_health_count|default:"0" }}</div>
+                        <small class="text-muted">Total for this cattle</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="impact-stat">
+                        <div class="fs-3 fw-bold text-warning">{{ monthly_count|default:"0" }}</div>
+                        <small class="text-muted">This month</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="impact-stat">
+                        <div class="fs-3 fw-bold text-success">৳{{ monthly_cost|default:"0"|floatformat:0 }}</div>
+                        <small class="text-muted">Monthly cost</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Warning List -->
+        <div class="warning-list bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold text-danger mb-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Before you proceed:
+            </h6>
+            <ul class="list-unstyled">
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    This health record will be permanently removed
+                </li>
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Treatment history will be lost
+                </li>
+                {% if record.next_checkup_date %}
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Follow-up scheduled for {{ record.next_checkup_date|date:"M d, Y" }} will be cancelled
+                </li>
+                {% endif %}
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Cost records (৳{{ record.treatment_cost|default:"0" }}) will be removed
+                </li>
+            </ul>
+        </div>
+
+        <!-- Safety Verification -->
+        <div class="safety-section bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-shield-lock text-danger me-2"></i>
+                Safety Verification
+            </h6>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify1" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify1">
+                        I understand this action is permanent
+                    </label>
+                </div>
+            </div>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify2" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify2">
+                        I confirm this is the correct health record
+                    </label>
+                </div>
+            </div>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify3" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify3">
+                        I have verified with the farm manager
+                    </label>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress mt-3" style="height: 8px;">
+                <div class="progress-bar bg-danger" id="verificationProgress" style="width: 0%"></div>
+            </div>
+            <small class="text-muted" id="verificationText">0 of 3 verified</small>
+        </div>
+
+        <!-- Countdown Timer -->
+        <div class="countdown-timer bg-danger text-white rounded-3 p-3 mb-4" id="countdownTimer" style="display: none;">
+            <div class="d-flex align-items-center justify-content-center gap-3">
+                <i class="bi bi-clock-history fs-4"></i>
+                <span>Deleting in</span>
+                <span class="fw-bold fs-2" id="countdownNumber">5</span>
+                <span>seconds...</span>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'dairy:health_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="button" class="btn btn-danger px-5 py-3" id="deleteBtn" onclick="startCountdown()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Permanently Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Final Confirmation Modal -->
+<div class="modal fade" id="finalConfirmModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    FINAL WARNING
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-heart-pulse-fill fs-1 text-danger d-block mb-3"></i>
+                <h5 class="mb-3">Last chance to reconsider!</h5>
+                
+                <div class="record-summary bg-light p-3 rounded-3 mb-4">
+                    <p class="mb-2"><strong>Record:</strong> {{ record.get_health_type_display }}</p>
+                    <p class="mb-2"><strong>Cattle:</strong> {{ record.cattle.tag_number }}</p>
+                    <p class="mb-2"><strong>Diagnosis:</strong> {{ record.diagnosis|truncatechars:50 }}</p>
+                    <p class="mb-0"><strong>Cost:</strong> ৳{{ record.treatment_cost|default:"0" }}</p>
+                </div>
+                
+                <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+                    <i class="bi bi-exclamation-circle-fill fs-4"></i>
+                    <div class="text-start">
+                        <strong>This cannot be undone!</strong>
+                        <p class="mb-0 small">All treatment history will be permanently lost.</p>
+                    </div>
+                </div>
+                
+                <div class="form-check text-start">
+                    <input class="form-check-input" type="checkbox" id="finalConfirm">
+                    <label class="form-check-label fw-bold" for="finalConfirm">
+                        Yes, permanently delete this health record
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="finalDeleteBtn" onclick="submitDelete()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Forever
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .warning-icon {
+        width: 100px;
+        height: 100px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px 10px rgba(220, 53, 69, 0.1);
+        }
+    }
+    
+    .cattle-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .countdown-timer {
+        animation: pulseCountdown 1s infinite;
+    }
+    
+    @keyframes pulseCountdown {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+    
+    .verification-item {
+        padding: 10px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+    
+    .verification-item:hover {
+        background: rgba(220, 53, 69, 0.05);
+    }
+    
+    .impact-stat {
+        padding: 10px;
+        background: white;
+        border-radius: 8px;
+    }
+</style>
+
+<script>
+    let countdownInterval;
+    let countdownValue = 5;
+    let verifiedCount = 0;
+
+    function checkVerification() {
+        verifiedCount = 0;
+        for (let i = 1; i <= 3; i++) {
+            if (document.getElementById(`verify${i}`).checked) {
+                verifiedCount++;
+            }
+        }
+        
+        const progress = (verifiedCount / 3) * 100;
+        document.getElementById('verificationProgress').style.width = progress + '%';
+        document.getElementById('verificationText').textContent = `${verifiedCount} of 3 verified`;
+        
+        document.getElementById('deleteBtn').disabled = verifiedCount !== 3;
+    }
+
+    function startCountdown() {
+        const deleteBtn = document.getElementById('deleteBtn');
+        const countdownTimer = document.getElementById('countdownTimer');
+        const countdownNumber = document.getElementById('countdownNumber');
+        
+        deleteBtn.disabled = true;
+        countdownTimer.style.display = 'block';
+        
+        countdownInterval = setInterval(() => {
+            countdownValue--;
+            countdownNumber.textContent = countdownValue;
+            
+            if (countdownValue <= 0) {
+                clearInterval(countdownInterval);
+                countdownTimer.style.display = 'none';
+                countdownValue = 5;
+                countdownNumber.textContent = countdownValue;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('finalConfirmModal'));
+                modal.show();
+                
+                deleteBtn.disabled = false;
+            }
+        }, 1000);
+    }
+
+    document.getElementById('finalConfirm').addEventListener('change', function() {
+        document.getElementById('finalDeleteBtn').disabled = !this.checked;
+    });
+
+    function submitDelete() {
+        document.getElementById('deleteForm').submit();
+    }
+
+    // Reset on modal close
+    document.getElementById('finalConfirmModal').addEventListener('hidden.bs.modal', function() {
+        clearInterval(countdownInterval);
+        document.getElementById('countdownTimer').style.display = 'none';
+        countdownValue = 5;
+        document.getElementById('countdownNumber').textContent = countdownValue;
+        document.getElementById('finalConfirm').checked = false;
+        document.getElementById('finalDeleteBtn').disabled = true;
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.location.href = "{% url 'dairy:health_list' %}";
+        }
+        
+        // Alt + 1,2,3 for quick verification
+        if (e.altKey) {
+            if (e.key === '1') {
+                document.getElementById('verify1').checked = !document.getElementById('verify1').checked;
+                checkVerification();
+            }
+            if (e.key === '2') {
+                document.getElementById('verify2').checked = !document.getElementById('verify2').checked;
+                checkVerification();
+            }
+            if (e.key === '3') {
+                document.getElementById('verify3').checked = !document.getElementById('verify3').checked;
+                checkVerification();
+            }
+        }
+        
+        // Ctrl + Enter to delete (if verified)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && verifiedCount === 3) {
+            e.preventDefault();
+            startCountdown();
+        }
+    });
+</script>
+{% endblock %}

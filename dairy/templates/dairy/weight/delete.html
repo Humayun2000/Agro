@@ -1,0 +1,437 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Delete Weight Record{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 650px;">
+    <!-- Delete Confirmation Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Weight Record
+            </h3>
+            <p class="mb-0 opacity-75">This action will affect growth tracking data</p>
+        </div>
+
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-graph-up-arrow fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove weight record?</h4>
+            <p class="text-muted">
+                You are about to delete a weight record from 
+                <strong>{{ record.date|date:"F d, Y" }}</strong>
+            </p>
+        </div>
+
+        <!-- Record Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="cattle-avatar bg-danger text-white rounded-3 p-3">
+                        <span class="fs-2 fw-bold">{{ record.cattle.tag_number|first }}</span>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ record.cattle.tag_number }}</h5>
+                        <p class="text-muted mb-0">{{ record.cattle.name|default:"Unnamed" }}</p>
+                    </div>
+                </div>
+
+                <div class="row g-3 text-center">
+                    <div class="col-4">
+                        <div class="stat-box p-2 bg-white rounded-3">
+                            <small class="text-muted d-block">Date</small>
+                            <span class="fw-bold">{{ record.date|date:"M d" }}</span>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-box p-2 bg-white rounded-3">
+                            <small class="text-muted d-block">Weight</small>
+                            <span class="fw-bold text-success">{{ record.weight }} kg</span>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-box p-2 bg-white rounded-3">
+                            <small class="text-muted d-block">Daily Gain</small>
+                            <span class="fw-bold {% if record.daily_gain > 0 %}text-success{% else %}text-muted{% endif %}">
+                                {{ record.daily_gain|default:"—" }} kg
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Growth Chart Preview -->
+        <div class="chart-preview bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-graph-up text-primary me-2"></i>
+                Growth Curve Impact
+            </h6>
+            <div class="chart-placeholder position-relative" style="height: 100px;">
+                <div class="chart-line"></div>
+                {% for point in growth_points %}
+                <div class="chart-point {% if point.date == record.date %}current{% endif %}" 
+                     style="left: {{ point.position }}%; bottom: {{ point.value }}px;"></div>
+                {% endfor %}
+            </div>
+            <p class="text-center text-danger small mt-2">
+                <i class="bi bi-exclamation-circle me-1"></i>
+                Removing this point will disrupt the growth curve
+            </p>
+        </div>
+
+        <!-- Impact Analysis -->
+        <div class="impact-section bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-calculator text-danger me-2"></i>
+                Impact on Statistics
+            </h6>
+            <div class="row g-3">
+                <div class="col-6">
+                    <div class="impact-card p-3 bg-white rounded-3">
+                        <small class="text-muted d-block">Total Records</small>
+                        <span class="fs-4 fw-bold">{{ total_records }}</span>
+                        <small class="text-danger d-block">→ {{ total_records|add:"-1" }} after</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="impact-card p-3 bg-white rounded-3">
+                        <small class="text-muted d-block">Avg Daily Gain</small>
+                        <span class="fs-4 fw-bold">{{ avg_gain|floatformat:2 }}</span>
+                        <small class="text-danger d-block">→ {{ new_avg|floatformat:2 }} after</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Warning List -->
+        <div class="warning-list bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold text-danger mb-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                This will affect:
+            </h6>
+            <ul class="list-unstyled">
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Growth chart continuity
+                </li>
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Average daily gain calculations
+                </li>
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Monthly growth reports
+                </li>
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Performance rankings
+                </li>
+            </ul>
+        </div>
+
+        <!-- Safety Verification -->
+        <div class="safety-section bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-shield-lock text-danger me-2"></i>
+                Growth Data Verification
+            </h6>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify1" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify1">
+                        I understand this will affect growth tracking
+                    </label>
+                </div>
+            </div>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify2" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify2">
+                        I confirm this is the correct weight record
+                    </label>
+                </div>
+            </div>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify3" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify3">
+                        I have verified with farm records
+                    </label>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress mt-3" style="height: 8px;">
+                <div class="progress-bar bg-danger" id="verificationProgress" style="width: 0%"></div>
+            </div>
+            <small class="text-muted" id="verificationText">0 of 3 verified</small>
+        </div>
+
+        <!-- Countdown Timer -->
+        <div class="countdown-timer bg-danger text-white rounded-3 p-3 mb-4" id="countdownTimer" style="display: none;">
+            <div class="d-flex align-items-center justify-content-center gap-3">
+                <i class="bi bi-clock-history fs-4"></i>
+                <span>Deleting growth record in</span>
+                <span class="fw-bold fs-2" id="countdownNumber">5</span>
+                <span>seconds...</span>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'dairy:weight_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="button" class="btn btn-danger px-5 py-3" id="deleteBtn" onclick="startCountdown()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Record
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Final Confirmation Modal -->
+<div class="modal fade" id="finalConfirmModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    FINAL WARNING
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-graph-up-arrow fs-1 text-danger d-block mb-3"></i>
+                <h5 class="mb-3">Growth Data Alert!</h5>
+                
+                <div class="record-summary bg-light p-3 rounded-3 mb-4">
+                    <p class="mb-2"><strong>Record:</strong> {{ record.date|date:"M d, Y" }} - {{ record.weight }} kg</p>
+                    <p class="mb-2"><strong>Cattle:</strong> {{ record.cattle.tag_number }}</p>
+                    <p class="mb-0"><strong>Daily Gain:</strong> {{ record.daily_gain|default:"0"|floatformat:2 }} kg/day</p>
+                </div>
+                
+                <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+                    <i class="bi bi-exclamation-circle-fill fs-4"></i>
+                    <div class="text-start">
+                        <strong>Growth curve will be disrupted!</strong>
+                        <p class="mb-0 small">This will create a gap in the growth history.</p>
+                    </div>
+                </div>
+                
+                <div class="form-check text-start">
+                    <input class="form-check-input" type="checkbox" id="finalConfirm">
+                    <label class="form-check-label fw-bold" for="finalConfirm">
+                        Yes, permanently delete this growth record
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="finalDeleteBtn" onclick="submitDelete()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Forever
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .warning-icon {
+        width: 100px;
+        height: 100px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px 10px rgba(220, 53, 69, 0.1);
+        }
+    }
+    
+    .cattle-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .stat-box {
+        border: 1px solid #e9ecef;
+    }
+    
+    .chart-placeholder {
+        background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+        position: relative;
+    }
+    
+    .chart-line {
+        position: absolute;
+        bottom: 20px;
+        left: 10px;
+        right: 10px;
+        height: 2px;
+        background: #28a745;
+        transform: scaleX(0.9);
+    }
+    
+    .chart-point {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background: #28a745;
+        border-radius: 50%;
+        bottom: 14px;
+        transform: translateX(-50%);
+        transition: all 0.3s ease;
+    }
+    
+    .chart-point.current {
+        width: 16px;
+        height: 16px;
+        background: #dc3545;
+        bottom: 12px;
+        box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+        animation: pulse 2s infinite;
+    }
+    
+    .countdown-timer {
+        animation: pulseCountdown 1s infinite;
+    }
+    
+    @keyframes pulseCountdown {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+    
+    .impact-card {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .impact-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+</style>
+
+<script>
+    let countdownInterval;
+    let countdownValue = 5;
+    let verifiedCount = 0;
+
+    function checkVerification() {
+        verifiedCount = 0;
+        for (let i = 1; i <= 3; i++) {
+            if (document.getElementById(`verify${i}`).checked) {
+                verifiedCount++;
+            }
+        }
+        
+        const progress = (verifiedCount / 3) * 100;
+        document.getElementById('verificationProgress').style.width = progress + '%';
+        document.getElementById('verificationText').textContent = `${verifiedCount} of 3 verified`;
+        
+        document.getElementById('deleteBtn').disabled = verifiedCount !== 3;
+    }
+
+    function startCountdown() {
+        const deleteBtn = document.getElementById('deleteBtn');
+        const countdownTimer = document.getElementById('countdownTimer');
+        const countdownNumber = document.getElementById('countdownNumber');
+        
+        deleteBtn.disabled = true;
+        countdownTimer.style.display = 'block';
+        
+        countdownInterval = setInterval(() => {
+            countdownValue--;
+            countdownNumber.textContent = countdownValue;
+            
+            if (countdownValue <= 0) {
+                clearInterval(countdownInterval);
+                countdownTimer.style.display = 'none';
+                countdownValue = 5;
+                countdownNumber.textContent = countdownValue;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('finalConfirmModal'));
+                modal.show();
+                
+                deleteBtn.disabled = false;
+            }
+        }, 1000);
+    }
+
+    document.getElementById('finalConfirm').addEventListener('change', function() {
+        document.getElementById('finalDeleteBtn').disabled = !this.checked;
+    });
+
+    function submitDelete() {
+        document.getElementById('deleteForm').submit();
+    }
+
+    // Reset on modal close
+    document.getElementById('finalConfirmModal').addEventListener('hidden.bs.modal', function() {
+        clearInterval(countdownInterval);
+        document.getElementById('countdownTimer').style.display = 'none';
+        countdownValue = 5;
+        document.getElementById('countdownNumber').textContent = countdownValue;
+        document.getElementById('finalConfirm').checked = false;
+        document.getElementById('finalDeleteBtn').disabled = true;
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.location.href = "{% url 'dairy:weight_list' %}";
+        }
+        
+        // Alt + 1,2,3 for quick verification
+        if (e.altKey) {
+            if (e.key === '1') {
+                document.getElementById('verify1').checked = !document.getElementById('verify1').checked;
+                checkVerification();
+            }
+            if (e.key === '2') {
+                document.getElementById('verify2').checked = !document.getElementById('verify2').checked;
+                checkVerification();
+            }
+            if (e.key === '3') {
+                document.getElementById('verify3').checked = !document.getElementById('verify3').checked;
+                checkVerification();
+            }
+        }
+        
+        // Ctrl + Enter to delete (if verified)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && verifiedCount === 3) {
+            e.preventDefault();
+            startCountdown();
+        }
+    });
+</script>
+{% endblock %}

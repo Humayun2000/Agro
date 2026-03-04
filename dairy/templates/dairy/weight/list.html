@@ -1,0 +1,624 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Weight Tracking{% endblock %}
+
+{% block dairy_content %}
+<div class="container-fluid px-0">
+    <!-- Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">
+                <i class="bi bi-graph-up text-success me-2"></i>
+                Weight Tracking
+            </h4>
+            <p class="text-muted mb-0">Monitor cattle growth and weight gain</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="exportData()">
+                <i class="bi bi-download me-1"></i> Export
+            </button>
+            <a href="{% url 'dairy:weight_add' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle me-1"></i> Add Record
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-weight fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Total Records</h6>
+                            <h3 class="mb-0">{{ total_records|default:"0" }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-arrow-up fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Avg Daily Gain</h6>
+                            <h3 class="mb-0">{{ avg_daily_gain|default:"0"|floatformat:2 }} kg</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-trophy fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Top Gainer</h6>
+                            <h3 class="mb-0">{{ top_gainer.cattle__tag_number|default:"—" }}</h3>
+                            <small class="text-success">{{ top_gainer.daily_gain|default:"0"|floatformat:2 }} kg/day</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-calendar-check fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Tracked Cattle</h6>
+                            <h3 class="mb-0">{{ tracked_cattle|default:"0" }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Growth Chart -->
+    <div class="table-container mb-4">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-graph-up text-success"></i>
+                Growth Trends
+            </h5>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-success active" onclick="loadChart('week')">Week</button>
+                <button type="button" class="btn btn-outline-success" onclick="loadChart('month')">Month</button>
+                <button type="button" class="btn btn-outline-success" onclick="loadChart('year')">Year</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <canvas id="growthChart" style="height: 300px;"></canvas>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-funnel"></i>
+                Filters
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Cattle</label>
+                        <select name="cattle" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Cattle</option>
+                            {% for cattle in cattle_list %}
+                            <option value="{{ cattle.id }}" {% if request.GET.cattle == cattle.id|stringformat:"s" %}selected{% endif %}>
+                                {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date Range</label>
+                        <select name="range" class="form-select" onchange="this.form.submit()">
+                            <option value="all" {% if request.GET.range == 'all' or not request.GET.range %}selected{% endif %}>All Time</option>
+                            <option value="month" {% if request.GET.range == 'month' %}selected{% endif %}>Last 30 Days</option>
+                            <option value="quarter" {% if request.GET.range == 'quarter' %}selected{% endif %}>Last 90 Days</option>
+                            <option value="year" {% if request.GET.range == 'year' %}selected{% endif %}>Last Year</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Min Gain (kg/day)</label>
+                        <input type="number" name="min_gain" class="form-control" value="{{ request.GET.min_gain }}" step="0.1" placeholder="0.5">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-search me-1"></i> Apply
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Weight Records Table -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-list-ul"></i>
+                Weight Records
+                <span class="badge bg-success ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDelete()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <button class="btn btn-sm btn-outline-info" id="compareBtn" disabled onclick="compareSelected()">
+                    <i class="bi bi-graph-up"></i> Compare
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="weightTable">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Date</th>
+                        <th>Cattle</th>
+                        <th>Weight (kg)</th>
+                        <th>Daily Gain</th>
+                        <th>Age</th>
+                        <th>Growth Trend</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="weightTableBody">
+                    {% for record in records %}
+                    <tr data-id="{{ record.id }}" class="weight-row">
+                        <td>
+                            <input type="checkbox" class="form-check-input record-checkbox" value="{{ record.id }}">
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ record.date|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ record.date|timesince }} ago</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="cattle-avatar bg-success bg-opacity-10 rounded p-2">
+                                    <span class="fw-bold text-success">{{ record.cattle.tag_number|first }}</span>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ record.cattle.tag_number }}</div>
+                                    <small class="text-muted">{{ record.cattle.name|default:"Unnamed" }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="fw-bold fs-5">{{ record.weight }} kg</span>
+                        </td>
+                        <td>
+                            {% if record.daily_gain %}
+                                <span class="badge {% if record.daily_gain > 0.5 %}bg-success{% elif record.daily_gain > 0 %}bg-info{% else %}bg-danger{% endif %}">
+                                    <i class="bi bi-arrow-up"></i> {{ record.daily_gain|floatformat:2 }} kg/day
+                                </span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ record.age_in_days|default:"—" }} days</td>
+                        <td>
+                            <div class="progress" style="height: 8px; width: 100px;">
+                                {% with percentage=record.weight|default:0|divisibleby:target_weight|multiply:100 %}
+                                <div class="progress-bar bg-success" style="width: {{ percentage|default:0 }}%"></div>
+                                {% endwith %}
+                            </div>
+                            <small class="text-muted">{{ record.weight|default:0 }} / {{ target_weight }} kg</small>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'dairy:cattle_detail' record.cattle.id %}" class="btn btn-sm btn-outline-info" title="View Cattle">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'dairy:weight_edit' record.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete({{ record.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" onclick="showGrowthChart({{ record.cattle.id }})" title="View Growth">
+                                    <i class="bi bi-graph-up"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <i class="bi bi-graph-up fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No weight records found</h5>
+                            <p class="text-muted mb-3">Start tracking cattle growth by adding weight records</p>
+                            <a href="{% url 'dairy:weight_add' %}" class="btn btn-success">
+                                <i class="bi bi-plus-circle me-2"></i>Add First Record
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-success border-success">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Top Performers -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-trophy-fill text-warning me-2"></i>
+                        Top 5 Gainers
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for performer in top_gainers %}
+                    <div class="d-flex align-items-center justify-content-between mb-3 p-2 bg-light rounded-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="badge bg-warning rounded-circle p-2">{{ forloop.counter }}</span>
+                            <div>
+                                <span class="fw-bold">{{ performer.cattle__tag_number }}</span>
+                                <small class="text-muted d-block">{{ performer.cattle__name|default:"Unnamed" }}</small>
+                            </div>
+                        </div>
+                        <span class="badge bg-success">{{ performer.daily_gain|floatformat:2 }} kg/day</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-4">No data available</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-check text-info me-2"></i>
+                        Recent Weigh-ins
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for record in recent_weighins %}
+                    <div class="d-flex align-items-center justify-content-between mb-3 p-2 bg-light rounded-3">
+                        <div>
+                            <span class="fw-bold">{{ record.cattle.tag_number }}</span>
+                            <small class="text-muted d-block">{{ record.date|date:"M d, Y" }}</small>
+                        </div>
+                        <span class="fw-bold">{{ record.weight }} kg</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-4">No recent weigh-ins</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Growth Chart Modal -->
+<div class="modal fade" id="growthChartModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Growth Chart
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <canvas id="modalGrowthChart" style="height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this weight record?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will affect growth tracking statistics.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let growthChart = null;
+    let modalChart = null;
+
+    // Initialize main chart
+    function initChart() {
+        const ctx = document.getElementById('growthChart').getContext('2d');
+        growthChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_labels|safe }},
+                datasets: [{
+                    label: 'Average Weight (kg)',
+                    data: {{ chart_data|safe }},
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#28a745',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Weight (kg)'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Load chart with different period
+    function loadChart(period) {
+        showLoading();
+        fetch(`/dairy/api/weight/chart-data/?period=${period}`)
+            .then(response => response.json())
+            .then(data => {
+                if (growthChart) {
+                    growthChart.data.labels = data.labels;
+                    growthChart.data.datasets[0].data = data.values;
+                    growthChart.update();
+                }
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error loading chart:', error);
+                hideLoading();
+            });
+    }
+
+    // Show growth chart modal
+    function showGrowthChart(cattleId) {
+        const modal = new bootstrap.Modal(document.getElementById('growthChartModal'));
+        
+        fetch(`/dairy/api/weight/chart-data/?cattle_id=${cattleId}`)
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('modalGrowthChart').getContext('2d');
+                
+                if (modalChart) {
+                    modalChart.destroy();
+                }
+                
+                modalChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Weight (kg)',
+                            data: data.values,
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#28a745',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+                
+                modal.show();
+            });
+    }
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.record-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.record-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+        document.getElementById('compareBtn').disabled = count < 2;
+    }
+
+    // Compare selected records
+    function compareSelected() {
+        const selected = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => cb.value);
+        if (selected.length >= 2) {
+            // Implement comparison logic
+            alert('Comparison feature coming soon!');
+        }
+    }
+
+    // Delete confirmation
+    function confirmDelete(recordId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        document.getElementById('confirmDeleteBtn').href = "{% url 'dairy:weight_delete' 0 %}".replace('0', recordId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDelete() {
+        const selected = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} weight records?`)) {
+            showLoading();
+            fetch('/dairy/api/bulk/weight/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      location.reload();
+                  } else {
+                      alert('Error: ' + data.error);
+                      hideLoading();
+                  }
+              });
+        }
+    }
+
+    // Export data
+    function exportData() {
+        window.location.href = "{% url 'dairy:export_weight' %}";
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        initChart();
+    });
+
+    // Auto-refresh every 60 seconds
+    let autoRefresh = true;
+    setInterval(() => {
+        if (autoRefresh && !document.hidden) {
+            location.reload();
+        }
+    }, 60000);
+
+    document.addEventListener('visibilitychange', () => {
+        autoRefresh = !document.hidden;
+    });
+</script>
+
+<style>
+    .cattle-avatar {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .weight-row:hover {
+        background-color: #f0fff4;
+        cursor: pointer;
+    }
+    
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,605 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 800px;">
+    <!-- Form Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-warning text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}pencil-square{% endif %} me-2"></i>
+                {{ title }}
+            </h3>
+            <p class="mb-0 opacity-75">
+                {% if action == 'add' %}Record cattle feeding and nutrition{% else %}Update feeding record{% endif %}
+            </p>
+        </div>
+
+        <form method="post" id="feedingForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Cattle Selection -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-shield text-primary me-2"></i>
+                    Select Cattle
+                </h6>
+                <div class="form-group">
+                    <select name="cattle" id="id_cattle" class="form-select form-select-lg" required onchange="loadCattleData()">
+                        <option value="">Choose cattle...</option>
+                        {% for cattle in form.cattle.field.queryset %}
+                        <option value="{{ cattle.id }}" 
+                                data-tag="{{ cattle.tag_number }}"
+                                data-name="{{ cattle.name|default:'Unnamed' }}"
+                                data-breed="{{ cattle.get_breed_display }}"
+                                data-age="{{ cattle.age_in_months }}"
+                                data-type="{{ cattle.cattle_type }}"
+                                {% if form.cattle.value|stringformat:"s" == cattle.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }} ({{ cattle.get_breed_display }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if form.cattle.errors %}
+                    <div class="text-danger small mt-2">{{ form.cattle.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Selected Cattle Info -->
+                <div class="selected-cattle-info mt-3 p-3 bg-light rounded-3" id="selectedCattleInfo" style="display: none;">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="cattle-avatar bg-warning text-white rounded-3 p-3">
+                            <span class="fs-3 fw-bold" id="selectedCattleAvatar">?</span>
+                        </div>
+                        <div>
+                            <h6 class="mb-1" id="selectedCattleTag"></h6>
+                            <p class="text-muted mb-0" id="selectedCattleDetails"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feed Type Selection -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-tag text-warning me-2"></i>
+                    Feed Type
+                </h6>
+                <div class="row g-3">
+                    {% for value, label in feed_types %}
+                    <div class="col-md-4">
+                        <div class="feed-type-card {% if form.feed_type.value == value %}active{% endif %}" 
+                             onclick="selectFeedType('{{ value }}')"
+                             id="feed-{{ value }}">
+                            <i class="bi bi-{% if value == 'GRAIN' %}cup{% elif value == 'HAY' %}tree{% elif value == 'SILAGE' %}archive{% elif value == 'CONCENTRATE' %}beaker{% elif value == 'MINERALS' %}gem{% else %}cup-straw{% endif %} 
+                                      feed-icon"></i>
+                            <div class="feed-name">{{ label }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <input type="hidden" name="feed_type" id="id_feed_type" value="{{ form.feed_type.value|default:'GRAIN' }}">
+                </div>
+                {% if form.feed_type.errors %}
+                <div class="text-danger small mt-2">{{ form.feed_type.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Feeding Details -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-clock text-warning me-2"></i>
+                    Feeding Details
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="date" id="id_date" 
+                                   class="form-control" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required>
+                            <label><i class="bi bi-calendar me-2"></i>Date <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="time" name="feed_time" id="id_feed_time" 
+                                   class="form-control" value="{{ form.feed_time.value|time:'H:i'|default:'' }}" required>
+                            <label><i class="bi bi-clock me-2"></i>Time <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="quantity" id="id_quantity" 
+                                   class="form-control" value="{{ form.quantity.value|default:'' }}"
+                                   placeholder="Quantity" step="0.01" min="0" required
+                                   oninput="calculateCost()">
+                            <label><i class="bi bi-cake me-2"></i>Quantity (kg) <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="cost_per_kg" id="id_cost_per_kg" 
+                                   class="form-control" value="{{ form.cost_per_kg.value|default:'0' }}"
+                                   placeholder="Cost per kg" step="0.01" min="0"
+                                   oninput="calculateCost()">
+                            <label><i class="bi bi-cash me-2"></i>Cost per kg (৳)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quality Selection -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-star text-warning me-2"></i>
+                    Feed Quality
+                </h6>
+                <div class="row g-2">
+                    {% for value, label in quality_choices %}
+                    <div class="col-md-3">
+                        <div class="quality-card {% if form.feed_quality.value == value %}active{% endif %}" 
+                             onclick="selectQuality({{ value }})"
+                             id="quality-{{ value }}">
+                            <div class="quality-stars">
+                                {% for i in "1234"|make_list %}
+                                    {% if forloop.counter <= value %}
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                    {% else %}
+                                    <i class="bi bi-star text-muted"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <div class="quality-name">{{ label }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <input type="hidden" name="feed_quality" id="id_feed_quality" value="{{ form.feed_quality.value|default:'3' }}">
+                </div>
+            </div>
+
+            <!-- Cost Calculator -->
+            <div class="cost-calculator bg-light rounded-3 p-4 mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-calculator text-success me-2"></i>
+                    Cost Calculator
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="calculator-item text-center">
+                            <small class="text-muted d-block">Quantity</small>
+                            <span class="fs-5 fw-bold" id="calcQuantity">0 kg</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="calculator-item text-center">
+                            <small class="text-muted d-block">Price/kg</small>
+                            <span class="fs-5 fw-bold" id="calcPrice">৳0</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="calculator-item text-center">
+                            <small class="text-muted d-block">Total Cost</small>
+                            <span class="fs-4 fw-bold text-success" id="calcTotal">৳0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Summary -->
+            <div class="daily-summary bg-light rounded-3 p-4 mb-4" id="dailySummary" style="display: none;">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-calendar-day text-info me-2"></i>
+                    Today's Feeding Summary
+                </h6>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="summary-item">
+                            <small class="text-muted d-block">Total Today</small>
+                            <span class="fs-5 fw-bold" id="dailyTotal">0 kg</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="summary-item">
+                            <small class="text-muted d-block">Today's Cost</small>
+                            <span class="fs-5 fw-bold text-success" id="dailyCost">৳0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <div class="form-floating">
+                    <textarea name="notes" id="id_notes" 
+                              class="form-control" style="height: 100px"
+                              placeholder="Additional Notes">{{ form.notes.value|default:'' }}</textarea>
+                    <label><i class="bi bi-journal-text me-2"></i>Notes</label>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-lightning-charge text-warning me-2"></i>
+                    Quick Actions
+                </h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setTime('06:00')">Morning (6 AM)</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setTime('12:00')">Noon (12 PM)</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setTime('18:00')">Evening (6 PM)</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setNow()">Now</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="addNote('Feed well consumed')">Well consumed</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="addNote('Some leftover')">Some leftover</button>
+                </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="preview-card bg-light rounded-3 p-4 mb-4">
+                <h6 class="mb-3">
+                    <i class="bi bi-eye-fill text-warning me-2"></i>
+                    Record Preview
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Cattle:</span>
+                            <span class="fw-bold" id="previewCattle">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Feed Type:</span>
+                            <span id="previewType">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Date/Time:</span>
+                            <span id="previewDateTime">—</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Quantity:</span>
+                            <span class="fw-bold text-warning" id="previewQuantity">0 kg</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Total Cost:</span>
+                            <span class="fw-bold text-success" id="previewCost">৳0</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Quality:</span>
+                            <span id="previewQuality">Good</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{% url 'dairy:feeding_list' %}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-lg me-1"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-warning px-5">
+                    <i class="bi bi-check-lg me-1"></i> {{ submit_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .cattle-avatar {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .selected-cattle-info {
+        border-left: 4px solid #ffc107;
+        animation: slideDown 0.3s ease;
+    }
+    
+    .feed-type-card {
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+        border-radius: 12px;
+        padding: 15px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .feed-type-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .feed-type-card.active {
+        border-color: #ffc107;
+        background: #fff9e6;
+    }
+    
+    .feed-icon {
+        font-size: 2rem;
+        color: #ffc107;
+        margin-bottom: 8px;
+    }
+    
+    .feed-name {
+        font-weight: 600;
+    }
+    
+    .quality-card {
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        padding: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .quality-card:hover {
+        border-color: #ffc107;
+    }
+    
+    .quality-card.active {
+        border-color: #ffc107;
+        background: #fff9e6;
+    }
+    
+    .quality-stars {
+        margin-bottom: 5px;
+    }
+    
+    .calculator-item {
+        background: white;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .daily-summary {
+        border-left: 4px solid #17a2b8;
+    }
+    
+    .preview-card {
+        border-left: 4px solid #ffc107;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<script>
+    let cattleData = {};
+
+    // Load cattle data
+    function loadCattleData() {
+        const select = document.getElementById('id_cattle');
+        const infoDiv = document.getElementById('selectedCattleInfo');
+        
+        if (select.value) {
+            const selected = select.options[select.selectedIndex];
+            cattleData = {
+                id: select.value,
+                tag: selected.dataset.tag,
+                name: selected.dataset.name,
+                breed: selected.dataset.breed,
+                age: selected.dataset.age,
+                type: selected.dataset.type
+            };
+            
+            document.getElementById('selectedCattleAvatar').textContent = cattleData.tag[0];
+            document.getElementById('selectedCattleTag').textContent = cattleData.tag;
+            document.getElementById('selectedCattleDetails').textContent = 
+                `${cattleData.name} • ${cattleData.breed} • ${cattleData.age} months`;
+            
+            infoDiv.style.display = 'block';
+            updatePreview();
+            loadDailySummary();
+        } else {
+            infoDiv.style.display = 'none';
+            document.getElementById('dailySummary').style.display = 'none';
+        }
+    }
+
+    // Select feed type
+    function selectFeedType(type) {
+        document.querySelectorAll('.feed-type-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        document.getElementById(`feed-${type}`).classList.add('active');
+        document.getElementById('id_feed_type').value = type;
+        updatePreview();
+    }
+
+    // Select quality
+    function selectQuality(quality) {
+        document.querySelectorAll('.quality-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        document.getElementById(`quality-${quality}`).classList.add('active');
+        document.getElementById('id_feed_quality').value = quality;
+        updatePreview();
+    }
+
+    // Calculate cost
+    function calculateCost() {
+        const quantity = parseFloat(document.getElementById('id_quantity').value) || 0;
+        const costPerKg = parseFloat(document.getElementById('id_cost_per_kg').value) || 0;
+        const total = quantity * costPerKg;
+        
+        document.getElementById('calcQuantity').textContent = quantity.toFixed(2) + ' kg';
+        document.getElementById('calcPrice').textContent = '৳' + costPerKg.toFixed(2);
+        document.getElementById('calcTotal').textContent = '৳' + total.toFixed(2);
+        
+        updatePreview();
+    }
+
+    // Load daily summary
+    async function loadDailySummary() {
+        const date = document.getElementById('id_date').value;
+        if (cattleData.id && date) {
+            try {
+                const response = await fetch(`/dairy/api/feeding/daily/?cattle=${cattleData.id}&date=${date}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('dailyTotal').textContent = data.total_quantity + ' kg';
+                    document.getElementById('dailyCost').textContent = '৳' + data.total_cost;
+                    document.getElementById('dailySummary').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading daily summary:', error);
+            }
+        }
+    }
+
+    // Set time
+    function setTime(time) {
+        document.getElementById('id_feed_time').value = time;
+        updatePreview();
+    }
+
+    function setNow() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('id_feed_time').value = `${hours}:${minutes}`;
+        updatePreview();
+    }
+
+    // Add quick note
+    function addNote(note) {
+        const notesField = document.getElementById('id_notes');
+        if (notesField.value) {
+            notesField.value += '\n' + note;
+        } else {
+            notesField.value = note;
+        }
+    }
+
+    // Update preview
+    function updatePreview() {
+        // Cattle
+        if (cattleData.id) {
+            document.getElementById('previewCattle').textContent = cattleData.tag;
+        }
+
+        // Feed type
+        const feedType = document.getElementById('id_feed_type').value;
+        const feedLabels = {
+            'GRAIN': 'Grain Mix', 'HAY': 'Hay', 'SILAGE': 'Silage',
+            'CONCENTRATE': 'Concentrate', 'MINERALS': 'Minerals', 'MILK': 'Milk'
+        };
+        document.getElementById('previewType').textContent = feedLabels[feedType] || '—';
+
+        // Date/Time
+        const date = document.getElementById('id_date').value;
+        const time = document.getElementById('id_feed_time').value;
+        if (date && time) {
+            document.getElementById('previewDateTime').textContent = `${date} ${time}`;
+        }
+
+        // Quantity
+        const quantity = document.getElementById('id_quantity').value;
+        document.getElementById('previewQuantity').textContent = quantity ? quantity + ' kg' : '0 kg';
+
+        // Cost
+        const costPerKg = parseFloat(document.getElementById('id_cost_per_kg').value) || 0;
+        const total = (parseFloat(quantity) || 0) * costPerKg;
+        document.getElementById('previewCost').textContent = '৳' + total.toFixed(2);
+
+        // Quality
+        const quality = document.getElementById('id_feed_quality').value;
+        const qualityLabels = { '1': 'Poor', '2': 'Fair', '3': 'Good', '4': 'Excellent' };
+        document.getElementById('previewQuality').textContent = qualityLabels[quality] || 'Good';
+    }
+
+    // Add event listeners
+    document.getElementById('id_date').addEventListener('change', function() {
+        updatePreview();
+        loadDailySummary();
+    });
+
+    document.getElementById('id_feed_time').addEventListener('change', updatePreview);
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set default date if empty
+        const dateField = document.getElementById('id_date');
+        if (!dateField.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateField.value = today;
+        }
+        
+        // Set default time if empty
+        const timeField = document.getElementById('id_feed_time');
+        if (!timeField.value) {
+            setNow();
+        }
+        
+        // Load cattle data if selected
+        if (document.getElementById('id_cattle').value) {
+            loadCattleData();
+        }
+        
+        // Calculate initial cost
+        calculateCost();
+    });
+
+    // Form validation
+    document.getElementById('feedingForm').addEventListener('submit', function(e) {
+        const cattle = document.getElementById('id_cattle').value;
+        const date = document.getElementById('id_date').value;
+        const time = document.getElementById('id_feed_time').value;
+        const quantity = document.getElementById('id_quantity').value;
+        const feedType = document.getElementById('id_feed_type').value;
+        
+        if (!cattle || !date || !time || !quantity || !feedType) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl + Enter to submit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('feedingForm').submit();
+        }
+        
+        // Alt + 1-6 for feed types
+        if (e.altKey && e.key >= '1' && e.key <= '6') {
+            e.preventDefault();
+            const types = ['GRAIN', 'HAY', 'SILAGE', 'CONCENTRATE', 'MINERALS', 'MILK'];
+            selectFeedType(types[parseInt(e.key) - 1]);
+        }
+    });
+
+    // Warn before leaving
+    let formDirty = false;
+    document.querySelectorAll('#feedingForm input, #feedingForm select, #feedingForm textarea').forEach(field => {
+        field.addEventListener('change', () => formDirty = true);
+        field.addEventListener('input', () => formDirty = true);
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+</script>
+{% endblock %}

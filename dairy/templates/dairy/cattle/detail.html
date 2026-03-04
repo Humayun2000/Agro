@@ -1,0 +1,587 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ cattle.tag_number }} - Details{% endblock %}
+
+{% block dairy_content %}
+<div class="container-fluid px-0">
+    <!-- Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">
+                <i class="bi bi-shield me-2"></i>
+                {{ cattle.tag_number }}
+                {% if cattle.name %}
+                <small class="text-muted fs-6">({{ cattle.name }})</small>
+                {% endif %}
+            </h4>
+            <p class="text-muted mb-0">
+                <i class="bi bi-calendar me-1"></i> Born: {{ cattle.birth_date|date:"M d, Y" }} |
+                <i class="bi bi-clock me-1"></i> Age: {{ age_in_months }} months |
+                <span class="badge-status {% if cattle.status == 'ACTIVE' %}badge-active{% elif cattle.status == 'SOLD' %}badge-sold{% else %}badge-pending{% endif %}">
+                    {{ cattle.get_status_display }}
+                </span>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'dairy:cattle_edit' cattle.id %}" class="btn btn-warning">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </a>
+            <button class="btn btn-danger" onclick="confirmDelete({{ cattle.id }})">
+                <i class="bi bi-trash me-1"></i> Delete
+            </button>
+            <a href="{% url 'dairy:cattle_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-primary mb-2">
+                        <i class="bi bi-droplet fs-1"></i>
+                    </div>
+                    <h3 class="mb-1">{{ total_milk|floatformat:1 }} L</h3>
+                    <p class="text-muted mb-0">Total Milk</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-success mb-2">
+                        <i class="bi bi-percent fs-1"></i>
+                    </div>
+                    <h3 class="mb-1">{{ avg_fat }}%</h3>
+                    <p class="text-muted mb-0">Avg Fat</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-info mb-2">
+                        <i class="bi bi-graph-up fs-1"></i>
+                    </div>
+                    <h3 class="mb-1">{{ daily_gain }} kg</h3>
+                    <p class="text-muted mb-0">Daily Gain</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-warning mb-2">
+                        <i class="bi bi-cash-stack fs-1"></i>
+                    </div>
+                    <h3 class="mb-1">৳ {{ total_revenue|floatformat:0 }}</h3>
+                    <p class="text-muted mb-0">Total Revenue</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="row g-4 mb-4">
+        <!-- Basic Info -->
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle text-primary me-2"></i>
+                        Basic Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="text-muted">Tag Number:</td>
+                            <td class="fw-bold">{{ cattle.tag_number }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Name:</td>
+                            <td>{{ cattle.name|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Type:</td>
+                            <td>{{ cattle.get_cattle_type_display }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Breed:</td>
+                            <td>{{ cattle.get_breed_display }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Gender:</td>
+                            <td>{{ cattle.get_gender_display }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Color:</td>
+                            <td>{{ cattle.color|default:"-" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Physical & Location -->
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-geo-alt text-success me-2"></i>
+                        Location & Physical
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="text-muted">Weight:</td>
+                            <td class="fw-bold">{{ cattle.weight|default:"-" }} kg</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Location:</td>
+                            <td>{{ cattle.location|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Distinctive Marks:</td>
+                            <td>{{ cattle.distinctive_marks|default:"-"|truncatechars:50 }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Vaccinated:</td>
+                            <td>
+                                {% if cattle.is_vaccinated %}
+                                <span class="badge bg-success">Yes</span>
+                                <small class="text-muted d-block">{{ cattle.last_vaccination_date|default:"" }}</small>
+                                {% else %}
+                                <span class="badge bg-danger">No</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acquisition & Financial -->
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-cash text-warning me-2"></i>
+                        Financial Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="text-muted">Acquisition:</td>
+                            <td>{{ cattle.get_acquisition_type_display }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Acquisition Date:</td>
+                            <td>{{ cattle.acquisition_date|date:"M d, Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Purchase Price:</td>
+                            <td class="fw-bold">৳ {{ cattle.purchase_price|default:"0" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Current Value:</td>
+                            <td class="fw-bold text-success">৳ {{ cattle.current_value|default:"0" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parentage -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gender-male text-primary me-2"></i>
+                        Sire (Father)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if cattle.sire %}
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="bg-primary bg-opacity-10 rounded p-3">
+                            <i class="bi bi-shield fs-3 text-primary"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">{{ cattle.sire.tag_number }}</h6>
+                            <p class="text-muted mb-0">{{ cattle.sire.get_breed_display }}</p>
+                            <small>
+                                <a href="{% url 'dairy:cattle_detail' cattle.sire.id %}" class="text-decoration-none">
+                                    View Details <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Not recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gender-female text-success me-2"></i>
+                        Dam (Mother)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if cattle.dam %}
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="bg-success bg-opacity-10 rounded p-3">
+                            <i class="bi bi-shield fs-3 text-success"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">{{ cattle.dam.tag_number }}</h6>
+                            <p class="text-muted mb-0">{{ cattle.dam.get_breed_display }}</p>
+                            <small>
+                                <a href="{% url 'dairy:cattle_detail' cattle.dam.id %}" class="text-decoration-none">
+                                    View Details <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Not recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs for Records -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 pt-4">
+            <ul class="nav nav-tabs card-header-tabs" id="recordTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="milk-tab" data-bs-toggle="tab" data-bs-target="#milk" type="button">
+                        <i class="bi bi-droplet me-1"></i> Milk Records
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="health-tab" data-bs-toggle="tab" data-bs-target="#health" type="button">
+                        <i class="bi bi-heart-pulse me-1"></i> Health Records
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="weight-tab" data-bs-toggle="tab" data-bs-target="#weight" type="button">
+                        <i class="bi bi-graph-up me-1"></i> Weight Records
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="feeding-tab" data-bs-toggle="tab" data-bs-target="#feeding" type="button">
+                        <i class="bi bi-basket me-1"></i> Feeding Records
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="breeding-tab" data-bs-toggle="tab" data-bs-target="#breeding" type="button">
+                        <i class="bi bi-heart me-1"></i> Breeding Records
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="vaccination-tab" data-bs-toggle="tab" data-bs-target="#vaccination" type="button">
+                        <i class="bi bi-shield-check me-1"></i> Vaccinations
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content" id="recordTabsContent">
+                <!-- Milk Records Tab -->
+                <div class="tab-pane fade show active" id="milk" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Session</th>
+                                    <th>Quantity (L)</th>
+                                    <th>Fat %</th>
+                                    <th>Temperature</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in milk_records %}
+                                <tr>
+                                    <td>{{ record.date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if record.session == 'MORNING' %}bg-warning{% elif record.session == 'AFTERNOON' %}bg-info{% else %}bg-dark{% endif %}">
+                                            {{ record.get_session_display }}
+                                        </span>
+                                    </td>
+                                    <td class="fw-bold">{{ record.quantity }} L</td>
+                                    <td>{{ record.fat_percentage|default:"-" }}%</td>
+                                    <td>{{ record.temperature|default:"-" }}°C</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <p class="text-muted mb-0">No milk records found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Health Records Tab -->
+                <div class="tab-pane fade" id="health" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Diagnosis</th>
+                                    <th>Veterinarian</th>
+                                    <th>Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in health_records %}
+                                <tr>
+                                    <td>{{ record.date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if record.is_emergency %}bg-danger{% else %}bg-info{% endif %}">
+                                            {{ record.get_health_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ record.diagnosis|truncatechars:50 }}</td>
+                                    <td>{{ record.veterinarian }}</td>
+                                    <td>৳ {{ record.treatment_cost|default:"0" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <p class="text-muted mb-0">No health records found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Weight Records Tab -->
+                <div class="tab-pane fade" id="weight" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Weight (kg)</th>
+                                    <th>Daily Gain</th>
+                                    <th>Age (days)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in weight_records %}
+                                <tr>
+                                    <td>{{ record.date|date:"M d, Y" }}</td>
+                                    <td class="fw-bold">{{ record.weight }} kg</td>
+                                    <td>
+                                        {% if record.daily_gain %}
+                                        <span class="text-success">{{ record.daily_gain }} kg/day</span>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ record.age_in_days|default:"-" }} days</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <p class="text-muted mb-0">No weight records found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Feeding Records Tab -->
+                <div class="tab-pane fade" id="feeding" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Feed Type</th>
+                                    <th>Quantity (kg)</th>
+                                    <th>Quality</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in feeding_records %}
+                                <tr>
+                                    <td>{{ record.date|date:"M d, Y" }}</td>
+                                    <td>{{ record.feed_time|time:"H:i" }}</td>
+                                    <td>{{ record.get_feed_type_display }}</td>
+                                    <td>{{ record.quantity }} kg</td>
+                                    <td>
+                                        <span class="badge {% if record.feed_quality == 4 %}bg-success{% elif record.feed_quality == 3 %}bg-info{% elif record.feed_quality == 2 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ record.get_feed_quality_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <p class="text-muted mb-0">No feeding records found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Breeding Records Tab -->
+                <div class="tab-pane fade" id="breeding" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Breeding Date</th>
+                                    <th>Method</th>
+                                    <th>Sire</th>
+                                    <th>Status</th>
+                                    <th>Expected Calving</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in breeding_records %}
+                                <tr>
+                                    <td>{{ record.breeding_date|date:"M d, Y" }}</td>
+                                    <td>{{ record.breeding_method }}</td>
+                                    <td>{{ record.sire.tag_number|default:"-" }}</td>
+                                    <td>
+                                        <span class="badge {% if record.status == 'CALVED' %}bg-success{% elif record.status == 'CONFIRMED' %}bg-info{% elif record.status == 'FAILED' %}bg-danger{% else %}bg-warning{% endif %}">
+                                            {{ record.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ record.expected_calving_date|date:"M d, Y"|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <p class="text-muted mb-0">No breeding records found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Vaccinations Tab -->
+                <div class="tab-pane fade" id="vaccination" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Scheduled Date</th>
+                                    <th>Vaccine Type</th>
+                                    <th>Status</th>
+                                    <th>Administered Date</th>
+                                    <th>Batch</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vax in vaccinations %}
+                                <tr>
+                                    <td>{{ vax.scheduled_date|date:"M d, Y" }}</td>
+                                    <td>{{ vax.get_vaccine_type_display }}</td>
+                                    <td>
+                                        <span class="badge {% if vax.is_completed %}bg-success{% elif vax.scheduled_date < today %}bg-danger{% else %}bg-warning{% endif %}">
+                                            {% if vax.is_completed %}Completed{% elif vax.scheduled_date < today %}Overdue{% else %}Pending{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>{{ vax.administered_date|date:"M d, Y"|default:"-" }}</td>
+                                    <td>{{ vax.batch_number|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <p class="text-muted mb-0">No vaccination records found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Are you sure you want to delete {{ cattle.tag_number }}?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will also delete all associated records (milk, health, weight, etc.).
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'dairy:cattle_delete' cattle.id %}" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function confirmDelete(cattleId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    }
+
+    // Save last active tab to localStorage
+    const tabEl = document.querySelector('button[data-bs-toggle="tab"]');
+    if (tabEl) {
+        const triggerTabList = [].slice.call(document.querySelectorAll('#recordTabs button'));
+        triggerTabList.forEach(function(triggerEl) {
+            triggerEl.addEventListener('shown.bs.tab', function(event) {
+                localStorage.setItem('lastActiveTab', event.target.id);
+            });
+        });
+
+        // Restore last active tab
+        const lastTab = localStorage.getItem('lastActiveTab');
+        if (lastTab) {
+            const tab = document.getElementById(lastTab);
+            if (tab) {
+                new bootstrap.Tab(tab).show();
+            }
+        }
+    }
+</script>
+{% endblock %}

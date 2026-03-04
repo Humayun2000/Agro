@@ -1,0 +1,359 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Delete Cattle{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Cattle
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto mb-4">
+                <i class="bi bi-shield fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Are you absolutely sure?</h4>
+            <p class="text-muted">
+                You are about to permanently delete <strong>{{ cattle.tag_number }}</strong>
+                {% if cattle.name %} ({{ cattle.name }}){% endif %}
+            </p>
+        </div>
+
+        <!-- Cattle Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4">
+                    <div class="cattle-avatar bg-primary text-white rounded-3 p-3">
+                        <span class="fs-1 fw-bold">{{ cattle.tag_number|first|upper }}</span>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-2">{{ cattle.tag_number }}</h5>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Breed</small>
+                                <span class="fw-medium">{{ cattle.get_breed_display }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Gender</small>
+                                <span class="fw-medium">{{ cattle.get_gender_display }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Age</small>
+                                <span class="fw-medium">{{ cattle.age_in_months }} months</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Status</small>
+                                <span class="badge-status 
+                                    {% if cattle.status == 'ACTIVE' %}badge-active
+                                    {% elif cattle.status == 'SOLD' %}badge-sold
+                                    {% else %}badge-pending{% endif %}">
+                                    {{ cattle.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Impact Analysis -->
+        <div class="alert alert-warning mb-4">
+            <div class="d-flex align-items-center gap-3">
+                <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+                <div>
+                    <strong>Warning:</strong> Deleting this cattle will also remove:
+                    <ul class="mb-0 mt-2">
+                        <li>{{ milk_count }} milk records</li>
+                        <li>{{ health_count }} health records</li>
+                        <li>{{ weight_count }} weight records</li>
+                        <li>{{ breeding_count }} breeding records</li>
+                        <li>All associated feeding and vaccination records</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Related Records Preview -->
+        {% if total_records > 0 %}
+        <div class="related-records mb-4">
+            <h6 class="mb-3">
+                <i class="bi bi-link-45deg me-2"></i>
+                Recent Records ({{ total_records }} total)
+            </h6>
+            <div class="list-group">
+                {% for record in milk_records|slice:":2" %}
+                <div class="list-group-item d-flex align-items-center gap-3">
+                    <i class="bi bi-droplet text-primary"></i>
+                    <span>Milk: {{ record.quantity }}L on {{ record.date|date:"M d, Y" }}</span>
+                </div>
+                {% endfor %}
+                {% for record in health_records|slice:":2" %}
+                <div class="list-group-item d-flex align-items-center gap-3">
+                    <i class="bi bi-heart-pulse text-danger"></i>
+                    <span>Health: {{ record.get_health_type_display }} - {{ record.diagnosis|truncatechars:30 }}</span>
+                </div>
+                {% endfor %}
+                {% if total_records > 4 %}
+                <div class="list-group-item text-muted text-center">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    And {{ total_records|add:"-4" }} more records...
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Safety Verification -->
+        <div class="safety-verification mb-4 p-3 bg-light rounded-3">
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+                <label class="form-check-label fw-bold" for="confirmDelete">
+                    I understand that this action is permanent and cannot be undone
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="confirmRecords" onchange="toggleDeleteButton()">
+                <label class="form-check-label fw-bold" for="confirmRecords">
+                    I confirm that I want to delete this cattle and all {{ total_records }} associated records
+                </label>
+            </div>
+        </div>
+
+        <!-- Countdown Timer (hidden by default) -->
+        <div class="countdown-timer text-center mb-4 p-3 bg-danger text-white rounded-3" id="countdownTimer" style="display: none;">
+            <i class="bi bi-clock-history me-2"></i>
+            <span>Deleting in </span>
+            <span class="fw-bold fs-4 mx-2" id="countdownNumber">5</span>
+            <span>seconds...</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'dairy:cattle_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm" class="d-inline">
+                {% csrf_token %}
+                <button type="button" class="btn btn-danger px-5 py-3" id="deleteBtn" onclick="startCountdown()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Permanently Delete
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer Note -->
+        <p class="text-center text-muted small mt-4 mb-0">
+            <i class="bi bi-shield-lock me-1"></i>
+            This action will be logged for audit purposes
+        </p>
+    </div>
+</div>
+
+<!-- Final Confirmation Modal -->
+<div class="modal fade" id="finalConfirmModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Final Warning
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="warning-icon mb-4">
+                    <i class="bi bi-shield fs-1 text-danger"></i>
+                </div>
+                <h5 class="mb-3">This is your last chance!</h5>
+                <p class="mb-4">
+                    You are about to permanently delete <strong>{{ cattle.tag_number }}</strong><br>
+                    and <strong>{{ total_records }} associated records</strong>.
+                </p>
+                <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+                    <i class="bi bi-exclamation-circle-fill fs-4"></i>
+                    <div class="text-start">
+                        <strong>This action CANNOT be undone!</strong>
+                        <p class="mb-0 small">All data will be permanently lost.</p>
+                    </div>
+                </div>
+                <div class="form-check text-start">
+                    <input class="form-check-input" type="checkbox" id="finalConfirm" onchange="toggleFinalButton()">
+                    <label class="form-check-label fw-bold" for="finalConfirm">
+                        I understand the consequences and want to proceed
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="finalDeleteBtn" onclick="submitDelete()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Yes, Delete Permanently
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .cattle-avatar {
+        width: 80px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .warning-icon {
+        width: 100px;
+        height: 100px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px 10px rgba(220, 53, 69, 0.1);
+        }
+    }
+    
+    .countdown-timer {
+        animation: countdownPulse 1s infinite;
+    }
+    
+    @keyframes countdownPulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.8;
+        }
+    }
+    
+    .safety-verification {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .related-records {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 10px;
+    }
+    
+    .list-group-item {
+        border: none;
+        border-bottom: 1px solid #dee2e6;
+        background: transparent;
+    }
+    
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+</style>
+
+<script>
+    let countdownInterval;
+    let countdownValue = 5;
+
+    function toggleDeleteButton() {
+        const confirmDelete = document.getElementById('confirmDelete').checked;
+        const confirmRecords = document.getElementById('confirmRecords').checked;
+        const deleteBtn = document.getElementById('deleteBtn');
+        
+        deleteBtn.disabled = !(confirmDelete && confirmRecords);
+    }
+
+    function startCountdown() {
+        const deleteBtn = document.getElementById('deleteBtn');
+        const countdownTimer = document.getElementById('countdownTimer');
+        const countdownNumber = document.getElementById('countdownNumber');
+        
+        deleteBtn.disabled = true;
+        countdownTimer.style.display = 'block';
+        
+        countdownInterval = setInterval(() => {
+            countdownValue--;
+            countdownNumber.textContent = countdownValue;
+            
+            if (countdownValue <= 0) {
+                clearInterval(countdownInterval);
+                countdownTimer.style.display = 'none';
+                countdownValue = 5;
+                countdownNumber.textContent = countdownValue;
+                
+                // Show final confirmation modal
+                const modal = new bootstrap.Modal(document.getElementById('finalConfirmModal'));
+                modal.show();
+                
+                deleteBtn.disabled = false;
+            }
+        }, 1000);
+    }
+
+    function toggleFinalButton() {
+        const finalConfirm = document.getElementById('finalConfirm').checked;
+        const finalDeleteBtn = document.getElementById('finalDeleteBtn');
+        finalDeleteBtn.disabled = !finalConfirm;
+    }
+
+    function submitDelete() {
+        document.getElementById('deleteForm').submit();
+    }
+
+    // Reset countdown if modal is closed
+    document.getElementById('finalConfirmModal').addEventListener('hidden.bs.modal', function() {
+        clearInterval(countdownInterval);
+        document.getElementById('countdownTimer').style.display = 'none';
+        countdownValue = 5;
+        document.getElementById('countdownNumber').textContent = countdownValue;
+    });
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        if (!document.getElementById('confirmDelete').checked || !document.getElementById('confirmRecords').checked) {
+            e.preventDefault();
+            alert('Please confirm both checkboxes before deleting.');
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Esc to cancel
+        if (e.key === 'Escape') {
+            window.location.href = "{% url 'dairy:cattle_list' %}";
+        }
+        
+        // Ctrl+Enter to delete (if checkboxes checked)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !document.getElementById('deleteBtn').disabled) {
+            e.preventDefault();
+            startCountdown();
+        }
+    });
+
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,678 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 1000px;">
+    <!-- Form Card -->
+    <div class="form-card border-0 shadow-lg">
+        <!-- Form Header with Progress -->
+        <div class="form-header bg-gradient-primary text-white position-relative overflow-hidden">
+            <div class="position-relative z-index-1">
+                <h3 class="mb-2">
+                    <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}pencil-square{% endif %} me-2"></i>
+                    {{ title }}
+                </h3>
+                <p class="mb-0 opacity-75">
+                    {% if action == 'add' %}Register a new cattle in your farm{% else %}Update cattle information{% endif %}
+                </p>
+            </div>
+            
+            <!-- Form Progress Steps -->
+            <div class="progress-steps mt-4">
+                <div class="step {% if action == 'add' %}active{% endif %}" id="step1">
+                    <div class="step-number">1</div>
+                    <div class="step-label">Basic Info</div>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-number">2</div>
+                    <div class="step-label">Physical</div>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-number">3</div>
+                    <div class="step-label">Parentage</div>
+                </div>
+                <div class="step" id="step4">
+                    <div class="step-number">4</div>
+                    <div class="step-label">Acquisition</div>
+                </div>
+                <div class="step" id="step5">
+                    <div class="step-number">5</div>
+                    <div class="step-label">Location</div>
+                </div>
+            </div>
+        </div>
+
+        <form method="post" id="cattleForm" novalidate class="needs-validation">
+            {% csrf_token %}
+
+            <!-- Section 1: Basic Information -->
+            <div class="form-section active" data-step="1">
+                <h6 class="section-title">
+                    <i class="bi bi-info-circle text-primary me-2"></i>
+                    Basic Information
+                    <small class="text-muted ms-2">Required fields *</small>
+                </h6>
+                
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" name="tag_number" id="id_tag_number" 
+                                   class="form-control {% if form.tag_number.errors %}is-invalid{% endif %}"
+                                   value="{{ form.tag_number.value|default:'' }}" 
+                                   placeholder="Tag Number" required
+                                   data-live="tag">
+                            <label><i class="bi bi-tag me-2"></i>Tag Number <span class="text-danger">*</span></label>
+                            {% if form.tag_number.errors %}
+                            <div class="invalid-feedback">{{ form.tag_number.errors.0 }}</div>
+                            {% endif %}
+                            <small class="text-muted">Unique identifier (auto-uppercase)</small>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" name="name" id="id_name" 
+                                   class="form-control" value="{{ form.name.value|default:'' }}"
+                                   placeholder="Name" data-live="name">
+                            <label><i class="bi bi-person me-2"></i>Name (Optional)</label>
+                            <small class="text-muted">Friendly name for the cattle</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <select name="cattle_type" id="id_cattle_type" class="form-select" required>
+                                <option value="">Select Type</option>
+                                {% for value, label in form.cattle_type.field.choices %}
+                                <option value="{{ value }}" {% if form.cattle_type.value == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-shield me-2"></i>Type <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <select name="breed" id="id_breed" class="form-select" required>
+                                <option value="">Select Breed</option>
+                                {% for value, label in form.breed.field.choices %}
+                                <option value="{{ value }}" {% if form.breed.value == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-diagram-3 me-2"></i>Breed <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <select name="gender" id="id_gender" class="form-select" required>
+                                <option value="">Select Gender</option>
+                                {% for value, label in form.gender.field.choices %}
+                                <option value="{{ value }}" {% if form.gender.value == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-gender-ambiguous me-2"></i>Gender <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="birth_date" id="id_birth_date" 
+                                   class="form-control {% if form.birth_date.errors %}is-invalid{% endif %}"
+                                   value="{{ form.birth_date.value|date:'Y-m-d'|default:'' }}" 
+                                   placeholder="Birth Date" required
+                                   data-live="birth">
+                            <label><i class="bi bi-calendar me-2"></i>Birth Date <span class="text-danger">*</span></label>
+                            {% if form.birth_date.errors %}
+                            <div class="invalid-feedback">{{ form.birth_date.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="weight" id="id_weight" 
+                                   class="form-control" value="{{ form.weight.value|default:'' }}"
+                                   placeholder="Weight" step="0.01" data-live="weight">
+                            <label><i class="bi bi-weight me-2"></i>Weight (kg)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Physical Characteristics -->
+            <div class="form-section" data-step="2">
+                <h6 class="section-title">
+                    <i class="bi bi-activity text-success me-2"></i>
+                    Physical Characteristics
+                </h6>
+                
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" name="color" id="id_color" 
+                                   class="form-control" value="{{ form.color.value|default:'' }}"
+                                   placeholder="Color">
+                            <label><i class="bi bi-palette me-2"></i>Color</label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12">
+                        <div class="form-floating">
+                            <textarea name="distinctive_marks" id="id_distinctive_marks" 
+                                      class="form-control" style="height: 100px"
+                                      placeholder="Distinctive Marks">{{ form.distinctive_marks.value|default:'' }}</textarea>
+                            <label><i class="bi bi-pencil me-2"></i>Distinctive Marks</label>
+                            <div class="d-flex justify-content-end">
+                                <small class="text-muted"><span id="charCount">0</span>/500</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Parentage -->
+            <div class="form-section" data-step="3">
+                <h6 class="section-title">
+                    <i class="bi bi-diagram-3 text-info me-2"></i>
+                    Parentage Information
+                </h6>
+                
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select name="sire" id="id_sire" class="form-select">
+                                <option value="">Unknown</option>
+                                {% for sire in form.sire.field.queryset %}
+                                <option value="{{ sire.id }}" {% if form.sire.value|stringformat:"s" == sire.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ sire.tag_number }} - {{ sire.name|default:"Unnamed" }} ({{ sire.get_breed_display }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-gender-male me-2"></i>Sire (Father)</label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select name="dam" id="id_dam" class="form-select">
+                                <option value="">Unknown</option>
+                                {% for dam in form.dam.field.queryset %}
+                                <option value="{{ dam.id }}" {% if form.dam.value|stringformat:"s" == dam.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ dam.tag_number }} - {{ dam.name|default:"Unnamed" }} ({{ dam.get_breed_display }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-gender-female me-2"></i>Dam (Mother)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 4: Acquisition Details -->
+            <div class="form-section" data-step="4">
+                <h6 class="section-title">
+                    <i class="bi bi-truck text-warning me-2"></i>
+                    Acquisition Details
+                </h6>
+                
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <select name="acquisition_type" id="id_acquisition_type" class="form-select">
+                                {% for value, label in form.acquisition_type.field.choices %}
+                                <option value="{{ value }}" {% if form.acquisition_type.value == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-box me-2"></i>Acquisition Type</label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <input type="date" name="acquisition_date" id="id_acquisition_date" 
+                                   class="form-control" value="{{ form.acquisition_date.value|date:'Y-m-d'|default:'' }}">
+                            <label><i class="bi bi-calendar-check me-2"></i>Acquisition Date</label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <input type="number" name="purchase_price" id="id_purchase_price" 
+                                   class="form-control" value="{{ form.purchase_price.value|default:'' }}"
+                                   placeholder="Purchase Price" step="0.01">
+                            <label><i class="bi bi-cash me-2"></i>Purchase Price (৳)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 5: Location & Status -->
+            <div class="form-section" data-step="5">
+                <h6 class="section-title">
+                    <i class="bi bi-geo-alt text-danger me-2"></i>
+                    Location & Status
+                </h6>
+                
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" name="location" id="id_location" 
+                                   class="form-control" value="{{ form.location.value|default:'' }}"
+                                   placeholder="Location">
+                            <label><i class="bi bi-pin-map me-2"></i>Location</label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select name="status" id="id_status" class="form-select">
+                                {% for value, label in form.status.field.choices %}
+                                <option value="{{ value }}" {% if form.status.value == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-activity me-2"></i>Status</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="is_vaccinated" id="id_is_vaccinated" 
+                                   class="form-check-input" {% if form.is_vaccinated.value %}checked{% endif %}
+                                   onchange="toggleVaccinationDate()">
+                            <label class="form-check-label" for="id_is_vaccinated">
+                                <i class="bi bi-shield-check me-2"></i>Vaccinated
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6" id="vaccinationDateGroup" {% if not form.is_vaccinated.value %}style="display: none;"{% endif %}>
+                        <div class="form-floating">
+                            <input type="date" name="last_vaccination_date" id="id_last_vaccination_date" 
+                                   class="form-control" value="{{ form.last_vaccination_date.value|date:'Y-m-d'|default:'' }}">
+                            <label><i class="bi bi-calendar me-2"></i>Last Vaccination Date</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Preview Card -->
+            <div class="live-preview-card bg-light rounded-3 p-4 mb-4">
+                <h6 class="mb-3">
+                    <i class="bi bi-eye-fill text-primary me-2"></i>
+                    Live Preview
+                    <span class="badge bg-primary ms-2" id="previewBadge">
+                        {% if action == 'add' %}New Cattle{% else %}Editing{% endif %}
+                    </span>
+                </h6>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="preview-item d-flex justify-content-between">
+                            <span class="text-muted">Tag Number:</span>
+                            <span class="fw-bold" id="previewTag">{{ form.tag_number.value|default:"—" }}</span>
+                        </div>
+                        <div class="preview-item d-flex justify-content-between">
+                            <span class="text-muted">Name:</span>
+                            <span id="previewName">{{ form.name.value|default:"—" }}</span>
+                        </div>
+                        <div class="preview-item d-flex justify-content-between">
+                            <span class="text-muted">Type/Breed:</span>
+                            <span id="previewType">
+                                {% if form.cattle_type.value %}{{ form.cattle_type.value }}{% endif %}
+                                {% if form.breed.value %}/{{ form.breed.value }}{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="preview-item d-flex justify-content-between">
+                            <span class="text-muted">Gender:</span>
+                            <span id="previewGender">
+                                {% if form.gender.value == 'M' %}Male{% elif form.gender.value == 'F' %}Female{% endif %}
+                            </span>
+                        </div>
+                        <div class="preview-item d-flex justify-content-between">
+                            <span class="text-muted">Age:</span>
+                            <span id="previewAge">—</span>
+                        </div>
+                        <div class="preview-item d-flex justify-content-between">
+                            <span class="text-muted">Weight:</span>
+                            <span id="previewWeight">{{ form.weight.value|default:"—" }} kg</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <button type="button" class="btn btn-outline-secondary" id="prevBtn" onclick="prevStep()" disabled>
+                    <i class="bi bi-arrow-left me-2"></i>Previous
+                </button>
+                
+                <div class="step-indicator">
+                    <span id="currentStep">1</span>/<span id="totalSteps">5</span>
+                </div>
+                
+                <button type="button" class="btn btn-primary" id="nextBtn" onclick="nextStep()">
+                    Next<i class="bi bi-arrow-right ms-2"></i>
+                </button>
+                
+                <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">
+                    <i class="bi bi-check-lg me-2"></i>{{ submit_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .progress-steps {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+    }
+    
+    .progress-steps::before {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: rgba(255,255,255,0.2);
+        z-index: 1;
+    }
+    
+    .step {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        flex: 1;
+    }
+    
+    .step-number {
+        width: 30px;
+        height: 30px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 5px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .step.active .step-number {
+        background: white;
+        color: #667eea;
+    }
+    
+    .step.completed .step-number {
+        background: #28a745;
+        color: white;
+    }
+    
+    .step-label {
+        font-size: 0.75rem;
+        color: rgba(255,255,255,0.7);
+    }
+    
+    .step.active .step-label {
+        color: white;
+    }
+    
+    .form-section {
+        display: none;
+        animation: fadeIn 0.5s ease;
+    }
+    
+    .form-section.active {
+        display: block;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .section-title {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .live-preview-card {
+        border-left: 4px solid #667eea;
+    }
+    
+    .preview-item {
+        padding: 8px 0;
+        border-bottom: 1px dashed #dee2e6;
+    }
+    
+    .preview-item:last-child {
+        border-bottom: none;
+    }
+    
+    .step-indicator {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #6c757d;
+    }
+    
+    .form-floating > label {
+        padding-left: 1.75rem;
+    }
+    
+    .form-floating > .form-control:focus ~ label,
+    .form-floating > .form-control:not(:placeholder-shown) ~ label {
+        transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+    }
+</style>
+
+<script>
+    let currentStep = 1;
+    const totalSteps = 5;
+    
+    // Initialize form sections
+    function showStep(step) {
+        document.querySelectorAll('.form-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.querySelector(`.form-section[data-step="${step}"]`).classList.add('active');
+        
+        // Update step indicators
+        for (let i = 1; i <= totalSteps; i++) {
+            const stepEl = document.getElementById(`step${i}`);
+            if (i < step) {
+                stepEl.classList.add('completed');
+                stepEl.classList.remove('active');
+            } else if (i === step) {
+                stepEl.classList.add('active');
+                stepEl.classList.remove('completed');
+            } else {
+                stepEl.classList.remove('active', 'completed');
+            }
+        }
+        
+        // Update navigation buttons
+        document.getElementById('prevBtn').disabled = step === 1;
+        document.getElementById('currentStep').textContent = step;
+        
+        if (step === totalSteps) {
+            document.getElementById('nextBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'block';
+        } else {
+            document.getElementById('nextBtn').style.display = 'block';
+            document.getElementById('submitBtn').style.display = 'none';
+        }
+    }
+    
+    function nextStep() {
+        if (validateStep(currentStep)) {
+            currentStep++;
+            showStep(currentStep);
+        }
+    }
+    
+    function prevStep() {
+        currentStep--;
+        showStep(currentStep);
+    }
+    
+    function validateStep(step) {
+        if (step === 1) {
+            const required = ['id_tag_number', 'id_cattle_type', 'id_breed', 'id_gender', 'id_birth_date'];
+            let valid = true;
+            
+            required.forEach(id => {
+                const field = document.getElementById(id);
+                if (!field.value) {
+                    field.classList.add('is-invalid');
+                    valid = false;
+                } else {
+                    field.classList.remove('is-invalid');
+                }
+            });
+            
+            if (!valid) {
+                alert('Please fill in all required fields');
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    // Auto-uppercase tag number
+    document.getElementById('id_tag_number').addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+    
+    // Vaccination date toggle
+    function toggleVaccinationDate() {
+        const vaccDateGroup = document.getElementById('vaccinationDateGroup');
+        vaccDateGroup.style.display = document.getElementById('id_is_vaccinated').checked ? 'block' : 'none';
+    }
+    
+    // Character counter
+    const marksField = document.getElementById('id_distinctive_marks');
+    const charCount = document.getElementById('charCount');
+    
+    marksField.addEventListener('input', function() {
+        charCount.textContent = this.value.length;
+    });
+    
+    // Live preview updates
+    function updatePreview() {
+        // Tag
+        document.getElementById('previewTag').textContent = 
+            document.getElementById('id_tag_number').value || '—';
+        
+        // Name
+        document.getElementById('previewName').textContent = 
+            document.getElementById('id_name').value || '—';
+        
+        // Type/Breed
+        const type = document.getElementById('id_cattle_type');
+        const breed = document.getElementById('id_breed');
+        document.getElementById('previewType').textContent = 
+            (type.options[type.selectedIndex]?.text || '') + 
+            (breed.value ? '/' + breed.options[breed.selectedIndex]?.text : '');
+        
+        // Gender
+        const gender = document.getElementById('id_gender');
+        document.getElementById('previewGender').textContent = 
+            gender.options[gender.selectedIndex]?.text || '';
+        
+        // Age
+        const birthDate = document.getElementById('id_birth_date').value;
+        if (birthDate) {
+            const birth = new Date(birthDate);
+            const today = new Date();
+            const months = (today.getFullYear() - birth.getFullYear()) * 12 + 
+                          (today.getMonth() - birth.getMonth());
+            document.getElementById('previewAge').textContent = months + ' months';
+        }
+        
+        // Weight
+        const weight = document.getElementById('id_weight').value;
+        document.getElementById('previewWeight').textContent = 
+            weight ? weight + ' kg' : '—';
+    }
+    
+    // Add event listeners for live preview
+    ['id_tag_number', 'id_name', 'id_cattle_type', 'id_breed', 'id_gender', 'id_birth_date', 'id_weight'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', updatePreview);
+        document.getElementById(id)?.addEventListener('change', updatePreview);
+    });
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        showStep(1);
+        updatePreview();
+        
+        // Set today's date for birth date if empty
+        const birthDate = document.getElementById('id_birth_date');
+        if (!birthDate.value) {
+            const today = new Date().toISOString().split('T')[0];
+            birthDate.value = today;
+            updatePreview();
+        }
+    });
+    
+    // Form submission validation
+    document.getElementById('cattleForm').addEventListener('submit', function(e) {
+        if (!validateStep(1)) {
+            e.preventDefault();
+            currentStep = 1;
+            showStep(1);
+        }
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Alt + N for next
+        if (e.altKey && e.key === 'n' && currentStep < totalSteps) {
+            e.preventDefault();
+            nextStep();
+        }
+        // Alt + P for previous
+        if (e.altKey && e.key === 'p' && currentStep > 1) {
+            e.preventDefault();
+            prevStep();
+        }
+        // Ctrl + Enter for submit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            if (currentStep === totalSteps) {
+                document.getElementById('cattleForm').submit();
+            } else {
+                nextStep();
+            }
+        }
+    });
+</script>
+{% endblock %}

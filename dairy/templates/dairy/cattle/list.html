@@ -1,0 +1,398 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Cattle Management{% endblock %}
+
+{% block dairy_content %}
+<div class="container-fluid px-0">
+    <!-- Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">🐄 Cattle Management</h4>
+            <p class="text-muted mb-0">Manage your herd, track individual cattle records</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="exportData()">
+                <i class="bi bi-download me-1"></i> Export
+            </button>
+            <a href="{% url 'dairy:cattle_add' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Add New Cattle
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-shield fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Total Cattle</h6>
+                            <h3 class="mb-0">{{ total_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-cup-hot fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Dairy Cattle</h6>
+                            <h3 class="mb-0">{{ dairy_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-tree fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Beef Cattle</h6>
+                            <h3 class="mb-0">{{ beef_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-check-circle fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Active Cattle</h6>
+                            <h3 class="mb-0">{{ active_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-funnel"></i>
+                Filters
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Search</label>
+                        <input type="text" name="search" class="form-control" placeholder="Tag, name, location..." value="{{ search_query }}" id="searchInput">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Type</label>
+                        <select name="type" class="form-select">
+                            <option value="">All Types</option>
+                            {% for value, label in cattle.model.CATTLE_TYPES %}
+                            <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All Status</option>
+                            {% for value, label in cattle.model.STATUS_CHOICES %}
+                            <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Gender</label>
+                        <select name="gender" class="form-select">
+                            <option value="">All Genders</option>
+                            {% for value, label in cattle.model.GENDER_CHOICES %}
+                            <option value="{{ value }}" {% if current_gender == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="bi bi-search me-1"></i> Apply
+                            </button>
+                            <a href="{% url 'dairy:cattle_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cattle Table -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-list-ul"></i>
+                Cattle Records
+                <span class="badge bg-primary ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDelete()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="cattleTable">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Tag Number</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Breed</th>
+                        <th>Gender</th>
+                        <th>Age</th>
+                        <th>Weight</th>
+                        <th>Status</th>
+                        <th>Location</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="cattleTableBody">
+                    {% for c in cattle %}
+                    <tr data-id="{{ c.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input cattle-checkbox" value="{{ c.id }}">
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ c.tag_number }}</span>
+                        </td>
+                        <td>{{ c.name|default:"-" }}</td>
+                        <td>
+                            <span class="badge {% if c.cattle_type == 'DAIRY' %}bg-success{% elif c.cattle_type == 'BEEF' %}bg-warning{% else %}bg-info{% endif %}">
+                                {{ c.get_cattle_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ c.get_breed_display }}</td>
+                        <td>
+                            <i class="bi bi-gender-{% if c.gender == 'M' %}male{% else %}female{% endif %} me-1"></i>
+                            {{ c.get_gender_display }}
+                        </td>
+                        <td>{{ c.age_in_months }} months</td>
+                        <td>{% if c.weight %}{{ c.weight }} kg{% else %}-{% endif %}</td>
+                        <td>
+                            <span class="badge-status 
+                                {% if c.status == 'ACTIVE' %}badge-active
+                                {% elif c.status == 'SOLD' %}badge-sold
+                                {% else %}badge-pending{% endif %}">
+                                {{ c.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ c.location|default:"-" }}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'dairy:cattle_detail' c.id %}" class="btn btn-sm btn-outline-info" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'dairy:cattle_edit' c.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete({{ c.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center py-5">
+                            <i class="bi bi-shield fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No cattle found</h5>
+                            <p class="text-muted mb-3">Try adjusting your filters or add a new cattle</p>
+                            <a href="{% url 'dairy:cattle_add' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Add First Cattle
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Are you sure you want to delete this cattle?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This action cannot be undone. All associated records will also be deleted.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Live search with debounce
+    let searchTimeout;
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            document.getElementById('filterForm').submit();
+        }, 500);
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        const checkboxes = document.querySelectorAll('.cattle-checkbox');
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    // Individual checkboxes
+    document.querySelectorAll('.cattle-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.cattle-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDelete(cattleId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        document.getElementById('confirmDeleteBtn').href = "{% url 'dairy:cattle_delete' 0 %}".replace('0', cattleId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDelete() {
+        const selected = Array.from(document.querySelectorAll('.cattle-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} cattle records?`)) {
+            showLoading();
+            fetch('/dairy/api/bulk/cattle/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      location.reload();
+                  } else {
+                      alert('Error: ' + data.error);
+                      hideLoading();
+                  }
+              });
+        }
+    }
+
+    // Export data
+    function exportData() {
+        window.location.href = "{% url 'dairy:export_cattle' %}";
+    }
+
+    // Row click to view details
+    document.querySelectorAll('#cattleTable tbody tr').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'dairy:cattle_detail' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,668 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 900px;">
+    <!-- Form Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}pencil-square{% endif %} me-2"></i>
+                {{ title }}
+            </h3>
+            <p class="mb-0 opacity-75">
+                {% if action == 'add' %}Record new breeding event{% else %}Update breeding record{% endif %}
+            </p>
+        </div>
+
+        <form method="post" id="breedingForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Dam Selection (Mother) -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-shield text-primary me-2"></i>
+                    Dam (Mother)
+                </h6>
+                <div class="form-group">
+                    <select name="cattle" id="id_cattle" class="form-select form-select-lg" required onchange="loadDamData()">
+                        <option value="">Select dam (mother)...</option>
+                        {% for cattle in form.cattle.field.queryset %}
+                        <option value="{{ cattle.id }}" 
+                                data-tag="{{ cattle.tag_number }}"
+                                data-name="{{ cattle.name|default:'Unnamed' }}"
+                                data-breed="{{ cattle.get_breed_display }}"
+                                data-age="{{ cattle.age_in_months }}"
+                                data-breedings="{{ cattle.breeding_records.count }}"
+                                data-calvings="{{ cattle.breeding_records.calved_count }}"
+                                {% if form.cattle.value|stringformat:"s" == cattle.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }} ({{ cattle.get_breed_display }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if form.cattle.errors %}
+                    <div class="text-danger small mt-2">{{ form.cattle.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Selected Dam Info -->
+                <div class="selected-dam-info mt-3 p-3 bg-light rounded-3" id="selectedDamInfo" style="display: none;">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="dam-avatar bg-danger text-white rounded-3 p-3">
+                                    <span class="fs-3 fw-bold" id="selectedDamAvatar">?</span>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1" id="selectedDamTag"></h6>
+                                    <p class="text-muted mb-0" id="selectedDamBreed"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="dam-stats d-flex gap-3">
+                                <div class="stat-item text-center">
+                                    <small class="text-muted d-block">Age</small>
+                                    <span class="fw-bold" id="selectedDamAge">—</span>
+                                </div>
+                                <div class="stat-item text-center">
+                                    <small class="text-muted d-block">Breedings</small>
+                                    <span class="fw-bold" id="selectedDamBreedings">—</span>
+                                </div>
+                                <div class="stat-item text-center">
+                                    <small class="text-muted d-block">Calvings</small>
+                                    <span class="fw-bold" id="selectedDamCalvings">—</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sire Selection (Father) -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-shield text-primary me-2"></i>
+                    Sire (Father)
+                </h6>
+                <div class="row g-3">
+                    {% for sire in form.sire.field.queryset %}
+                    <div class="col-md-4">
+                        <div class="sire-card {% if form.sire.value|stringformat:"s" == sire.id|stringformat:"s" %}active{% endif %}" 
+                             onclick="selectSire({{ sire.id }})"
+                             id="sire-{{ sire.id }}"
+                             data-id="{{ sire.id }}"
+                             data-tag="{{ sire.tag_number }}"
+                             data-name="{{ sire.name|default:'Unnamed' }}"
+                             data-breed="{{ sire.get_breed_display }}"
+                             data-age="{{ sire.age_in_months }}"
+                             data-breedings="{{ sire.breeding_records.count }}"
+                             data-offspring="{{ sire.breeding_records.calved_count }}">
+                            <div class="sire-avatar bg-primary text-white rounded-2 p-2">
+                                <span class="fs-4 fw-bold">{{ sire.tag_number|first }}</span>
+                            </div>
+                            <div class="sire-details">
+                                <div class="fw-bold">{{ sire.tag_number }}</div>
+                                <small class="text-muted">{{ sire.get_breed_display }}</small>
+                                <div class="sire-stats small">
+                                    <span title="Breedings"><i class="bi bi-heart"></i> {{ sire.breeding_records.count }}</span>
+                                    <span title="Offspring"><i class="bi bi-shield"></i> {{ sire.breeding_records.calved_count }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="sire" id="id_sire" value="{{ form.sire.value|default:'' }}">
+                {% if form.sire.errors %}
+                <div class="text-danger small mt-2">{{ form.sire.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Breeding Details -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-calendar-heart text-danger me-2"></i>
+                    Breeding Details
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="breeding_date" id="id_breeding_date" 
+                                   class="form-control" value="{{ form.breeding_date.value|date:'Y-m-d'|default:'' }}" required
+                                   onchange="calculateExpectedDate()">
+                            <label><i class="bi bi-calendar me-2"></i>Breeding Date <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" name="breeding_method" id="id_breeding_method" 
+                                   class="form-control" value="{{ form.breeding_method.value|default:'Natural' }}" required
+                                   placeholder="Natural/AI">
+                            <label><i class="bi bi-droplet me-2"></i>Breeding Method <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pregnancy Status -->
+            <div class="mb-4">
+                <div class="pregnancy-card bg-light rounded-3 p-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-egg text-success me-2"></i>
+                        Pregnancy Status
+                    </h6>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" name="is_pregnant" id="id_is_pregnant" 
+                                       class="form-check-input" {% if form.is_pregnant.value %}checked{% endif %}
+                                       onchange="togglePregnancy()">
+                                <label class="form-check-label fw-bold" for="id_is_pregnant">
+                                    Confirmed Pregnant
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="date" name="pregnancy_check_date" id="id_pregnancy_check_date" 
+                                       class="form-control" value="{{ form.pregnancy_check_date.value|date:'Y-m-d'|default:'' }}">
+                                <label><i class="bi bi-calendar-check me-2"></i>Pregnancy Check Date</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calving Information (shown when pregnant) -->
+            <div class="calving-section mb-4" id="calvingSection" style="display: {% if form.is_pregnant.value %}block{% else %}none{% endif %};">
+                <div class="calving-card bg-light rounded-3 p-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-calendar-event text-success me-2"></i>
+                        Calving Information
+                    </h6>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="date" name="expected_calving_date" id="id_expected_calving_date" 
+                                       class="form-control" value="{{ form.expected_calving_date.value|date:'Y-m-d'|default:'' }}" readonly
+                                       placeholder="Expected Calving">
+                                <label><i class="bi bi-calendar me-2"></i>Expected Calving Date</label>
+                                <small class="text-muted">Auto-calculated (280 days)</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="date" name="actual_calving_date" id="id_actual_calving_date" 
+                                       class="form-control" value="{{ form.actual_calving_date.value|date:'Y-m-d'|default:'' }}"
+                                       onchange="calculateGestation()">
+                                <label><i class="bi bi-calendar me-2"></i>Actual Calving Date</label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <select name="status" id="id_status" class="form-select">
+                                    {% for value, label in status_choices %}
+                                    <option value="{{ value }}" {% if form.status.value == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <label><i class="bi bi-tag me-2"></i>Status</label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <select name="offspring" id="id_offspring" class="form-select">
+                                    <option value="">Select offspring (optional)</option>
+                                    {% for cattle in offspring_list %}
+                                    <option value="{{ cattle.id }}" {% if form.offspring.value|stringformat:"s" == cattle.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <label><i class="bi bi-shield me-2"></i>Offspring</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gestation Calculator -->
+                    <div class="gestation-calculator mt-3 p-3 bg-white rounded-3" id="gestationCalculator" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">Gestation Period:</span>
+                            <span class="fw-bold text-success" id="gestationDays">—</span>
+                        </div>
+                        <div class="progress mt-2" style="height: 5px;">
+                            <div class="progress-bar bg-success" id="gestationProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <div class="form-floating">
+                    <textarea name="notes" id="id_notes" 
+                              class="form-control" style="height: 100px"
+                              placeholder="Additional Notes">{{ form.notes.value|default:'' }}</textarea>
+                    <label><i class="bi bi-journal-text me-2"></i>Notes</label>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-lightning-charge text-danger me-2"></i>
+                    Quick Actions
+                </h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="setToday()">Today</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="suggestSire()">Suggest Sire</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="calculateExpectedDate()">Recalc Expected</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="markCalved()">Mark as Calved</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="addNote('Successful breeding')">Success</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="addNote('Failed breeding')">Failed</button>
+                </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="preview-card bg-light rounded-3 p-4 mb-4">
+                <h6 class="mb-3">
+                    <i class="bi bi-eye-fill text-danger me-2"></i>
+                    Record Preview
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Dam:</span>
+                            <span class="fw-bold" id="previewDam">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Sire:</span>
+                            <span id="previewSire">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Breeding Date:</span>
+                            <span id="previewDate">—</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Method:</span>
+                            <span id="previewMethod">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Status:</span>
+                            <span id="previewStatus" class="fw-bold text-danger">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Expected Calving:</span>
+                            <span id="previewExpected">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{% url 'dairy:breeding_list' %}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-lg me-1"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-danger px-5">
+                    <i class="bi bi-check-lg me-1"></i> {{ submit_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .dam-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .selected-dam-info {
+        border-left: 4px solid #dc3545;
+        animation: slideDown 0.3s ease;
+    }
+    
+    .sire-card {
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+        border-radius: 12px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .sire-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        border-color: #dc3545;
+    }
+    
+    .sire-card.active {
+        border-color: #dc3545;
+        background: #fff5f5;
+    }
+    
+    .sire-avatar {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .sire-details {
+        flex: 1;
+    }
+    
+    .sire-stats {
+        display: flex;
+        gap: 10px;
+        margin-top: 5px;
+    }
+    
+    .pregnancy-card {
+        border-left: 4px solid #28a745;
+    }
+    
+    .calving-card {
+        border-left: 4px solid #28a745;
+    }
+    
+    .preview-card {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .gestation-calculator {
+        border-left: 4px solid #28a745;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<script>
+    let damData = {};
+    let selectedSireId = "{{ form.sire.value|default:'' }}";
+
+    // Load dam data
+    function loadDamData() {
+        const select = document.getElementById('id_cattle');
+        const infoDiv = document.getElementById('selectedDamInfo');
+        
+        if (select.value) {
+            const selected = select.options[select.selectedIndex];
+            damData = {
+                id: select.value,
+                tag: selected.dataset.tag,
+                name: selected.dataset.name,
+                breed: selected.dataset.breed,
+                age: selected.dataset.age,
+                breedings: selected.dataset.breedings,
+                calvings: selected.dataset.calvings
+            };
+            
+            document.getElementById('selectedDamAvatar').textContent = damData.tag[0];
+            document.getElementById('selectedDamTag').textContent = damData.tag;
+            document.getElementById('selectedDamBreed').textContent = damData.breed;
+            document.getElementById('selectedDamAge').textContent = damData.age + ' months';
+            document.getElementById('selectedDamBreedings').textContent = damData.breedings;
+            document.getElementById('selectedDamCalvings').textContent = damData.calvings;
+            
+            infoDiv.style.display = 'block';
+            updatePreview();
+        } else {
+            infoDiv.style.display = 'none';
+        }
+    }
+
+    // Select sire
+    function selectSire(sireId) {
+        document.querySelectorAll('.sire-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        document.getElementById(`sire-${sireId}`).classList.add('active');
+        document.getElementById('id_sire').value = sireId;
+        selectedSireId = sireId;
+        updatePreview();
+    }
+
+    // Toggle pregnancy section
+    function togglePregnancy() {
+        const isPregnant = document.getElementById('id_is_pregnant').checked;
+        const calvingSection = document.getElementById('calvingSection');
+        const statusSelect = document.getElementById('id_status');
+        
+        calvingSection.style.display = isPregnant ? 'block' : 'none';
+        
+        if (isPregnant) {
+            statusSelect.value = 'CONFIRMED';
+            calculateExpectedDate();
+        } else {
+            statusSelect.value = 'BRED';
+        }
+        
+        updatePreview();
+    }
+
+    // Calculate expected calving date (280 days gestation)
+    function calculateExpectedDate() {
+        const breedingDate = document.getElementById('id_breeding_date').value;
+        const expectedField = document.getElementById('id_expected_calving_date');
+        const isPregnant = document.getElementById('id_is_pregnant').checked;
+        
+        if (breedingDate && isPregnant) {
+            const date = new Date(breedingDate);
+            date.setDate(date.getDate() + 280);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            expectedField.value = `${year}-${month}-${day}`;
+            
+            // Calculate days from breeding to expected
+            const today = new Date();
+            const daysElapsed = Math.floor((today - new Date(breedingDate)) / (1000 * 60 * 60 * 24));
+            const totalDays = 280;
+            const progress = (daysElapsed / totalDays) * 100;
+            
+            document.getElementById('gestationCalculator').style.display = 'block';
+            document.getElementById('gestationDays').textContent = `${daysElapsed} / ${totalDays} days`;
+            document.getElementById('gestationProgress').style.width = Math.min(progress, 100) + '%';
+        }
+        
+        updatePreview();
+    }
+
+    // Calculate gestation period when actual calving is entered
+    function calculateGestation() {
+        const breedingDate = document.getElementById('id_breeding_date').value;
+        const calvingDate = document.getElementById('id_actual_calving_date').value;
+        
+        if (breedingDate && calvingDate) {
+            const start = new Date(breedingDate);
+            const end = new Date(calvingDate);
+            const days = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+            
+            document.getElementById('gestationCalculator').style.display = 'block';
+            document.getElementById('gestationDays').textContent = days + ' days (actual)';
+            document.getElementById('gestationProgress').style.width = (days / 280 * 100) + '%';
+        }
+    }
+
+    // Set today's date
+    function setToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('id_breeding_date').value = today;
+        calculateExpectedDate();
+        updatePreview();
+    }
+
+    // Suggest sire based on breed
+    function suggestSire() {
+        if (damData.breed) {
+            // Find sire with matching breed
+            const sireCards = document.querySelectorAll('.sire-card');
+            for (let card of sireCards) {
+                if (card.dataset.breed === damData.breed) {
+                    selectSire(card.dataset.id);
+                    break;
+                }
+            }
+        }
+    }
+
+    // Mark as calved
+    function markCalved() {
+        document.getElementById('id_status').value = 'CALVED';
+        document.getElementById('id_actual_calving_date').value = new Date().toISOString().split('T')[0];
+        updatePreview();
+    }
+
+    // Add quick note
+    function addNote(note) {
+        const notesField = document.getElementById('id_notes');
+        if (notesField.value) {
+            notesField.value += '\n' + note;
+        } else {
+            notesField.value = note;
+        }
+    }
+
+    // Update preview
+    function updatePreview() {
+        // Dam
+        if (damData.id) {
+            document.getElementById('previewDam').textContent = damData.tag;
+        }
+
+        // Sire
+        if (selectedSireId) {
+            const sireCard = document.getElementById(`sire-${selectedSireId}`);
+            if (sireCard) {
+                document.getElementById('previewSire').textContent = sireCard.dataset.tag;
+            }
+        }
+
+        // Breeding Date
+        const date = document.getElementById('id_breeding_date').value;
+        if (date) {
+            const formattedDate = new Date(date).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+            document.getElementById('previewDate').textContent = formattedDate;
+        }
+
+        // Method
+        const method = document.getElementById('id_breeding_method').value;
+        document.getElementById('previewMethod').textContent = method || '—';
+
+        // Status
+        const isPregnant = document.getElementById('id_is_pregnant').checked;
+        const status = document.getElementById('id_status').value;
+        const statusLabels = {
+            'BRED': 'Bred',
+            'CONFIRMED': 'Pregnancy Confirmed',
+            'CALVED': 'Calved',
+            'FAILED': 'Failed'
+        };
+        document.getElementById('previewStatus').textContent = statusLabels[status] || '—';
+
+        // Expected Calving
+        const expected = document.getElementById('id_expected_calving_date').value;
+        document.getElementById('previewExpected').textContent = expected || '—';
+    }
+
+    // Add event listeners
+    document.getElementById('id_breeding_date').addEventListener('change', function() {
+        calculateExpectedDate();
+        updatePreview();
+    });
+
+    document.getElementById('id_breeding_method').addEventListener('input', updatePreview);
+    document.getElementById('id_status').addEventListener('change', updatePreview);
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set today's date if empty
+        const dateField = document.getElementById('id_breeding_date');
+        if (!dateField.value) {
+            setToday();
+        }
+        
+        // Load dam data if selected
+        if (document.getElementById('id_cattle').value) {
+            loadDamData();
+        }
+        
+        // Highlight selected sire
+        if (selectedSireId) {
+            document.getElementById(`sire-${selectedSireId}`)?.classList.add('active');
+        }
+        
+        updatePreview();
+    });
+
+    // Form validation
+    document.getElementById('breedingForm').addEventListener('submit', function(e) {
+        const dam = document.getElementById('id_cattle').value;
+        const sire = document.getElementById('id_sire').value;
+        const date = document.getElementById('id_breeding_date').value;
+        const method = document.getElementById('id_breeding_method').value;
+        
+        if (!dam || !sire || !date || !method) {
+            e.preventDefault();
+            alert('Please select dam, sire, breeding date, and method');
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl + Enter to submit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('breedingForm').submit();
+        }
+    });
+
+    // Warn before leaving
+    let formDirty = false;
+    document.querySelectorAll('#breedingForm input, #breedingForm select, #breedingForm textarea').forEach(field => {
+        field.addEventListener('change', () => formDirty = true);
+        field.addEventListener('input', () => formDirty = true);
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+</script>
+{% endblock %}

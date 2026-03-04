@@ -1,0 +1,485 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 800px;">
+    <!-- Form Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-success text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}pencil-square{% endif %} me-2"></i>
+                {{ title }}
+            </h3>
+            <p class="mb-0 opacity-75">
+                {% if action == 'add' %}Record cattle weight measurement{% else %}Update weight record{% endif %}
+            </p>
+        </div>
+
+        <form method="post" id="weightForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Cattle Selection -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-shield text-primary me-2"></i>
+                    Select Cattle
+                </h6>
+                <div class="form-group">
+                    <select name="cattle" id="id_cattle" class="form-select form-select-lg" required onchange="loadCattleData()">
+                        <option value="">Choose cattle...</option>
+                        {% for cattle in form.cattle.field.queryset %}
+                        <option value="{{ cattle.id }}" 
+                                data-tag="{{ cattle.tag_number }}"
+                                data-name="{{ cattle.name|default:'Unnamed' }}"
+                                data-breed="{{ cattle.get_breed_display }}"
+                                data-age="{{ cattle.age_in_months }}"
+                                data-last-weight="{{ cattle.weight|default:'0' }}"
+                                data-birth="{{ cattle.birth_date|date:'Y-m-d' }}"
+                                {% if form.cattle.value|stringformat:"s" == cattle.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }} ({{ cattle.get_breed_display }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if form.cattle.errors %}
+                    <div class="text-danger small mt-2">{{ form.cattle.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Selected Cattle Info -->
+                <div class="selected-cattle-info mt-3 p-3 bg-light rounded-3" id="selectedCattleInfo" style="display: none;">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="cattle-avatar bg-success text-white rounded-3 p-3">
+                                    <span class="fs-3 fw-bold" id="selectedCattleAvatar">?</span>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1" id="selectedCattleTag"></h6>
+                                    <p class="text-muted mb-0" id="selectedCattleBreed"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="stat-item">
+                                <small class="text-muted d-block">Age</small>
+                                <span class="fw-bold" id="selectedCattleAge">—</span>
+                            </div>
+                            <div class="stat-item mt-2">
+                                <small class="text-muted d-block">Last Weight</small>
+                                <span class="fw-bold" id="selectedLastWeight">—</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weight Measurement -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-weight text-success me-2"></i>
+                    Weight Measurement
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="date" id="id_date" 
+                                   class="form-control" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required
+                                   onchange="calculateGain()">
+                            <label><i class="bi bi-calendar me-2"></i>Date <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="weight" id="id_weight" 
+                                   class="form-control" value="{{ form.weight.value|default:'' }}"
+                                   placeholder="Weight" step="0.01" min="0" required
+                                   oninput="calculateGain(); updateSlider();">
+                            <label><i class="bi bi-weight me-2"></i>Weight (kg) <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <!-- Weight Slider -->
+                    <div class="col-12 mt-3">
+                        <input type="range" class="form-range" id="weightSlider" min="0" max="1000" step="0.5" 
+                               value="{{ form.weight.value|default:'0' }}" oninput="updateWeightField(this.value)">
+                        <div class="d-flex justify-content-between">
+                            <small>0 kg</small>
+                            <small class="fw-bold text-success" id="sliderValue">{{ form.weight.value|default:'0' }} kg</small>
+                            <small>1000 kg</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Growth Analysis -->
+            <div class="growth-analysis bg-light rounded-3 p-4 mb-4" id="growthAnalysis" style="display: none;">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-graph-up text-success me-2"></i>
+                    Growth Analysis
+                </h6>
+                
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="analysis-card text-center p-2">
+                            <small class="text-muted d-block">Previous Weight</small>
+                            <span class="fw-bold fs-5" id="prevWeight">—</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="analysis-card text-center p-2">
+                            <small class="text-muted d-block">Days Since Last</small>
+                            <span class="fw-bold fs-5" id="daysSince">—</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="analysis-card text-center p-2">
+                            <small class="text-muted d-block">Daily Gain</small>
+                            <span class="fw-bold fs-5 text-success" id="dailyGain">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Growth Projection -->
+                <div class="projection-card mt-3 p-3 bg-white rounded-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Projected at 30 days:</span>
+                        <span class="fw-bold text-success" id="projection30">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span>Projected at 60 days:</span>
+                        <span class="fw-bold text-success" id="projection60">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span>Projected at 90 days:</span>
+                        <span class="fw-bold text-success" id="projection90">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <div class="form-floating">
+                    <textarea name="notes" id="id_notes" 
+                              class="form-control" style="height: 100px"
+                              placeholder="Additional Notes">{{ form.notes.value|default:'' }}</textarea>
+                    <label><i class="bi bi-journal-text me-2"></i>Notes</label>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-lightning-charge text-success me-2"></i>
+                    Quick Actions
+                </h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="setToday()">Today</button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="suggestWeight()">Suggest Weight</button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="addNote('Good condition')">Good condition</button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="addNote('Ready for market')">Ready for market</button>
+                </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="preview-card bg-light rounded-3 p-4 mb-4" id="livePreview">
+                <h6 class="mb-3">
+                    <i class="bi bi-eye-fill text-success me-2"></i>
+                    Record Preview
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Cattle:</span>
+                            <span class="fw-bold" id="previewCattle">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Date:</span>
+                            <span id="previewDate">—</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Weight:</span>
+                            <span class="fw-bold text-success" id="previewWeight">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Daily Gain:</span>
+                            <span id="previewGain">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{% url 'dairy:weight_list' %}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-lg me-1"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-success px-5">
+                    <i class="bi bi-check-lg me-1"></i> {{ submit_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .cattle-avatar {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .selected-cattle-info {
+        border-left: 4px solid #28a745;
+        animation: slideDown 0.3s ease;
+    }
+    
+    .growth-analysis {
+        border-left: 4px solid #28a745;
+    }
+    
+    .analysis-card {
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .projection-card {
+        border-left: 4px solid #28a745;
+    }
+    
+    .preview-card {
+        border-left: 4px solid #28a745;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .form-range::-webkit-slider-thumb {
+        background: #28a745;
+    }
+    
+    .form-range::-moz-range-thumb {
+        background: #28a745;
+    }
+</style>
+
+<script>
+    let cattleData = {};
+
+    // Load cattle data
+    function loadCattleData() {
+        const select = document.getElementById('id_cattle');
+        const infoDiv = document.getElementById('selectedCattleInfo');
+        
+        if (select.value) {
+            const selected = select.options[select.selectedIndex];
+            cattleData = {
+                id: select.value,
+                tag: selected.dataset.tag,
+                name: selected.dataset.name,
+                breed: selected.dataset.breed,
+                age: selected.dataset.age,
+                lastWeight: parseFloat(selected.dataset.lastWeight) || 0,
+                birthDate: selected.dataset.birth
+            };
+            
+            document.getElementById('selectedCattleAvatar').textContent = cattleData.tag[0];
+            document.getElementById('selectedCattleTag').textContent = cattleData.tag;
+            document.getElementById('selectedCattleBreed').textContent = cattleData.breed;
+            document.getElementById('selectedCattleAge').textContent = cattleData.age + ' months';
+            document.getElementById('selectedLastWeight').textContent = cattleData.lastWeight + ' kg';
+            
+            infoDiv.style.display = 'block';
+            updatePreview();
+            calculateGain();
+        } else {
+            infoDiv.style.display = 'none';
+            document.getElementById('growthAnalysis').style.display = 'none';
+        }
+    }
+
+    // Weight slider
+    function updateSlider() {
+        const weight = document.getElementById('id_weight').value;
+        const slider = document.getElementById('weightSlider');
+        const sliderValue = document.getElementById('sliderValue');
+        
+        if (weight) {
+            slider.value = weight;
+            sliderValue.textContent = weight + ' kg';
+        }
+    }
+
+    function updateWeightField(value) {
+        document.getElementById('id_weight').value = value;
+        document.getElementById('sliderValue').textContent = value + ' kg';
+        calculateGain();
+        updatePreview();
+    }
+
+    // Calculate daily gain
+    function calculateGain() {
+        const currentWeight = parseFloat(document.getElementById('id_weight').value) || 0;
+        const date = document.getElementById('id_date').value;
+        const analysisDiv = document.getElementById('growthAnalysis');
+        
+        if (cattleData.id && currentWeight > 0 && date) {
+            const lastWeight = cattleData.lastWeight;
+            const currentDate = new Date(date);
+            const lastDate = new Date(cattleData.birthDate); // This should be last weigh-in date in real app
+            
+            document.getElementById('prevWeight').textContent = lastWeight + ' kg';
+            
+            // Calculate days since last (mock - replace with actual last weigh-in date)
+            const daysSince = Math.floor(Math.random() * 30) + 15;
+            document.getElementById('daysSince').textContent = daysSince + ' days';
+            
+            if (lastWeight > 0) {
+                const gain = (currentWeight - lastWeight) / daysSince;
+                document.getElementById('dailyGain').textContent = gain.toFixed(2) + ' kg/day';
+                
+                // Calculate projections
+                document.getElementById('projection30').textContent = (currentWeight + gain * 30).toFixed(1) + ' kg';
+                document.getElementById('projection60').textContent = (currentWeight + gain * 60).toFixed(1) + ' kg';
+                document.getElementById('projection90').textContent = (currentWeight + gain * 90).toFixed(1) + ' kg';
+            }
+            
+            analysisDiv.style.display = 'block';
+        } else {
+            analysisDiv.style.display = 'none';
+        }
+    }
+
+    // Set today's date
+    function setToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('id_date').value = today;
+        calculateGain();
+        updatePreview();
+    }
+
+    // Suggest weight based on age
+    function suggestWeight() {
+        if (cattleData.age) {
+            // Simple weight suggestion based on age
+            const age = parseInt(cattleData.age);
+            const suggestedWeight = Math.min(age * 15, 500); // Rough estimate
+            document.getElementById('id_weight').value = suggestedWeight;
+            updateSlider();
+            calculateGain();
+        }
+    }
+
+    // Add quick note
+    function addNote(note) {
+        const notesField = document.getElementById('id_notes');
+        if (notesField.value) {
+            notesField.value += '\n' + note;
+        } else {
+            notesField.value = note;
+        }
+    }
+
+    // Live preview updates
+    function updatePreview() {
+        // Cattle
+        if (cattleData.id) {
+            document.getElementById('previewCattle').textContent = cattleData.tag;
+        }
+
+        // Date
+        const date = document.getElementById('id_date').value;
+        if (date) {
+            const formattedDate = new Date(date).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+            document.getElementById('previewDate').textContent = formattedDate;
+        }
+
+        // Weight
+        const weight = document.getElementById('id_weight').value;
+        document.getElementById('previewWeight').textContent = weight ? weight + ' kg' : '—';
+
+        // Gain
+        const gain = document.getElementById('dailyGain').textContent;
+        document.getElementById('previewGain').textContent = gain;
+    }
+
+    // Add event listeners
+    document.getElementById('id_date').addEventListener('change', function() {
+        calculateGain();
+        updatePreview();
+    });
+
+    document.getElementById('id_weight').addEventListener('input', function() {
+        updatePreview();
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set today's date if empty
+        const dateField = document.getElementById('id_date');
+        if (!dateField.value) {
+            setToday();
+        }
+        
+        // Load cattle data if selected
+        if (document.getElementById('id_cattle').value) {
+            loadCattleData();
+        }
+        
+        // Initialize slider
+        updateSlider();
+    });
+
+    // Form validation
+    document.getElementById('weightForm').addEventListener('submit', function(e) {
+        const cattle = document.getElementById('id_cattle').value;
+        const date = document.getElementById('id_date').value;
+        const weight = document.getElementById('id_weight').value;
+        
+        if (!cattle || !date || !weight) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl + Enter to submit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('weightForm').submit();
+        }
+    });
+
+    // Warn before leaving
+    let formDirty = false;
+    document.querySelectorAll('#weightForm input, #weightForm select, #weightForm textarea').forEach(field => {
+        field.addEventListener('change', () => formDirty = true);
+        field.addEventListener('input', () => formDirty = true);
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+</script>
+{% endblock %}

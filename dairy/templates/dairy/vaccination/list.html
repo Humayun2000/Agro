@@ -1,0 +1,639 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Vaccination Records{% endblock %}
+
+{% block dairy_content %}
+<div class="container-fluid px-0">
+    <!-- Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">
+                <i class="bi bi-shield-check text-primary me-2"></i>
+                Vaccination Records
+            </h4>
+            <p class="text-muted mb-0">Track and manage cattle vaccinations</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="exportData()">
+                <i class="bi bi-download me-1"></i> Export
+            </button>
+            <a href="{% url 'dairy:vaccination_add' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Schedule Vaccination
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-shield-check fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Total</h6>
+                            <h3 class="mb-0">{{ total_vaccinations|default:"0" }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-check-circle fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Completed</h6>
+                            <h3 class="mb-0">{{ completed_count|default:"0" }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-clock fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Pending</h6>
+                            <h3 class="mb-0">{{ pending_count|default:"0" }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-danger bg-opacity-10 rounded p-3">
+                                <i class="bi bi-exclamation-triangle fs-3 text-danger"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Overdue</h6>
+                            <h3 class="mb-0">{{ overdue_count|default:"0" }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Cards -->
+    <div class="row g-4 mb-4">
+        {% if overdue_count > 0 %}
+        <div class="col-md-6">
+            <div class="alert alert-danger d-flex align-items-center gap-3 mb-0">
+                <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+                <div>
+                    <strong>{{ overdue_count }} Overdue Vaccinations</strong>
+                    <p class="mb-0">These vaccinations require immediate attention.</p>
+                </div>
+                <a href="?status=overdue" class="btn btn-sm btn-danger ms-auto">View</a>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if upcoming_count > 0 %}
+        <div class="col-md-6">
+            <div class="alert alert-warning d-flex align-items-center gap-3 mb-0">
+                <i class="bi bi-clock-history fs-3"></i>
+                <div>
+                    <strong>{{ upcoming_count }} Upcoming Vaccinations</strong>
+                    <p class="mb-0">Due in the next 7 days.</p>
+                </div>
+                <a href="?status=upcoming" class="btn btn-sm btn-warning ms-auto">View</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Filters -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-funnel"></i>
+                Filters
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Cattle</label>
+                        <select name="cattle" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Cattle</option>
+                            {% for cattle in cattle_list %}
+                            <option value="{{ cattle.id }}" {% if request.GET.cattle == cattle.id|stringformat:"s" %}selected{% endif %}>
+                                {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Vaccine Type</label>
+                        <select name="vaccine" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            {% for value, label in vaccine_types %}
+                            <option value="{{ value }}" {% if request.GET.vaccine == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="overdue" {% if request.GET.status == 'overdue' %}selected{% endif %}>Overdue</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Date Range</label>
+                        <input type="date" name="date" class="form-control" value="{{ request.GET.date }}" onchange="this.form.submit()">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <a href="{% url 'dairy:vaccination_list' %}" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle me-1"></i> Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Vaccinations Table -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-list-ul"></i>
+                Vaccination Records
+                <span class="badge bg-primary ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-success" id="bulkCompleteBtn" disabled onclick="bulkComplete()">
+                    <i class="bi bi-check-lg"></i> Mark Completed
+                </button>
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDelete()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="vaccinationTable">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Scheduled Date</th>
+                        <th>Cattle</th>
+                        <th>Vaccine Type</th>
+                        <th>Status</th>
+                        <th>Administered</th>
+                        <th>Batch/Dosage</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="vaccinationTableBody">
+                    {% for vax in vaccinations %}
+                    <tr data-id="{{ vax.id }}" class="vax-row {% if vax.scheduled_date < today and not vax.is_completed %}table-danger{% elif vax.scheduled_date <= week_later and not vax.is_completed %}table-warning{% endif %}">
+                        <td>
+                            <input type="checkbox" class="form-check-input record-checkbox" value="{{ vax.id }}">
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ vax.scheduled_date|date:"M d, Y" }}</div>
+                            {% if not vax.is_completed %}
+                                {% if vax.scheduled_date < today %}
+                                <span class="badge bg-danger">Overdue</span>
+                                {% elif vax.scheduled_date <= week_later %}
+                                <span class="badge bg-warning">Soon</span>
+                                {% else %}
+                                <small class="text-muted">{{ vax.scheduled_date|timeuntil }} left</small>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="cattle-avatar bg-primary bg-opacity-10 rounded p-2">
+                                    <span class="fw-bold text-primary">{{ vax.cattle.tag_number|first }}</span>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ vax.cattle.tag_number }}</div>
+                                    <small class="text-muted">{{ vax.cattle.name|default:"Unnamed" }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ vax.get_vaccine_type_display }}</span>
+                        </td>
+                        <td>
+                            {% if vax.is_completed %}
+                            <span class="badge bg-success">Completed</span>
+                            {% elif vax.scheduled_date < today %}
+                            <span class="badge bg-danger">Overdue</span>
+                            {% else %}
+                            <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if vax.administered_date %}
+                            {{ vax.administered_date|date:"M d, Y" }}
+                            {% if vax.administered_by %}
+                            <small class="text-muted d-block">by {{ vax.administered_by.get_full_name|default:vax.administered_by.username }}</small>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="d-block"><strong>Batch:</strong> {{ vax.batch_number|default:"—" }}</small>
+                            <small><strong>Dosage:</strong> {{ vax.dosage|default:"Standard" }}</small>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                {% if not vax.is_completed %}
+                                <button class="btn btn-sm btn-outline-success" onclick="completeVaccination({{ vax.id }})" title="Mark Completed">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                                {% endif %}
+                                <a href="{% url 'dairy:vaccination_edit' vax.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete({{ vax.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <i class="bi bi-shield-check fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No vaccination records found</h5>
+                            <p class="text-muted mb-3">Schedule vaccinations for your cattle</p>
+                            <a href="{% url 'dairy:vaccination_add' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Schedule First Vaccination
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-primary border-primary">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Vaccine Coverage -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pie-chart text-primary me-2"></i>
+                        Vaccine Coverage
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="coverageChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-week text-primary me-2"></i>
+                        Upcoming Schedule
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for vax in upcoming_vaccinations %}
+                    <div class="schedule-item d-flex justify-content-between align-items-center p-3 bg-light rounded-3 mb-2">
+                        <div>
+                            <span class="fw-bold">{{ vax.cattle.tag_number }}</span>
+                            <small class="text-muted d-block">{{ vax.get_vaccine_type_display }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge {% if vax.days_left < 3 %}bg-danger{% elif vax.days_left < 7 %}bg-warning{% else %}bg-info{% endif %}">
+                                {{ vax.scheduled_date|date:"M d" }}
+                            </span>
+                            <small class="d-block text-muted">{{ vax.days_left }} days left</small>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-4">No upcoming vaccinations</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Vaccination Modal -->
+<div class="modal fade" id="completeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-check-lg me-2"></i>
+                    Complete Vaccination
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="completeForm">
+                    <div class="mb-3">
+                        <label class="form-label">Administration Date</label>
+                        <input type="date" class="form-control" id="adminDate" value="{% now 'Y-m-d' %}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Batch Number</label>
+                        <input type="text" class="form-control" id="batchNumber" placeholder="Enter batch number">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dosage</label>
+                        <input type="text" class="form-control" id="dosage" placeholder="e.g., 2ml">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmCompleteBtn">Mark Completed</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this vaccination record?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This action cannot be undone.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let currentVaccinationId = null;
+
+    // Initialize Coverage Chart
+    const ctx = document.getElementById('coverageChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: [{% for item in coverage_data %}'{{ item.type }}',{% endfor %}],
+            datasets: [{
+                data: [{% for item in coverage_data %}{{ item.percentage }},{% endfor %}],
+                backgroundColor: [
+                    '#0d6efd', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.record-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.record-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkCompleteBtn').disabled = count === 0;
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Complete single vaccination
+    function completeVaccination(vaxId) {
+        currentVaccinationId = vaxId;
+        const modal = new bootstrap.Modal(document.getElementById('completeModal'));
+        modal.show();
+    }
+
+    document.getElementById('confirmCompleteBtn').addEventListener('click', function() {
+        const adminDate = document.getElementById('adminDate').value;
+        const batchNumber = document.getElementById('batchNumber').value;
+        const dosage = document.getElementById('dosage').value;
+        
+        showLoading();
+        fetch(`/dairy/api/vaccination/${currentVaccinationId}/complete/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                admin_date: adminDate,
+                batch_number: batchNumber,
+                dosage: dosage
+            })
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  location.reload();
+              } else {
+                  alert('Error: ' + data.error);
+                  hideLoading();
+              }
+          });
+    });
+
+    // Bulk complete
+    function bulkComplete() {
+        const selected = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => cb.value);
+        const adminDate = prompt("Enter administration date (YYYY-MM-DD):", new Date().toISOString().split('T')[0]);
+        
+        if (adminDate && selected.length > 0) {
+            showLoading();
+            fetch('/dairy/api/bulk/complete-vaccinations/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ 
+                    ids: selected,
+                    admin_date: adminDate 
+                })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      location.reload();
+                  } else {
+                      alert('Error: ' + data.error);
+                      hideLoading();
+                  }
+              });
+        }
+    }
+
+    // Delete confirmation
+    function confirmDelete(recordId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        document.getElementById('confirmDeleteBtn').href = "{% url 'dairy:vaccination_delete' 0 %}".replace('0', recordId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDelete() {
+        const selected = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} vaccination records?`)) {
+            showLoading();
+            fetch('/dairy/api/bulk/vaccination/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      location.reload();
+                  } else {
+                      alert('Error: ' + data.error);
+                      hideLoading();
+                  }
+              });
+        }
+    }
+
+    // Export data
+    function exportData() {
+        window.location.href = "{% url 'dairy:export_vaccination' %}";
+    }
+
+    // Auto-refresh every 60 seconds
+    let autoRefresh = true;
+    setInterval(() => {
+        if (autoRefresh && !document.hidden) {
+            location.reload();
+        }
+    }, 60000);
+
+    document.addEventListener('visibilitychange', () => {
+        autoRefresh = !document.hidden;
+    });
+</script>
+
+<style>
+    .cattle-avatar {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .vax-row {
+        transition: all 0.2s ease;
+    }
+    
+    .vax-row:hover {
+        transform: translateX(5px);
+    }
+    
+    .table-danger {
+        background-color: #fff5f5;
+    }
+    
+    .table-warning {
+        background-color: #fff9e6;
+    }
+    
+    .schedule-item {
+        border-left: 4px solid #0d6efd;
+    }
+</style>
+{% endblock %}

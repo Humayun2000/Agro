@@ -1,52 +1,382 @@
-{% extends "dairy/base_dairy.html" %}
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
 {% block dairy_content %}
-
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">{{ view.object.pk|yesno:"Edit Milk Record,Add Milk Record" }}</h5>
+<div class="container" style="max-width: 800px;">
+    <!-- Form Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-warning text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}pencil-square{% endif %} me-2"></i>
+                {{ title }}
+            </h3>
+            <p class="mb-0 opacity-75">
+                {% if action == 'add' %}Record daily milk production{% else %}Update milk record{% endif %}
+            </p>
         </div>
-        <div class="card-body">
-            <form method="post">
-                {% csrf_token %}
-                {{ form.non_field_errors }}
 
-                <div class="mb-3">
-                    {{ form.cow.label_tag }}
-                    {{ form.cow }}
-                    {{ form.cow.errors }}
-                </div>
+        <form method="post" id="milkForm" novalidate>
+            {% csrf_token %}
 
-                <div class="mb-3">
-                    {{ form.date.label_tag }}
-                    {{ form.date }}
-                    {{ form.date.errors }}
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        {{ form.morning_milk.label_tag }}
-                        {{ form.morning_milk }}
-                        {{ form.morning_milk.errors }}
+            <!-- Session Selection -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-clock text-warning me-2"></i>
+                    Milking Session
+                </h6>
+                <div class="row g-3">
+                    {% for value, label in form.session.field.choices %}
+                    <div class="col-md-4">
+                        <div class="session-card {% if form.session.value == value %}active{% endif %}" 
+                             onclick="selectSession('{{ value }}')"
+                             id="session-{{ value }}">
+                            <i class="bi bi-{% if value == 'MORNING' %}sun{% elif value == 'AFTERNOON' %}sun-fill{% else %}moon-stars{% endif %} session-icon"></i>
+                            <div class="session-name">{{ label }}</div>
+                            <div class="session-time">
+                                {% if value == 'MORNING' %}4:00 - 8:00{% elif value == 'AFTERNOON' %}12:00 - 15:00{% else %}17:00 - 20:00{% endif %}
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        {{ form.evening_milk.label_tag }}
-                        {{ form.evening_milk }}
-                        {{ form.evening_milk.errors }}
+                    {% endfor %}
+                    <input type="hidden" name="session" id="id_session" value="{{ form.session.value|default:'MORNING' }}">
+                </div>
+                {% if form.session.errors %}
+                <div class="text-danger small mt-2">{{ form.session.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Cattle Selection -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-shield text-primary me-2"></i>
+                    Select Cattle
+                </h6>
+                <div class="form-group">
+                    <select name="cattle" id="id_cattle" class="form-select form-select-lg" required>
+                        <option value="">Choose cattle...</option>
+                        {% for cattle in form.cattle.field.queryset %}
+                        <option value="{{ cattle.id }}" 
+                                data-tag="{{ cattle.tag_number }}"
+                                data-name="{{ cattle.name|default:'Unnamed' }}"
+                                data-breed="{{ cattle.get_breed_display }}"
+                                data-age="{{ cattle.age_in_months }}"
+                                {% if form.cattle.value|stringformat:"s" == cattle.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }} ({{ cattle.get_breed_display }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if form.cattle.errors %}
+                    <div class="text-danger small mt-2">{{ form.cattle.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                <!-- Selected Cattle Info -->
+                <div class="selected-cattle-info mt-3 p-3 bg-light rounded-3" id="selectedCattleInfo" style="display: none;">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="cattle-avatar bg-warning text-white rounded-3 p-3">
+                            <span class="fs-3 fw-bold" id="selectedCattleAvatar">?</span>
+                        </div>
+                        <div>
+                            <h6 class="mb-1" id="selectedCattleTag"></h6>
+                            <p class="text-muted mb-0" id="selectedCattleDetails"></p>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="mb-3">
-                    {{ form.notes.label_tag }}
-                    {{ form.notes }}
-                    {{ form.notes.errors }}
+            <!-- Milk Details -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-droplet text-warning me-2"></i>
+                    Milk Details
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="date" id="id_date" 
+                                   class="form-control" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required>
+                            <label><i class="bi bi-calendar me-2"></i>Date <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="quantity" id="id_quantity" 
+                                   class="form-control" value="{{ form.quantity.value|default:'' }}"
+                                   placeholder="Quantity" step="0.01" min="0" required
+                                   oninput="calculateTotal()">
+                            <label><i class="bi bi-cup me-2"></i>Quantity (L) <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="fat_percentage" id="id_fat_percentage" 
+                                   class="form-control" value="{{ form.fat_percentage.value|default:'' }}"
+                                   placeholder="Fat %" step="0.01" min="0" max="100">
+                            <label><i class="bi bi-percent me-2"></i>Fat Percentage</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="temperature" id="id_temperature" 
+                                   class="form-control" value="{{ form.temperature.value|default:'' }}"
+                                   placeholder="Temperature" step="0.1">
+                            <label><i class="bi bi-thermometer-half me-2"></i>Temperature (°C)</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-floating">
+                            <textarea name="quality_notes" id="id_quality_notes" 
+                                      class="form-control" style="height: 100px"
+                                      placeholder="Quality Notes">{{ form.quality_notes.value|default:'' }}</textarea>
+                            <label><i class="bi bi-chat-text me-2"></i>Quality Notes</label>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
-                <button type="submit" class="btn btn-success">Save</button>
-                <a href="{% url 'milk_list' %}" class="btn btn-secondary">Cancel</a>
-            </form>
-        </div>
+            <!-- Live Calculation Card -->
+            <div class="calculation-card bg-light rounded-3 p-4 mb-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Daily Total:</span>
+                            <span class="fw-bold fs-4 text-warning" id="dailyTotal">0 L</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">This Record:</span>
+                            <span class="fw-bold fs-4 text-primary" id="recordTotal">0 L</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-lightning-charge text-warning me-2"></i>
+                    Quick Actions
+                </h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setSession('MORNING')">
+                        <i class="bi bi-sun me-1"></i> Morning
+                    </button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setSession('AFTERNOON')">
+                        <i class="bi bi-sun-fill me-1"></i> Afternoon
+                    </button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setSession('EVENING')">
+                        <i class="bi bi-moon me-1"></i> Evening
+                    </button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setToday()">
+                        <i class="bi bi-calendar-check me-1"></i> Today
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{% url 'dairy:milk_list' %}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-lg me-1"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-warning px-5">
+                    <i class="bi bi-check-lg me-1"></i> {{ submit_text }}
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
+<style>
+    .session-card {
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .session-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .session-card.active {
+        border-color: #ffc107;
+        background: #fff9e6;
+    }
+    
+    .session-icon {
+        font-size: 2rem;
+        color: #ffc107;
+        margin-bottom: 10px;
+    }
+    
+    .session-name {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .session-time {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    .cattle-avatar {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .calculation-card {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .selected-cattle-info {
+        border-left: 4px solid #ffc107;
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<script>
+    // Session selection
+    function selectSession(session) {
+        document.querySelectorAll('.session-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        document.getElementById(`session-${session}`).classList.add('active');
+        document.getElementById('id_session').value = session;
+    }
+
+    // Set session from quick action
+    function setSession(session) {
+        selectSession(session);
+    }
+
+    // Set today's date
+    function setToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('id_date').value = today;
+    }
+
+    // Cattle selection display
+    document.getElementById('id_cattle').addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const infoDiv = document.getElementById('selectedCattleInfo');
+        
+        if (this.value) {
+            document.getElementById('selectedCattleAvatar').textContent = selected.dataset.tag[0];
+            document.getElementById('selectedCattleTag').textContent = selected.dataset.tag;
+            document.getElementById('selectedCattleDetails').textContent = 
+                `${selected.dataset.name} • ${selected.dataset.breed} • ${selected.dataset.age} months`;
+            infoDiv.style.display = 'block';
+        } else {
+            infoDiv.style.display = 'none';
+        }
+    });
+
+    // Calculate totals
+    async function calculateTotal() {
+        const quantity = parseFloat(document.getElementById('id_quantity').value) || 0;
+        document.getElementById('recordTotal').textContent = quantity.toFixed(2) + ' L';
+        
+        // Get daily total from API
+        const date = document.getElementById('id_date').value;
+        if (date) {
+            try {
+                const response = await fetch(`/dairy/api/milk/total/?date=${date}`);
+                const data = await response.json();
+                document.getElementById('dailyTotal').textContent = (data.total || 0).toFixed(2) + ' L';
+            } catch (error) {
+                console.error('Error fetching daily total:', error);
+            }
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set default session if not set
+        if (!document.querySelector('.session-card.active')) {
+            const defaultSession = "{{ form.session.value|default:'MORNING' }}";
+            selectSession(defaultSession);
+        }
+        
+        // Trigger cattle selection display
+        const cattleSelect = document.getElementById('id_cattle');
+        if (cattleSelect.value) {
+            cattleSelect.dispatchEvent(new Event('change'));
+        }
+        
+        // Calculate initial totals
+        calculateTotal();
+    });
+
+    // Auto-calculate on input
+    document.getElementById('id_quantity').addEventListener('input', calculateTotal);
+    document.getElementById('id_date').addEventListener('change', calculateTotal);
+
+    // Form validation
+    document.getElementById('milkForm').addEventListener('submit', function(e) {
+        const cattle = document.getElementById('id_cattle').value;
+        const date = document.getElementById('id_date').value;
+        const quantity = document.getElementById('id_quantity').value;
+        const session = document.getElementById('id_session').value;
+        
+        if (!cattle || !date || !quantity || !session) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Alt + 1,2,3 for sessions
+        if (e.altKey) {
+            if (e.key === '1') selectSession('MORNING');
+            if (e.key === '2') selectSession('AFTERNOON');
+            if (e.key === '3') selectSession('EVENING');
+        }
+        
+        // Ctrl + Enter to submit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('milkForm').submit();
+        }
+    });
+
+    // Warn before leaving if form is dirty
+    let formDirty = false;
+    document.querySelectorAll('#milkForm input, #milkForm select, #milkForm textarea').forEach(field => {
+        field.addEventListener('change', () => formDirty = true);
+        field.addEventListener('input', () => formDirty = true);
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+</script>
 {% endblock %}

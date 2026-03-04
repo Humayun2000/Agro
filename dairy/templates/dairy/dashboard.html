@@ -1,148 +1,552 @@
-{% extends "base.html" %}
-{% block content %}
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
 
-<div class="container-fluid mt-4">
+{% block page_title %}Dashboard{% endblock %}
 
-    <!-- Header -->
-    <div class="text-center mb-4">
-        <h2>Dairy Farm Management</h2>
-        <p class="text-muted">Complete Cow & Milk Production System</p>
+{% block dairy_content %}
+<div class="container-fluid px-0">
+    <!-- Welcome Banner -->
+    <div class="alert alert-primary d-flex align-items-center justify-content-between mb-4 animate-slide" 
+         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+        <div>
+            <h4 class="mb-2 fw-bold">👋 Welcome back, {{ request.user.get_full_name|default:request.user.username }}!</h4>
+            <p class="mb-0 opacity-75">
+                <i class="bi bi-clock me-2"></i>
+                <span id="live-clock"></span>
+                <span class="mx-3">|</span>
+                <i class="bi bi-calendar3 me-2"></i>
+                {% now "l, F j, Y" %}
+            </p>
+        </div>
+        <div>
+            <button class="btn btn-light btn-sm" onclick="refreshDashboard()">
+                <i class="bi bi-arrow-repeat me-1"></i> Refresh
+            </button>
+        </div>
     </div>
 
-    <!-- KPI Section -->
-    <div class="row g-4 mb-5">
+    <!-- Statistics Cards -->
+    <div class="stats-grid" id="statsContainer">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="bi bi-shield"></i>
+            </div>
+            <div class="stat-value" id="totalCattle">0</div>
+            <div class="stat-label">Total Cattle</div>
+            <div class="stat-trend trend-up" id="cattleTrend">
+                <i class="bi bi-arrow-up"></i> <span id="cattleTrendValue">0</span>%
+            </div>
+        </div>
 
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="bi bi-cup-hot"></i>
+            </div>
+            <div class="stat-value" id="dairyCattle">0</div>
+            <div class="stat-label">Dairy Cattle</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon yellow">
+                <i class="bi bi-droplet"></i>
+            </div>
+            <div class="stat-value" id="todayMilk">0 <small style="font-size: 1rem;">L</small></div>
+            <div class="stat-label">Today's Milk</div>
+            <div class="stat-trend trend-up" id="milkTrend">
+                <i class="bi bi-droplet-half"></i> <span id="avgFat">0</span>% fat
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <i class="bi bi-tree"></i>
+            </div>
+            <div class="stat-value" id="beefCattle">0</div>
+            <div class="stat-label">Beef Cattle</div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white shadow-sm text-center">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6>Total Cows</h6>
-                    <h2>{{ total_cows }}</h2>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-danger bg-opacity-10 rounded p-3">
+                                <i class="bi bi-heart-pulse fs-3 text-danger"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Health Alerts</h6>
+                            <h3 class="mb-0" id="healthAlerts">0</h3>
+                            <small class="text-danger" id="emergencyCount">0 emergencies</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="col-md-3">
-            <div class="card bg-success text-white shadow-sm text-center">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6>Active Cows</h6>
-                    <h2>{{ active_cows }}</h2>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-calendar-check fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Due to Calve</h6>
+                            <h3 class="mb-0" id="dueToCalve">0</h3>
+                            <small class="text-warning" id="calvingSoon">0 this month</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="col-md-3">
-            <div class="card bg-warning text-dark shadow-sm text-center">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6>Lactating Cows</h6>
-                    <h2>{{ lactating_cows }}</h2>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-shield-check fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Vaccinations Due</h6>
+                            <h3 class="mb-0" id="vaccinationsDue">0</h3>
+                            <small class="text-danger" id="overdueVax">0 overdue</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="col-md-3">
-            <div class="card bg-info text-white shadow-sm text-center">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6>Today's Milk (L)</h6>
-                    <h2>{{ today_milk }}</h2>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-cash-stack fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Monthly Revenue</h6>
+                            <h3 class="mb-0" id="monthlyRevenue">৳0</h3>
+                            <small class="text-success" id="revenueTrend">+0% from last month</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-
     </div>
 
     <!-- Management Modules -->
-    <div class="row g-4">
-
-        <!-- Cow Management -->
-        <div class="col-md-3">
-            <div class="card bg-light shadow-sm h-100">
-                <div class="card-body d-flex flex-column">
-                    <h5>Cow Management</h5>
-                    <p class="flex-grow-1">Manage cows, breed & lifecycle.</p>
-                    <a href="{% url 'cow_list' %}" class="btn btn-primary mt-auto">Manage</a>
-                </div>
+    <h5 class="mb-3 fw-bold">📋 Management Modules</h5>
+    <div class="module-grid">
+        <!-- Cattle Management -->
+        <div class="module-card">
+            <div class="module-icon cattle">
+                <i class="bi bi-shield"></i>
             </div>
-        </div>
-
-        <!-- Breed -->
-        <div class="col-md-3">
-            <div class="card bg-light shadow-sm h-100">
-                <div class="card-body d-flex flex-column">
-                    <h5>Breed Management</h5>
-                    <p class="flex-grow-1">Manage cow breeds & genetics.</p>
-                    <a href="{% url 'breed_list' %}" class="btn btn-success mt-auto">Manage</a>
-                </div>
+            <h5 class="module-title">Cattle Management</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-check-circle-fill text-success"></i> <span id="activeCattle">0</span> Active</span>
+                <span><i class="bi bi-shield"></i> <span id="totalCattleSmall">0</span> Total</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:cattle_list' %}" class="btn-module btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:cattle_add' %}" class="btn-module btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
             </div>
         </div>
 
         <!-- Milk Production -->
-        <div class="col-md-3">
-            <div class="card bg-light shadow-sm h-100">
-                <div class="card-body d-flex flex-column">
-                    <h5>Milk Production</h5>
-                    <p class="flex-grow-1">Track daily milk records.</p>
-                    <a href="{% url 'milk_list' %}" class="btn btn-warning mt-auto">Manage</a>
-                </div>
+        <div class="module-card">
+            <div class="module-icon milk">
+                <i class="bi bi-droplet"></i>
+            </div>
+            <h5 class="module-title">Milk Production</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-calendar-day"></i> <span id="todayMilkSmall">0</span> L Today</span>
+                <span><i class="bi bi-calendar-month"></i> <span id="monthlyMilk">0</span> L Month</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:milk_list' %}" class="btn-module btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:milk_add' %}" class="btn-module btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Health Records -->
+        <div class="module-card">
+            <div class="module-icon health">
+                <i class="bi bi-heart-pulse"></i>
+            </div>
+            <h5 class="module-title">Health Records</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-file-text"></i> <span id="healthRecords">0</span> Total</span>
+                <span><i class="bi bi-exclamation-triangle text-danger"></i> <span id="emergencyRecords">0</span> Emergency</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:health_list' %}" class="btn-module btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:health_add' %}" class="btn-module btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Vaccinations -->
+        <div class="module-card">
+            <div class="module-icon vaccination">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <h5 class="module-title">Vaccinations</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-calendar"></i> <span id="upcomingVax">0</span> Upcoming</span>
+                <span><i class="bi bi-exclamation-triangle text-danger"></i> <span id="overdueVaxCount">0</span> Overdue</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:vaccination_list' %}" class="btn-module btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:vaccination_add' %}" class="btn-module btn-add">
+                    <i class="bi bi-plus"></i> Schedule
+                </a>
+            </div>
+        </div>
+
+        <!-- Weight Tracking -->
+        <div class="module-card">
+            <div class="module-icon weight">
+                <i class="bi bi-graph-up"></i>
+            </div>
+            <h5 class="module-title">Weight Tracking</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-file-text"></i> <span id="weightRecords">0</span> Records</span>
+                <span><i class="bi bi-arrow-up"></i> <span id="avgGain">0</span> kg/day</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:weight_list' %}" class="btn-module btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:weight_add' %}" class="btn-module btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Feeding Records -->
+        <div class="module-card">
+            <div class="module-icon feeding">
+                <i class="bi bi-basket"></i>
+            </div>
+            <h5 class="module-title">Feeding Records</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-calendar-day"></i> <span id="todayFeedings">0</span> Today</span>
+                <span><i class="bi bi-cake"></i> <span id="totalFeed">0</span> kg</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:feeding_list' %}" class="btn-module btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:feeding_add' %}" class="btn-module btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Breeding Records -->
+        <div class="module-card">
+            <div class="module-icon breeding">
+                <i class="bi bi-heart"></i>
+            </div>
+            <h5 class="module-title">Breeding Records</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-heart"></i> <span id="inHeat">0</span> In Heat</span>
+                <span><i class="bi bi-egg"></i> <span id="pregnant">0</span> Pregnant</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:breeding_list' %}" class="btn-module btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:breeding_add' %}" class="btn-module btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
             </div>
         </div>
 
         <!-- Milk Sales -->
-        <div class="col-md-3">
-            <div class="card bg-light shadow-sm h-100">
-                <div class="card-body d-flex flex-column">
-                    <h5>Milk Sales</h5>
-                    <p class="flex-grow-1">Track milk selling & revenue.</p>
-                    <a href="#" class="btn btn-info mt-auto">Coming Soon</a>
-                </div>
+        <div class="module-card">
+            <div class="module-icon finance">
+                <i class="bi bi-cash"></i>
+            </div>
+            <h5 class="module-title">Milk Sales</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-cup"></i> <span id="todaySales">0</span> L Sold</span>
+                <span><i class="bi bi-cash-stack"></i> <span id="todayRevenue">৳0</span></span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:milk_sale_list' %}" class="btn-module btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:milk_sale_add' %}" class="btn-module btn-add">
+                    <i class="bi bi-plus"></i> Add Sale
+                </a>
             </div>
         </div>
-
-        <!-- Feed Management -->
-        <div class="col-md-3">
-            <div class="card bg-light shadow-sm h-100">
-                <div class="card-body d-flex flex-column">
-                    <h5>Feed Records</h5>
-                    <p class="flex-grow-1">Track cow feeding & cost.</p>
-                    <a href="#" class="btn btn-secondary mt-auto">Coming Soon</a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Health -->
-        <div class="col-md-3">
-            <div class="card bg-light shadow-sm h-100">
-                <div class="card-body d-flex flex-column">
-                    <h5>Health Records</h5>
-                    <p class="flex-grow-1">Manage treatment & vet records.</p>
-                    <a href="#" class="btn btn-danger mt-auto">Coming Soon</a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Vaccination -->
-        <div class="col-md-3">
-            <div class="card bg-light shadow-sm h-100">
-                <div class="card-body d-flex flex-column">
-                    <h5>Vaccination</h5>
-                    <p class="flex-grow-1">Vaccination schedules & reminders.</p>
-                    <a href="#" class="btn btn-dark mt-auto">Coming Soon</a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Reports -->
-        <div class="col-md-3">
-            <div class="card bg-light shadow-sm h-100">
-                <div class="card-body d-flex flex-column">
-                    <h5>Dairy Reports</h5>
-                    <p class="flex-grow-1">Monthly & yearly production analysis.</p>
-                    <a href="#" class="btn btn-primary mt-auto">Coming Soon</a>
-                </div>
-            </div>
-        </div>
-
     </div>
 
+    <!-- Charts and Activities -->
+    <div class="row g-4">
+        <!-- Milk Production Chart -->
+        <div class="col-lg-8">
+            <div class="table-container">
+                <div class="table-header">
+                    <h5 class="table-title">
+                        <i class="bi bi-graph-up text-primary"></i>
+                        Milk Production Trends
+                    </h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary active" onclick="loadChart('week')">Week</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="loadChart('month')">Month</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="loadChart('year')">Year</button>
+                    </div>
+                </div>
+                <canvas id="milkChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="col-lg-4">
+            <div class="table-container">
+                <h5 class="table-title mb-4">
+                    <i class="bi bi-clock-history text-info"></i>
+                    Recent Activities
+                </h5>
+                <div id="activityList" style="max-height: 400px; overflow-y: auto;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="table-container mt-4">
+        <h5 class="table-title mb-4">
+            <i class="bi bi-lightning-charge text-warning"></i>
+            Quick Actions
+        </h5>
+        <div class="row g-3">
+            <div class="col-md-3 col-6">
+                <a href="{% url 'dairy:cattle_add' %}" class="btn btn-outline-primary w-100 py-3">
+                    <i class="bi bi-plus-circle d-block fs-3 mb-2"></i>
+                    <span>Add Cattle</span>
+                </a>
+            </div>
+            <div class="col-md-3 col-6">
+                <a href="{% url 'dairy:milk_add' %}" class="btn btn-outline-warning w-100 py-3">
+                    <i class="bi bi-droplet d-block fs-3 mb-2"></i>
+                    <span>Add Milk</span>
+                </a>
+            </div>
+            <div class="col-md-3 col-6">
+                <a href="{% url 'dairy:health_add' %}" class="btn btn-outline-danger w-100 py-3">
+                    <i class="bi bi-heart-pulse d-block fs-3 mb-2"></i>
+                    <span>Health Check</span>
+                </a>
+            </div>
+            <div class="col-md-3 col-6">
+                <a href="{% url 'dairy:vaccination_add' %}" class="btn btn-outline-success w-100 py-3">
+                    <i class="bi bi-shield-check d-block fs-3 mb-2"></i>
+                    <span>Vaccinate</span>
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
 
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    let milkChart = null;
+
+    // Refresh dashboard data
+    async function refreshDashboard() {
+        showLoading();
+        try {
+            const response = await fetch('/dairy/api/dashboard/stats/');
+            const data = await response.json();
+            
+            if (data.success) {
+                updateStats(data.data);
+                updateModules(data.data);
+            }
+        } catch (error) {
+            console.error('Error refreshing dashboard:', error);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // Update statistics
+    function updateStats(data) {
+        document.getElementById('totalCattle').textContent = data.cattle?.total || 0;
+        document.getElementById('dairyCattle').textContent = data.cattle?.dairy || 0;
+        document.getElementById('beefCattle').textContent = data.cattle?.beef || 0;
+        document.getElementById('todayMilk').innerHTML = (data.milk?.today || 0) + ' <small style="font-size: 1rem;">L</small>';
+        document.getElementById('avgFat').textContent = (data.milk?.avg_fat || 0).toFixed(1);
+        
+        document.getElementById('healthAlerts').textContent = data.health?.alerts || 0;
+        document.getElementById('emergencyCount').textContent = (data.health?.emergencies || 0) + ' emergencies';
+        document.getElementById('dueToCalve').textContent = data.breeding?.due_to_calve || 0;
+        document.getElementById('calvingSoon').textContent = (data.breeding?.due_this_month || 0) + ' this month';
+        document.getElementById('vaccinationsDue').textContent = data.health?.upcoming_vaccinations || 0;
+        document.getElementById('overdueVax').textContent = (data.health?.overdue_vaccinations || 0) + ' overdue';
+        document.getElementById('monthlyRevenue').innerHTML = '৳' + (data.finance?.monthly_revenue || 0).toLocaleString();
+    }
+
+    // Update module cards
+    function updateModules(data) {
+        document.getElementById('activeCattle').textContent = data.cattle?.active || 0;
+        document.getElementById('totalCattleSmall').textContent = data.cattle?.total || 0;
+        document.getElementById('todayMilkSmall').textContent = data.milk?.today || 0;
+        document.getElementById('monthlyMilk').textContent = data.milk?.month || 0;
+        document.getElementById('healthRecords').textContent = data.health?.total || 0;
+        document.getElementById('emergencyRecords').textContent = data.health?.emergencies || 0;
+        document.getElementById('upcomingVax').textContent = data.health?.upcoming_vaccinations || 0;
+        document.getElementById('overdueVaxCount').textContent = data.health?.overdue_vaccinations || 0;
+        document.getElementById('weightRecords').textContent = data.weight?.records || 0;
+        document.getElementById('avgGain').textContent = (data.weight?.avg_gain || 0).toFixed(2);
+        document.getElementById('todayFeedings').textContent = data.feeding?.today || 0;
+        document.getElementById('totalFeed').textContent = data.feeding?.total || 0;
+        document.getElementById('inHeat').textContent = data.breeding?.in_heat || 0;
+        document.getElementById('pregnant').textContent = data.breeding?.pregnant || 0;
+        document.getElementById('todaySales').textContent = data.sales?.today_quantity || 0;
+        document.getElementById('todayRevenue').innerHTML = '৳' + (data.sales?.today_revenue || 0).toLocaleString();
+    }
+
+    // Load chart data
+    async function loadChart(period = 'week') {
+        try {
+            const response = await fetch(`/dairy/api/milk-chart/?period=${period}`);
+            const data = await response.json();
+            
+            if (milkChart) {
+                milkChart.destroy();
+            }
+            
+            const ctx = document.getElementById('milkChart').getContext('2d');
+            milkChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Milk Production (L)',
+                        data: data.values,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Liters'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading chart:', error);
+        }
+    }
+
+    // Load recent activities
+    async function loadActivities() {
+        try {
+            const response = await fetch('/dairy/api/recent-activity/');
+            const data = await response.json();
+            
+            const container = document.getElementById('activityList');
+            if (data.activities && data.activities.length > 0) {
+                let html = '';
+                data.activities.forEach(activity => {
+                    html += `
+                        <div class="d-flex align-items-center gap-3 mb-3 p-3 bg-light rounded">
+                            <div class="text-${activity.color}">
+                                <i class="bi bi-${activity.icon} fs-4"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <p class="mb-1">${activity.description}</p>
+                                <small class="text-muted">${activity.time}</small>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-clock-history fs-1 d-block mb-3"></i>
+                        <p class="mb-0">No recent activities</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading activities:', error);
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshDashboard();
+        loadChart('week');
+        loadActivities();
+        
+        // Auto-refresh every 60 seconds
+        setInterval(refreshDashboard, 60000);
+    });
+
+    // Chart period buttons
+    document.querySelectorAll('[onclick^="loadChart"]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+</script>
 {% endblock %}

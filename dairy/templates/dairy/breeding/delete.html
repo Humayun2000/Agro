@@ -1,0 +1,665 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Delete Breeding Record{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 750px;">
+    <!-- Delete Confirmation Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Breeding Record
+            </h3>
+            <p class="mb-0 opacity-75">This action will affect reproduction history and genetics tracking</p>
+        </div>
+
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-heart-fill fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove breeding record?</h4>
+            <p class="text-muted">
+                You are about to delete a breeding record from 
+                <strong>{{ record.breeding_date|date:"F d, Y" }}</strong>
+            </p>
+        </div>
+
+        <!-- Record Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <!-- Parents Summary -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="parent-card bg-white rounded-3 p-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="parent-avatar bg-danger text-white rounded-3 p-3">
+                                    <span class="fs-2 fw-bold">{{ record.cattle.tag_number|first }}</span>
+                                </div>
+                                <div>
+                                    <small class="text-muted d-block">Dam (Mother)</small>
+                                    <h5 class="mb-1">{{ record.cattle.tag_number }}</h5>
+                                    <p class="text-muted mb-0">{{ record.cattle.name|default:"Unnamed" }}</p>
+                                    <small class="text-muted">{{ record.cattle.get_breed_display }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="parent-card bg-white rounded-3 p-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="parent-avatar bg-primary text-white rounded-3 p-3">
+                                    <span class="fs-2 fw-bold">{{ record.sire.tag_number|first }}</span>
+                                </div>
+                                <div>
+                                    <small class="text-muted d-block">Sire (Father)</small>
+                                    <h5 class="mb-1">{{ record.sire.tag_number }}</h5>
+                                    <p class="text-muted mb-0">{{ record.sire.name|default:"Unnamed" }}</p>
+                                    <small class="text-muted">{{ record.sire.get_breed_display }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Breeding Details -->
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Breeding Date</small>
+                            <span class="fw-bold">{{ record.breeding_date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Method</small>
+                            <span class="badge bg-info">{{ record.breeding_method }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Status</small>
+                            <span class="badge {% if record.status == 'CALVED' %}bg-success{% elif record.status == 'CONFIRMED' %}bg-info{% elif record.status == 'FAILED' %}bg-danger{% else %}bg-warning{% endif %}">
+                                {{ record.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pregnancy Info -->
+                {% if record.is_pregnant %}
+                <div class="pregnancy-info mt-3 p-3 bg-white rounded-3">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">Pregnancy Check</small>
+                            <span class="fw-bold">{{ record.pregnancy_check_date|date:"M d, Y"|default:"Not recorded" }}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">Expected Calving</small>
+                            <span class="fw-bold text-success">{{ record.expected_calving_date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Offspring Info -->
+                {% if record.offspring %}
+                <div class="offspring-info mt-3 p-3 bg-success bg-opacity-10 rounded-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="bi bi-shield fs-2 text-success"></i>
+                        <div>
+                            <small class="text-muted d-block">Offspring</small>
+                            <h5 class="mb-1">{{ record.offspring.tag_number }}</h5>
+                            <p class="text-muted mb-0">{{ record.offspring.name|default:"Unnamed" }}</p>
+                            <small class="text-muted">Born: {{ record.actual_calving_date|date:"M d, Y" }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Genetic Impact Card -->
+        <div class="genetic-card bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-diagram-3 text-danger me-2"></i>
+                Genetic Lineage Impact
+            </h6>
+            
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="genetic-stat bg-white rounded-3 p-3 text-center">
+                        <small class="text-muted d-block">Dam's Breedings</small>
+                        <span class="fs-3 fw-bold">{{ dam_breeding_count }}</span>
+                        <div class="text-danger small">→ {{ dam_breeding_count|add:"-1" }} after</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="genetic-stat bg-white rounded-3 p-3 text-center">
+                        <small class="text-muted d-block">Sire's Breedings</small>
+                        <span class="fs-3 fw-bold">{{ sire_breeding_count }}</span>
+                        <div class="text-danger small">→ {{ sire_breeding_count|add:"-1" }} after</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="genetic-stat bg-white rounded-3 p-3 text-center">
+                        <small class="text-muted d-block">Success Rate</small>
+                        <span class="fs-3 fw-bold">{{ success_rate }}%</span>
+                        <div class="text-danger small">→ {{ new_success_rate }}% after</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lineage-tree bg-white rounded-3 p-3 mt-3">
+                <h6 class="fw-bold mb-2">Lineage Tree</h6>
+                <div class="tree text-center">
+                    <div class="tree-row">
+                        <span class="tree-node sire">{{ record.sire.tag_number }}</span>
+                        <span class="tree-connector">×</span>
+                        <span class="tree-node dam">{{ record.cattle.tag_number }}</span>
+                    </div>
+                    <div class="tree-row">
+                        <span class="tree-arrow">↓</span>
+                    </div>
+                    <div class="tree-row">
+                        {% if record.offspring %}
+                        <span class="tree-node offspring">{{ record.offspring.tag_number }}</span>
+                        {% else %}
+                        <span class="tree-node text-muted">No offspring</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if record.offspring %}
+                <div class="alert alert-danger mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Deleting this record will disconnect {{ record.offspring.tag_number }} from its parents
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Timeline Card -->
+        <div class="timeline-card bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-clock-history text-danger me-2"></i>
+                Reproduction Timeline
+            </h6>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-marker bg-primary"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-date">{{ record.breeding_date|date:"M d, Y" }}</div>
+                        <div class="timeline-title">Breeding</div>
+                    </div>
+                </div>
+                
+                {% if record.pregnancy_check_date %}
+                <div class="timeline-item">
+                    <div class="timeline-marker bg-info"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-date">{{ record.pregnancy_check_date|date:"M d, Y" }}</div>
+                        <div class="timeline-title">Pregnancy Check</div>
+                        <div class="timeline-status">{{ record.is_pregnant|yesno:"Confirmed,Not Pregnant" }}</div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if record.expected_calving_date %}
+                <div class="timeline-item">
+                    <div class="timeline-marker bg-warning"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-date">{{ record.expected_calving_date|date:"M d, Y" }}</div>
+                        <div class="timeline-title">Expected Calving</div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if record.actual_calving_date %}
+                <div class="timeline-item">
+                    <div class="timeline-marker bg-success"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-date">{{ record.actual_calving_date|date:"M d, Y" }}</div>
+                        <div class="timeline-title">Actual Calving</div>
+                        <div class="timeline-status">Gestation: {{ gestation_days }} days</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Warning List -->
+        <div class="warning-list bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold text-danger mb-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                This will affect:
+            </h6>
+            <ul class="list-unstyled">
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Breeding history for {{ record.cattle.tag_number }}
+                </li>
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Breeding statistics for {{ record.sire.tag_number }}
+                </li>
+                {% if record.offspring %}
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Parentage record for {{ record.offspring.tag_number }}
+                </li>
+                {% endif %}
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Success rate calculations
+                </li>
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Genetic lineage tracking
+                </li>
+            </ul>
+        </div>
+
+        <!-- Safety Verification -->
+        <div class="safety-section bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-shield-lock text-danger me-2"></i>
+                Genetic Data Verification
+            </h6>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify1" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify1">
+                        I understand this will affect genetic lineage
+                    </label>
+                </div>
+            </div>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify2" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify2">
+                        I confirm this is the correct breeding record
+                    </label>
+                </div>
+            </div>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify3" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify3">
+                        I have verified with breeding records
+                    </label>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress mt-3" style="height: 8px;">
+                <div class="progress-bar bg-danger" id="verificationProgress" style="width: 0%"></div>
+            </div>
+            <small class="text-muted" id="verificationText">0 of 3 verified</small>
+        </div>
+
+        <!-- Countdown Timer -->
+        <div class="countdown-timer bg-danger text-white rounded-3 p-3 mb-4" id="countdownTimer" style="display: none;">
+            <div class="d-flex align-items-center justify-content-center gap-3">
+                <i class="bi bi-clock-history fs-4"></i>
+                <span>Deleting breeding record in</span>
+                <span class="fw-bold fs-2" id="countdownNumber">5</span>
+                <span>seconds...</span>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'dairy:breeding_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="button" class="btn btn-danger px-5 py-3" id="deleteBtn" onclick="startCountdown()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Record
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer Note -->
+        <p class="text-muted small text-center mt-4 mb-0">
+            <i class="bi bi-shield-lock me-1"></i>
+            This action will be logged and will affect genetic lineage records
+        </p>
+    </div>
+</div>
+
+<!-- Final Confirmation Modal -->
+<div class="modal fade" id="finalConfirmModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    FINAL WARNING
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-heart-fill fs-1 text-danger d-block mb-3"></i>
+                <h5 class="mb-3">Genetic Lineage Alert!</h5>
+                
+                <div class="record-summary bg-light p-3 rounded-3 mb-4">
+                    <p class="mb-2"><strong>Breeding:</strong> {{ record.breeding_date|date:"M d, Y" }}</p>
+                    <p class="mb-2"><strong>Dam:</strong> {{ record.cattle.tag_number }}</p>
+                    <p class="mb-2"><strong>Sire:</strong> {{ record.sire.tag_number }}</p>
+                    {% if record.offspring %}
+                    <p class="mb-0"><strong>Offspring:</strong> {{ record.offspring.tag_number }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="lineage-warning bg-light p-3 rounded-3 mb-4">
+                    <div class="tree text-center">
+                        <div>{{ record.sire.tag_number }} × {{ record.cattle.tag_number }}</div>
+                        <div class="text-danger">↓ (THIS CONNECTION WILL BE REMOVED)</div>
+                        <div class="{% if record.offspring %}text-muted{% else %}text-danger{% endif %}">
+                            {{ record.offspring.tag_number|default:"No offspring" }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+                    <i class="bi bi-exclamation-circle-fill fs-4"></i>
+                    <div class="text-start">
+                        <strong>Genetic lineage will be broken!</strong>
+                        <p class="mb-0 small">Parent-child relationships will be permanently lost.</p>
+                    </div>
+                </div>
+                
+                <div class="form-check text-start">
+                    <input class="form-check-input" type="checkbox" id="finalConfirm">
+                    <label class="form-check-label fw-bold" for="finalConfirm">
+                        Yes, permanently delete this breeding record
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="finalDeleteBtn" onclick="submitDelete()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Forever
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .warning-icon {
+        width: 100px;
+        height: 100px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px 10px rgba(220, 53, 69, 0.1);
+        }
+    }
+    
+    .parent-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .parent-card {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .parent-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+    }
+    
+    .pregnancy-info {
+        border-left: 4px solid #28a745;
+    }
+    
+    .offspring-info {
+        border-left: 4px solid #28a745;
+    }
+    
+    .genetic-stat {
+        border: 1px solid #e9ecef;
+    }
+    
+    .lineage-tree {
+        border: 1px solid #e9ecef;
+    }
+    
+    .tree-node {
+        display: inline-block;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+    
+    .tree-node.sire {
+        background: #cce5ff;
+        color: #004085;
+    }
+    
+    .tree-node.dam {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .tree-node.offspring {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .tree-connector {
+        font-size: 1.5rem;
+        margin: 0 10px;
+    }
+    
+    .tree-arrow {
+        font-size: 1.5rem;
+        color: #6c757d;
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-bottom: 25px;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -30px;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        top: 5px;
+    }
+    
+    .timeline-content {
+        background: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .timeline-date {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .timeline-title {
+        font-weight: bold;
+    }
+    
+    .timeline-status {
+        font-size: 0.85rem;
+        color: #28a745;
+    }
+    
+    .countdown-timer {
+        animation: pulseCountdown 1s infinite;
+    }
+    
+    @keyframes pulseCountdown {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+    
+    .lineage-warning {
+        border-left: 4px solid #dc3545;
+    }
+</style>
+
+<script>
+    let countdownInterval;
+    let countdownValue = 5;
+    let verifiedCount = 0;
+
+    function checkVerification() {
+        verifiedCount = 0;
+        for (let i = 1; i <= 3; i++) {
+            if (document.getElementById(`verify${i}`).checked) {
+                verifiedCount++;
+            }
+        }
+        
+        const progress = (verifiedCount / 3) * 100;
+        document.getElementById('verificationProgress').style.width = progress + '%';
+        document.getElementById('verificationText').textContent = `${verifiedCount} of 3 verified`;
+        
+        document.getElementById('deleteBtn').disabled = verifiedCount !== 3;
+    }
+
+    function startCountdown() {
+        const deleteBtn = document.getElementById('deleteBtn');
+        const countdownTimer = document.getElementById('countdownTimer');
+        const countdownNumber = document.getElementById('countdownNumber');
+        
+        deleteBtn.disabled = true;
+        countdownTimer.style.display = 'block';
+        
+        countdownInterval = setInterval(() => {
+            countdownValue--;
+            countdownNumber.textContent = countdownValue;
+            
+            if (countdownValue <= 0) {
+                clearInterval(countdownInterval);
+                countdownTimer.style.display = 'none';
+                countdownValue = 5;
+                countdownNumber.textContent = countdownValue;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('finalConfirmModal'));
+                modal.show();
+                
+                deleteBtn.disabled = false;
+            }
+        }, 1000);
+    }
+
+    document.getElementById('finalConfirm').addEventListener('change', function() {
+        document.getElementById('finalDeleteBtn').disabled = !this.checked;
+    });
+
+    function submitDelete() {
+        document.getElementById('deleteForm').submit();
+    }
+
+    // Reset on modal close
+    document.getElementById('finalConfirmModal').addEventListener('hidden.bs.modal', function() {
+        clearInterval(countdownInterval);
+        document.getElementById('countdownTimer').style.display = 'none';
+        countdownValue = 5;
+        document.getElementById('countdownNumber').textContent = countdownValue;
+        document.getElementById('finalConfirm').checked = false;
+        document.getElementById('finalDeleteBtn').disabled = true;
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (confirm('Cancel deletion and return to breeding records?')) {
+                window.location.href = "{% url 'dairy:breeding_list' %}";
+            }
+        }
+        
+        // Alt + 1,2,3 for quick verification
+        if (e.altKey) {
+            if (e.key === '1') {
+                document.getElementById('verify1').checked = !document.getElementById('verify1').checked;
+                checkVerification();
+            }
+            if (e.key === '2') {
+                document.getElementById('verify2').checked = !document.getElementById('verify2').checked;
+                checkVerification();
+            }
+            if (e.key === '3') {
+                document.getElementById('verify3').checked = !document.getElementById('verify3').checked;
+                checkVerification();
+            }
+        }
+        
+        // Ctrl + Enter to delete (if verified)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && verifiedCount === 3) {
+            e.preventDefault();
+            startCountdown();
+        }
+    });
+
+    // Mouse leave detection for extra safety
+    let mouseOutCount = 0;
+    document.addEventListener('mouseleave', function() {
+        if (verifiedCount === 3) {
+            mouseOutCount++;
+            if (mouseOutCount >= 2) {
+                // Auto-unverify if user leaves page multiple times
+                for (let i = 1; i <= 3; i++) {
+                    document.getElementById(`verify${i}`).checked = false;
+                }
+                verifiedCount = 0;
+                checkVerification();
+                mouseOutCount = 0;
+                
+                alert('⚠️ Safety verification reset due to multiple page exits');
+            }
+        }
+    });
+
+    document.addEventListener('mouseenter', function() {
+        mouseOutCount = 0;
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,689 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 800px;">
+    <!-- Form Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-primary text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}pencil-square{% endif %} me-2"></i>
+                {{ title }}
+            </h3>
+            <p class="mb-0 opacity-75">
+                {% if action == 'add' %}Schedule new vaccination{% else %}Update vaccination record{% endif %}
+            </p>
+        </div>
+
+        <form method="post" id="vaccinationForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Cattle Selection -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-shield text-primary me-2"></i>
+                    Select Cattle
+                </h6>
+                <div class="form-group">
+                    <select name="cattle" id="id_cattle" class="form-select form-select-lg" required onchange="loadCattleData()">
+                        <option value="">Choose cattle...</option>
+                        {% for cattle in form.cattle.field.queryset %}
+                        <option value="{{ cattle.id }}" 
+                                data-tag="{{ cattle.tag_number }}"
+                                data-name="{{ cattle.name|default:'Unnamed' }}"
+                                data-breed="{{ cattle.get_breed_display }}"
+                                data-age="{{ cattle.age_in_months }}"
+                                data-last-vaccination="{{ cattle.last_vaccination_date|date:'Y-m-d'|default:'' }}"
+                                {% if form.cattle.value|stringformat:"s" == cattle.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }} ({{ cattle.get_breed_display }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if form.cattle.errors %}
+                    <div class="text-danger small mt-2">{{ form.cattle.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Selected Cattle Info -->
+                <div class="selected-cattle-info mt-3 p-3 bg-light rounded-3" id="selectedCattleInfo" style="display: none;">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="cattle-avatar bg-primary text-white rounded-3 p-3">
+                                    <span class="fs-3 fw-bold" id="selectedCattleAvatar">?</span>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1" id="selectedCattleTag"></h6>
+                                    <p class="text-muted mb-0" id="selectedCattleBreed"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="cattle-stats d-flex gap-3">
+                                <div class="stat-item text-center">
+                                    <small class="text-muted d-block">Age</small>
+                                    <span class="fw-bold" id="selectedCattleAge">—</span>
+                                </div>
+                                <div class="stat-item text-center">
+                                    <small class="text-muted d-block">Last Vax</small>
+                                    <span class="fw-bold" id="selectedLastVax">—</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vaccine Type Selection -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-capsule text-primary me-2"></i>
+                    Vaccine Type
+                </h6>
+                <div class="row g-3">
+                    {% for value, label in vaccine_types %}
+                    <div class="col-md-4">
+                        <div class="vaccine-card {% if form.vaccine_type.value == value %}active{% endif %}" 
+                             onclick="selectVaccine('{{ value }}')"
+                             id="vaccine-{{ value }}">
+                            <i class="bi bi-{% if value == 'FMD' %}shield{% elif value == 'BQ' %}bio{% elif value == 'HS' %}droplet{% elif value == 'BRU' %}exclamation-triangle{% else %}virus{% endif %} 
+                                      vaccine-icon"></i>
+                            <div class="vaccine-name">{{ label }}</div>
+                            <div class="vaccine-schedule">
+                                {% if value == 'FMD' %}Every 6 months{% elif value == 'BQ' %}Annual{% elif value == 'HS' %}Annual{% elif value == 'BRU' %}Once (heifers){% else %}Annual{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="vaccine_type" id="id_vaccine_type" value="{{ form.vaccine_type.value|default:'FMD' }}">
+                {% if form.vaccine_type.errors %}
+                <div class="text-danger small mt-2">{{ form.vaccine_type.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Schedule -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-calendar text-primary me-2"></i>
+                    Schedule
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="scheduled_date" id="id_scheduled_date" 
+                                   class="form-control" value="{{ form.scheduled_date.value|date:'Y-m-d'|default:'' }}" required
+                                   onchange="calculateNextDose()">
+                            <label><i class="bi bi-calendar me-2"></i>Scheduled Date <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" name="dosage" id="id_dosage" 
+                                   class="form-control" value="{{ form.dosage.value|default:'' }}"
+                                   placeholder="e.g., 2ml">
+                            <label><i class="bi bi-eyedropper me-2"></i>Dosage</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batch Information -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-upc-scan text-primary me-2"></i>
+                    Batch Information
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" name="batch_number" id="id_batch_number" 
+                                   class="form-control" value="{{ form.batch_number.value|default:'' }}"
+                                   placeholder="Batch number">
+                            <label><i class="bi bi-upc-scan me-2"></i>Batch Number</label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="cost" id="id_cost" 
+                                   class="form-control" value="{{ form.cost.value|default:'' }}"
+                                   placeholder="Cost" step="0.01" min="0">
+                            <label><i class="bi bi-cash me-2"></i>Cost (৳)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Batch Suggestion -->
+                <div class="batch-suggestion mt-3 p-3 bg-light rounded-3" id="batchSuggestion" style="display: none;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi bi-lightbulb text-warning fs-4"></i>
+                            <div>
+                                <small class="text-muted d-block">Recently used batch</small>
+                                <span class="fw-bold" id="recentBatch">VAC-2024-001</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="useRecentBatch()">
+                            Use this
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Completion Status -->
+            <div class="mb-4">
+                <div class="completion-card bg-light rounded-3 p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" name="is_completed" id="id_is_completed" 
+                                       class="form-check-input" {% if form.is_completed.value %}checked{% endif %}
+                                       onchange="toggleCompletion()">
+                                <label class="form-check-label fw-bold" for="id_is_completed">
+                                    Vaccination Completed
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6" id="adminDateGroup" style="display: {% if form.is_completed.value %}block{% else %}none{% endif %};">
+                            <div class="form-floating">
+                                <input type="date" name="administered_date" id="id_administered_date" 
+                                       class="form-control" value="{{ form.administered_date.value|date:'Y-m-d'|default:'' }}">
+                                <label><i class="bi bi-calendar-check me-2"></i>Administration Date</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Dose Calculator -->
+            <div class="next-dose-card bg-light rounded-3 p-4 mb-4" id="nextDoseCard" style="display: none;">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-calendar-plus text-success me-2"></i>
+                    Next Dose Calculator
+                </h6>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="calculator-item text-center">
+                            <small class="text-muted d-block">Current Dose</small>
+                            <span class="fs-5 fw-bold" id="currentDoseDate">—</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="calculator-item text-center">
+                            <small class="text-muted d-block">Next Dose Due</small>
+                            <span class="fs-5 fw-bold text-success" id="nextDoseDate">—</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="progress mt-3" style="height: 8px;">
+                    <div class="progress-bar bg-success" id="doseProgress" style="width: 0%"></div>
+                </div>
+                <small class="text-muted d-block text-center mt-2" id="doseRecommendation">
+                    Schedule the next dose accordingly
+                </small>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <div class="form-floating">
+                    <textarea name="notes" id="id_notes" 
+                              class="form-control" style="height: 100px"
+                              placeholder="Additional Notes">{{ form.notes.value|default:'' }}</textarea>
+                    <label><i class="bi bi-journal-text me-2"></i>Notes</label>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-lightning-charge text-primary me-2"></i>
+                    Quick Actions
+                </h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="setToday()">Today</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="setNextWeek()">Next Week</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="setNextMonth()">Next Month</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="markCompleted()">Mark Completed</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addNote('No adverse reactions')">No reactions</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addNote('Booster dose')">Booster</button>
+                </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="preview-card bg-light rounded-3 p-4 mb-4">
+                <h6 class="mb-3">
+                    <i class="bi bi-eye-fill text-primary me-2"></i>
+                    Record Preview
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Cattle:</span>
+                            <span class="fw-bold" id="previewCattle">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Vaccine:</span>
+                            <span id="previewVaccine">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Scheduled:</span>
+                            <span id="previewDate">—</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Status:</span>
+                            <span id="previewStatus" class="fw-bold text-primary">Pending</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Batch:</span>
+                            <span id="previewBatch">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Next Dose:</span>
+                            <span id="previewNext">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{% url 'dairy:vaccination_list' %}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-lg me-1"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary px-5">
+                    <i class="bi bi-check-lg me-1"></i> {{ submit_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .cattle-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .selected-cattle-info {
+        border-left: 4px solid #0d6efd;
+        animation: slideDown 0.3s ease;
+    }
+    
+    .vaccine-card {
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+        border-radius: 12px;
+        padding: 20px 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .vaccine-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        border-color: #0d6efd;
+    }
+    
+    .vaccine-card.active {
+        border-color: #0d6efd;
+        background: #e7f1ff;
+    }
+    
+    .vaccine-icon {
+        font-size: 2rem;
+        color: #0d6efd;
+        margin-bottom: 8px;
+    }
+    
+    .vaccine-name {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .vaccine-schedule {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    
+    .completion-card {
+        border-left: 4px solid #28a745;
+    }
+    
+    .next-dose-card {
+        border-left: 4px solid #28a745;
+    }
+    
+    .preview-card {
+        border-left: 4px solid #0d6efd;
+    }
+    
+    .batch-suggestion {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .calculator-item {
+        background: white;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<script>
+    let cattleData = {};
+    const vaccineIntervals = {
+        'FMD': 180,  // 6 months in days
+        'BQ': 365,   // 1 year
+        'HS': 365,
+        'BRU': null, // One time only
+        'IBR': 365
+    };
+
+    // Load cattle data
+    function loadCattleData() {
+        const select = document.getElementById('id_cattle');
+        const infoDiv = document.getElementById('selectedCattleInfo');
+        
+        if (select.value) {
+            const selected = select.options[select.selectedIndex];
+            cattleData = {
+                id: select.value,
+                tag: selected.dataset.tag,
+                name: selected.dataset.name,
+                breed: selected.dataset.breed,
+                age: selected.dataset.age,
+                lastVax: selected.dataset.lastVaccination
+            };
+            
+            document.getElementById('selectedCattleAvatar').textContent = cattleData.tag[0];
+            document.getElementById('selectedCattleTag').textContent = cattleData.tag;
+            document.getElementById('selectedCattleBreed').textContent = cattleData.breed;
+            document.getElementById('selectedCattleAge').textContent = cattleData.age + ' months';
+            document.getElementById('selectedLastVax').textContent = cattleData.lastVax || 'None';
+            
+            infoDiv.style.display = 'block';
+            updatePreview();
+        } else {
+            infoDiv.style.display = 'none';
+        }
+    }
+
+    // Select vaccine type
+    function selectVaccine(vaccine) {
+        document.querySelectorAll('.vaccine-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        document.getElementById(`vaccine-${vaccine}`).classList.add('active');
+        document.getElementById('id_vaccine_type').value = vaccine;
+        
+        // Suggest batch number
+        suggestBatchNumber(vaccine);
+        calculateNextDose();
+        updatePreview();
+    }
+
+    // Suggest batch number based on vaccine type
+    function suggestBatchNumber(vaccine) {
+        const year = new Date().getFullYear();
+        const suggestions = {
+            'FMD': `FMD-${year}-001`,
+            'BQ': `BQ-${year}-001`,
+            'HS': `HS-${year}-001`,
+            'BRU': `BRU-${year}-001`,
+            'IBR': `IBR-${year}-001`
+        };
+        
+        const batchField = document.getElementById('id_batch_number');
+        const suggestion = suggestions[vaccine];
+        
+        if (suggestion && !batchField.value) {
+            document.getElementById('recentBatch').textContent = suggestion;
+            document.getElementById('batchSuggestion').style.display = 'block';
+        } else {
+            document.getElementById('batchSuggestion').style.display = 'none';
+        }
+    }
+
+    function useRecentBatch() {
+        document.getElementById('id_batch_number').value = document.getElementById('recentBatch').textContent;
+        document.getElementById('batchSuggestion').style.display = 'none';
+        updatePreview();
+    }
+
+    // Calculate next dose date
+    function calculateNextDose() {
+        const scheduledDate = document.getElementById('id_scheduled_date').value;
+        const vaccineType = document.getElementById('id_vaccine_type').value;
+        const nextDoseCard = document.getElementById('nextDoseCard');
+        
+        if (scheduledDate && vaccineType && vaccineIntervals[vaccineType]) {
+            const current = new Date(scheduledDate);
+            const next = new Date(current);
+            next.setDate(current.getDate() + vaccineIntervals[vaccineType]);
+            
+            const nextYear = next.getFullYear();
+            const nextMonth = String(next.getMonth() + 1).padStart(2, '0');
+            const nextDay = String(next.getDate()).padStart(2, '0');
+            const nextDateStr = `${nextYear}-${nextMonth}-${nextDay}`;
+            
+            document.getElementById('currentDoseDate').textContent = scheduledDate;
+            document.getElementById('nextDoseDate').textContent = nextDateStr;
+            
+            // Calculate days until next dose
+            const today = new Date();
+            const daysUntilNext = Math.ceil((next - today) / (1000 * 60 * 60 * 24));
+            const progress = ((vaccineIntervals[vaccineType] - daysUntilNext) / vaccineIntervals[vaccineType]) * 100;
+            
+            document.getElementById('doseProgress').style.width = Math.min(progress, 100) + '%';
+            
+            let recommendation = '';
+            if (daysUntilNext < 0) {
+                recommendation = '⚠️ Next dose is overdue!';
+            } else if (daysUntilNext < 30) {
+                recommendation = `⚠️ Next dose due in ${daysUntilNext} days`;
+            } else {
+                recommendation = `✓ Next dose due in ${daysUntilNext} days`;
+            }
+            document.getElementById('doseRecommendation').textContent = recommendation;
+            
+            nextDoseCard.style.display = 'block';
+        } else if (vaccineType === 'BRU') {
+            document.getElementById('currentDoseDate').textContent = scheduledDate;
+            document.getElementById('nextDoseDate').textContent = 'One-time only';
+            document.getElementById('doseRecommendation').textContent = 'Brucellosis is a one-time vaccination';
+            nextDoseCard.style.display = 'block';
+        } else {
+            nextDoseCard.style.display = 'none';
+        }
+        
+        updatePreview();
+    }
+
+    // Toggle completion section
+    function toggleCompletion() {
+        const isCompleted = document.getElementById('id_is_completed').checked;
+        const adminGroup = document.getElementById('adminDateGroup');
+        
+        if (isCompleted) {
+            adminGroup.style.display = 'block';
+            if (!document.getElementById('id_administered_date').value) {
+                document.getElementById('id_administered_date').value = new Date().toISOString().split('T')[0];
+            }
+        } else {
+            adminGroup.style.display = 'none';
+        }
+        
+        updatePreview();
+    }
+
+    // Set today's date
+    function setToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('id_scheduled_date').value = today;
+        calculateNextDose();
+        updatePreview();
+    }
+
+    function setNextWeek() {
+        const date = new Date();
+        date.setDate(date.getDate() + 7);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        document.getElementById('id_scheduled_date').value = `${year}-${month}-${day}`;
+        calculateNextDose();
+        updatePreview();
+    }
+
+    function setNextMonth() {
+        const date = new Date();
+        date.setMonth(date.getMonth() + 1);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        document.getElementById('id_scheduled_date').value = `${year}-${month}-${day}`;
+        calculateNextDose();
+        updatePreview();
+    }
+
+    function markCompleted() {
+        document.getElementById('id_is_completed').checked = true;
+        toggleCompletion();
+    }
+
+    // Add quick note
+    function addNote(note) {
+        const notesField = document.getElementById('id_notes');
+        if (notesField.value) {
+            notesField.value += '\n' + note;
+        } else {
+            notesField.value = note;
+        }
+    }
+
+    // Update preview
+    function updatePreview() {
+        // Cattle
+        if (cattleData.id) {
+            document.getElementById('previewCattle').textContent = cattleData.tag;
+        }
+
+        // Vaccine
+        const vaccine = document.getElementById('id_vaccine_type').value;
+        const vaccineLabels = {
+            'FMD': 'Foot and Mouth Disease',
+            'BQ': 'Black Quarter',
+            'HS': 'Hemorrhagic Septicemia',
+            'BRU': 'Brucellosis',
+            'IBR': 'IBR'
+        };
+        document.getElementById('previewVaccine').textContent = vaccineLabels[vaccine] || '—';
+
+        // Date
+        const date = document.getElementById('id_scheduled_date').value;
+        if (date) {
+            const formattedDate = new Date(date).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+            document.getElementById('previewDate').textContent = formattedDate;
+        }
+
+        // Status
+        const isCompleted = document.getElementById('id_is_completed').checked;
+        document.getElementById('previewStatus').textContent = isCompleted ? 'Completed' : 'Pending';
+        document.getElementById('previewStatus').className = isCompleted ? 'fw-bold text-success' : 'fw-bold text-warning';
+
+        // Batch
+        const batch = document.getElementById('id_batch_number').value;
+        document.getElementById('previewBatch').textContent = batch || '—';
+
+        // Next dose
+        const nextDose = document.getElementById('nextDoseDate').textContent;
+        document.getElementById('previewNext').textContent = nextDose || '—';
+    }
+
+    // Add event listeners
+    document.getElementById('id_scheduled_date').addEventListener('change', updatePreview);
+    document.getElementById('id_batch_number').addEventListener('input', updatePreview);
+    document.getElementById('id_dosage').addEventListener('input', updatePreview);
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set default date if empty
+        const dateField = document.getElementById('id_scheduled_date');
+        if (!dateField.value) {
+            setToday();
+        }
+        
+        // Load cattle data if selected
+        if (document.getElementById('id_cattle').value) {
+            loadCattleData();
+        }
+        
+        // Highlight selected vaccine
+        const vaccineType = "{{ form.vaccine_type.value|default:'FMD' }}";
+        document.getElementById(`vaccine-${vaccineType}`)?.classList.add('active');
+        
+        updatePreview();
+    });
+
+    // Form validation
+    document.getElementById('vaccinationForm').addEventListener('submit', function(e) {
+        const cattle = document.getElementById('id_cattle').value;
+        const date = document.getElementById('id_scheduled_date').value;
+        const vaccine = document.getElementById('id_vaccine_type').value;
+        
+        if (!cattle || !date || !vaccine) {
+            e.preventDefault();
+            alert('Please select cattle, date, and vaccine type');
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl + Enter to submit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('vaccinationForm').submit();
+        }
+    });
+
+    // Warn before leaving
+    let formDirty = false;
+    document.querySelectorAll('#vaccinationForm input, #vaccinationForm select, #vaccinationForm textarea').forEach(field => {
+        field.addEventListener('change', () => formDirty = true);
+        field.addEventListener('input', () => formDirty = true);
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+</script>
+{% endblock %}

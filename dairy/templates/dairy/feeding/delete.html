@@ -1,0 +1,632 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Delete Feeding Record{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Feeding Record
+            </h3>
+            <p class="mb-0 opacity-75">This action will affect nutrition tracking data</p>
+        </div>
+
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-basket-fill fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove feeding record?</h4>
+            <p class="text-muted">
+                You are about to delete a feeding record from 
+                <strong>{{ record.date|date:"F d, Y" }} at {{ record.feed_time|time:"H:i" }}</strong>
+            </p>
+        </div>
+
+        <!-- Record Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="cattle-avatar bg-danger text-white rounded-3 p-3">
+                        <span class="fs-2 fw-bold">{{ record.cattle.tag_number|first }}</span>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ record.cattle.tag_number }}</h5>
+                        <p class="text-muted mb-0">{{ record.cattle.name|default:"Unnamed" }}</p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Feed Type</small>
+                            <span class="badge bg-info fs-6 mt-1">{{ record.get_feed_type_display }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Quantity</small>
+                            <span class="fw-bold text-warning fs-4">{{ record.quantity }} kg</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Total Cost</small>
+                            <span class="fw-bold text-success fs-4">৳{{ record.total_cost|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Quality</small>
+                            <div class="d-flex align-items-center gap-2 mt-1">
+                                <span class="quality-stars">
+                                    {% for i in "1234"|make_list %}
+                                        {% if forloop.counter <= record.feed_quality %}
+                                        <i class="bi bi-star-fill text-warning"></i>
+                                        {% else %}
+                                        <i class="bi bi-star text-muted"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </span>
+                                <span class="badge {% if record.feed_quality == 4 %}bg-success{% elif record.feed_quality == 3 %}bg-info{% elif record.feed_quality == 2 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ record.get_feed_quality_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Cost Breakdown</small>
+                            <div class="d-flex justify-content-between mt-1">
+                                <span>{{ record.quantity }} kg × ৳{{ record.cost_per_kg|floatformat:2 }}</span>
+                                <span class="fw-bold">= ৳{{ record.total_cost|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nutrition Impact Card -->
+        <div class="nutrition-card bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-pie-chart text-danger me-2"></i>
+                Nutrition Impact
+            </h6>
+            
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="nutrition-stat bg-white rounded-3 p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">Daily Protein</small>
+                                <span class="fs-5 fw-bold" id="proteinAmount">---</span>
+                            </div>
+                            <i class="bi bi-droplet fs-2 text-primary opacity-25"></div>
+                        </div>
+                        <div class="progress mt-2" style="height: 5px;">
+                            <div class="progress-bar bg-primary" id="proteinBar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted" id="proteinPercent">0% of daily target</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="nutrition-stat bg-white rounded-3 p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">Daily Energy</small>
+                                <span class="fs-5 fw-bold" id="energyAmount">---</span>
+                            </div>
+                            <i class="bi bi-lightning-charge fs-2 text-warning opacity-25"></div>
+                        </div>
+                        <div class="progress mt-2" style="height: 5px;">
+                            <div class="progress-bar bg-warning" id="energyBar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted" id="energyPercent">0% of daily target</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nutrition-values bg-white rounded-3 p-3 mt-3">
+                <table class="table table-sm table-borderless mb-0">
+                    <tr>
+                        <td><i class="bi bi-droplet text-primary me-2"></i>Protein:</td>
+                        <td class="fw-bold" id="proteinValue">---</td>
+                        <td class="text-danger" id="proteinLoss">(will be removed)</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-lightning-charge text-warning me-2"></i>Energy:</td>
+                        <td class="fw-bold" id="energyValue">---</td>
+                        <td class="text-danger" id="energyLoss">(will be removed)</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-tree text-success me-2"></i>Fiber:</td>
+                        <td class="fw-bold" id="fiberValue">---</td>
+                        <td class="text-danger" id="fiberLoss">(will be removed)</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Daily Impact Card -->
+        <div class="impact-card bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-calendar-day text-danger me-2"></i>
+                Impact on Today's Feeding
+            </h6>
+            
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="daily-stat bg-white rounded-3 p-3 text-center">
+                        <small class="text-muted d-block">Today's Total</small>
+                        <span class="fs-3 fw-bold" id="dailyTotal">{{ daily_total|default:"0"|floatformat:1 }} kg</span>
+                        <div class="text-danger small mt-1" id="dailyLoss">
+                            -{{ record.quantity }} kg after deletion
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="daily-stat bg-white rounded-3 p-3 text-center">
+                        <small class="text-muted d-block">Today's Cost</small>
+                        <span class="fs-3 fw-bold text-success" id="dailyCost">৳{{ daily_cost|default:"0"|floatformat:2 }}</span>
+                        <div class="text-danger small mt-1" id="dailyCostLoss">
+                            -৳{{ record.total_cost|floatformat:2 }} after deletion
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="feedings-list bg-white rounded-3 p-3 mt-3">
+                <small class="text-muted d-block mb-2">Today's Feedings:</small>
+                <div id="todayFeedingsList">
+                    {% for feeding in today_feedings %}
+                    <div class="feeding-item d-flex justify-content-between align-items-center small p-2 {% if feeding.id == record.id %}bg-danger bg-opacity-10 rounded{% endif %} mb-1">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-info">{{ feeding.feed_time|time:"H:i" }}</span>
+                            <span>{{ feeding.cattle.tag_number }}</span>
+                            <span class="text-muted">({{ feeding.get_feed_type_display }})</span>
+                        </div>
+                        <div>
+                            <span class="fw-bold">{{ feeding.quantity }} kg</span>
+                            {% if feeding.id == record.id %}
+                            <span class="badge bg-danger ms-2">This record</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-2">No other feedings today</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Warning List -->
+        <div class="warning-list bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold text-danger mb-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                This will affect:
+            </h6>
+            <ul class="list-unstyled">
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Daily nutrition calculations
+                </li>
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Feed consumption reports
+                </li>
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Monthly feed cost analysis
+                </li>
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    {{ record.cattle.tag_number }}'s feeding history
+                </li>
+                <li class="mb-2">
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Cost tracking for {{ record.get_feed_type_display }}
+                </li>
+            </ul>
+        </div>
+
+        <!-- Safety Verification -->
+        <div class="safety-section bg-light rounded-3 p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-shield-lock text-danger me-2"></i>
+                Nutrition Data Verification
+            </h6>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify1" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify1">
+                        I understand this will affect nutrition tracking
+                    </label>
+                </div>
+            </div>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify2" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify2">
+                        I confirm this is the correct feeding record
+                    </label>
+                </div>
+            </div>
+            
+            <div class="verification-item mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="verify3" onchange="checkVerification()">
+                    <label class="form-check-label" for="verify3">
+                        I have verified with feeding records
+                    </label>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress mt-3" style="height: 8px;">
+                <div class="progress-bar bg-danger" id="verificationProgress" style="width: 0%"></div>
+            </div>
+            <small class="text-muted" id="verificationText">0 of 3 verified</small>
+        </div>
+
+        <!-- Countdown Timer -->
+        <div class="countdown-timer bg-danger text-white rounded-3 p-3 mb-4" id="countdownTimer" style="display: none;">
+            <div class="d-flex align-items-center justify-content-center gap-3">
+                <i class="bi bi-clock-history fs-4"></i>
+                <span>Deleting feeding record in</span>
+                <span class="fw-bold fs-2" id="countdownNumber">5</span>
+                <span>seconds...</span>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'dairy:feeding_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="button" class="btn btn-danger px-5 py-3" id="deleteBtn" onclick="startCountdown()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Record
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer Note -->
+        <p class="text-muted small text-center mt-4 mb-0">
+            <i class="bi bi-shield-lock me-1"></i>
+            This action will be logged and will affect nutrition analytics
+        </p>
+    </div>
+</div>
+
+<!-- Final Confirmation Modal -->
+<div class="modal fade" id="finalConfirmModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    FINAL WARNING
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-basket-fill fs-1 text-danger d-block mb-3"></i>
+                <h5 class="mb-3">Nutrition Data Alert!</h5>
+                
+                <div class="record-summary bg-light p-3 rounded-3 mb-4">
+                    <p class="mb-2"><strong>Record:</strong> {{ record.get_feed_type_display }} - {{ record.quantity }} kg</p>
+                    <p class="mb-2"><strong>Cattle:</strong> {{ record.cattle.tag_number }}</p>
+                    <p class="mb-2"><strong>Date/Time:</strong> {{ record.date|date:"M d, Y" }} at {{ record.feed_time|time:"H:i" }}</p>
+                    <p class="mb-0"><strong>Cost:</strong> ৳{{ record.total_cost|floatformat:2 }}</p>
+                </div>
+                
+                <div class="nutrition-summary bg-light p-3 rounded-3 mb-4">
+                    <h6 class="fw-bold mb-2">Nutrition Values Being Removed:</h6>
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td>Protein:</td>
+                            <td class="fw-bold text-primary" id="modalProtein">---</td>
+                        </tr>
+                        <tr>
+                            <td>Energy:</td>
+                            <td class="fw-bold text-warning" id="modalEnergy">---</td>
+                        </tr>
+                        <tr>
+                            <td>Fiber:</td>
+                            <td class="fw-bold text-success" id="modalFiber">---</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+                    <i class="bi bi-exclamation-circle-fill fs-4"></i>
+                    <div class="text-start">
+                        <strong>Nutrition records will be affected!</strong>
+                        <p class="mb-0 small">Daily intake calculations will be updated.</p>
+                    </div>
+                </div>
+                
+                <div class="form-check text-start">
+                    <input class="form-check-input" type="checkbox" id="finalConfirm">
+                    <label class="form-check-label fw-bold" for="finalConfirm">
+                        Yes, permanently delete this feeding record
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="finalDeleteBtn" onclick="submitDelete()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Forever
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .warning-icon {
+        width: 100px;
+        height: 100px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px 10px rgba(220, 53, 69, 0.1);
+        }
+    }
+    
+    .cattle-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .nutrition-stat {
+        border: 1px solid #e9ecef;
+    }
+    
+    .nutrition-values {
+        border: 1px solid #e9ecef;
+    }
+    
+    .daily-stat {
+        border: 1px solid #e9ecef;
+    }
+    
+    .feedings-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #e9ecef;
+    }
+    
+    .feeding-item {
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .feeding-item:last-child {
+        border-bottom: none;
+    }
+    
+    .countdown-timer {
+        animation: pulseCountdown 1s infinite;
+    }
+    
+    @keyframes pulseCountdown {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+    
+    .quality-stars {
+        font-size: 1.1rem;
+    }
+    
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 10px;
+    }
+    
+    .progress-bar {
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+</style>
+
+<script>
+    // Nutrition values based on feed type
+    const nutritionData = {
+        'GRAIN': { protein: 0.12, energy: 2.8, fiber: 0.08 },
+        'HAY': { protein: 0.08, energy: 1.5, fiber: 0.32 },
+        'SILAGE': { protein: 0.10, energy: 2.0, fiber: 0.28 },
+        'CONCENTRATE': { protein: 0.18, energy: 3.2, fiber: 0.05 },
+        'MINERALS': { protein: 0.02, energy: 0.5, fiber: 0.01 },
+        'MILK': { protein: 0.03, energy: 0.8, fiber: 0.0 }
+    };
+
+    let countdownInterval;
+    let countdownValue = 5;
+    let verifiedCount = 0;
+
+    // Initialize nutrition values
+    document.addEventListener('DOMContentLoaded', function() {
+        const feedType = "{{ record.feed_type }}";
+        const quantity = {{ record.quantity }};
+        
+        if (nutritionData[feedType]) {
+            const protein = (quantity * nutritionData[feedType].protein).toFixed(2);
+            const energy = (quantity * nutritionData[feedType].energy).toFixed(2);
+            const fiber = (quantity * nutritionData[feedType].fiber).toFixed(2);
+            
+            // Main display
+            document.getElementById('proteinValue').textContent = protein + ' kg';
+            document.getElementById('energyValue').textContent = energy + ' Mcal';
+            document.getElementById('fiberValue').textContent = fiber + ' kg';
+            
+            // Loss indicators
+            document.getElementById('proteinLoss').textContent = '(will remove ' + protein + ' kg)';
+            document.getElementById('energyLoss').textContent = '(will remove ' + energy + ' Mcal)';
+            document.getElementById('fiberLoss').textContent = '(will remove ' + fiber + ' kg)';
+            
+            // Nutrition cards
+            document.getElementById('proteinAmount').textContent = protein + ' kg';
+            document.getElementById('energyAmount').textContent = energy + ' Mcal';
+            
+            // Progress bars (example targets)
+            document.getElementById('proteinBar').style.width = '35%';
+            document.getElementById('energyBar').style.width = '42%';
+            
+            // Modal values
+            document.getElementById('modalProtein').textContent = protein + ' kg';
+            document.getElementById('modalEnergy').textContent = energy + ' Mcal';
+            document.getElementById('modalFiber').textContent = fiber + ' kg';
+        }
+    });
+
+    function checkVerification() {
+        verifiedCount = 0;
+        for (let i = 1; i <= 3; i++) {
+            if (document.getElementById(`verify${i}`).checked) {
+                verifiedCount++;
+            }
+        }
+        
+        const progress = (verifiedCount / 3) * 100;
+        document.getElementById('verificationProgress').style.width = progress + '%';
+        document.getElementById('verificationText').textContent = `${verifiedCount} of 3 verified`;
+        
+        document.getElementById('deleteBtn').disabled = verifiedCount !== 3;
+    }
+
+    function startCountdown() {
+        const deleteBtn = document.getElementById('deleteBtn');
+        const countdownTimer = document.getElementById('countdownTimer');
+        const countdownNumber = document.getElementById('countdownNumber');
+        
+        deleteBtn.disabled = true;
+        countdownTimer.style.display = 'block';
+        
+        countdownInterval = setInterval(() => {
+            countdownValue--;
+            countdownNumber.textContent = countdownValue;
+            
+            if (countdownValue <= 0) {
+                clearInterval(countdownInterval);
+                countdownTimer.style.display = 'none';
+                countdownValue = 5;
+                countdownNumber.textContent = countdownValue;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('finalConfirmModal'));
+                modal.show();
+                
+                deleteBtn.disabled = false;
+            }
+        }, 1000);
+    }
+
+    document.getElementById('finalConfirm').addEventListener('change', function() {
+        document.getElementById('finalDeleteBtn').disabled = !this.checked;
+    });
+
+    function submitDelete() {
+        document.getElementById('deleteForm').submit();
+    }
+
+    // Reset on modal close
+    document.getElementById('finalConfirmModal').addEventListener('hidden.bs.modal', function() {
+        clearInterval(countdownInterval);
+        document.getElementById('countdownTimer').style.display = 'none';
+        countdownValue = 5;
+        document.getElementById('countdownNumber').textContent = countdownValue;
+        document.getElementById('finalConfirm').checked = false;
+        document.getElementById('finalDeleteBtn').disabled = true;
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (confirm('Cancel deletion and return to feeding records?')) {
+                window.location.href = "{% url 'dairy:feeding_list' %}";
+            }
+        }
+        
+        // Alt + 1,2,3 for quick verification
+        if (e.altKey) {
+            if (e.key === '1') {
+                document.getElementById('verify1').checked = !document.getElementById('verify1').checked;
+                checkVerification();
+            }
+            if (e.key === '2') {
+                document.getElementById('verify2').checked = !document.getElementById('verify2').checked;
+                checkVerification();
+            }
+            if (e.key === '3') {
+                document.getElementById('verify3').checked = !document.getElementById('verify3').checked;
+                checkVerification();
+            }
+        }
+        
+        // Ctrl + Enter to delete (if verified)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && verifiedCount === 3) {
+            e.preventDefault();
+            startCountdown();
+        }
+    });
+
+    // Mouse leave detection for extra safety
+    let mouseOutCount = 0;
+    document.addEventListener('mouseleave', function() {
+        if (verifiedCount === 3) {
+            mouseOutCount++;
+            if (mouseOutCount >= 2) {
+                // Auto-unverify if user leaves page multiple times
+                for (let i = 1; i <= 3; i++) {
+                    document.getElementById(`verify${i}`).checked = false;
+                }
+                verifiedCount = 0;
+                checkVerification();
+                mouseOutCount = 0;
+                
+                alert('⚠️ Safety verification reset due to multiple page exits');
+            }
+        }
+    });
+
+    document.addEventListener('mouseenter', function() {
+        mouseOutCount = 0;
+    });
+</script>
+{% endblock %}

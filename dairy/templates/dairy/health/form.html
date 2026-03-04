@@ -1,0 +1,396 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 900px;">
+    <!-- Form Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}pencil-square{% endif %} me-2"></i>
+                {{ title }}
+            </h3>
+            <p class="mb-0 opacity-75">
+                {% if action == 'add' %}Record new health examination or treatment{% else %}Update health record{% endif %}
+            </p>
+        </div>
+
+        <form method="post" id="healthForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Emergency Toggle -->
+            <div class="emergency-toggle mb-4 p-3 rounded-3 {% if form.is_emergency.value %}bg-danger text-white{% else %}bg-light{% endif %}" 
+                 id="emergencyToggle" onclick="toggleEmergency()">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+                        <span class="fw-bold">Emergency Case</span>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="checkbox" name="is_emergency" id="id_is_emergency" 
+                               class="form-check-input" {% if form.is_emergency.value %}checked{% endif %}
+                               onchange="toggleEmergency()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Basic Information -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-info-circle text-danger me-2"></i>
+                    Basic Information
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select name="cattle" id="id_cattle" class="form-select" required>
+                                <option value="">Select cattle...</option>
+                                {% for cattle in form.cattle.field.queryset %}
+                                <option value="{{ cattle.id }}" 
+                                        data-tag="{{ cattle.tag_number }}"
+                                        data-name="{{ cattle.name|default:'Unnamed' }}"
+                                        {% if form.cattle.value|stringformat:"s" == cattle.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }} ({{ cattle.get_breed_display }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-shield me-2"></i>Cattle <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="date" id="id_date" 
+                                   class="form-control" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required>
+                            <label><i class="bi bi-calendar me-2"></i>Date <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select name="health_type" id="id_health_type" class="form-select" required onchange="updateHealthType()">
+                                {% for value, label in form.health_type.field.choices %}
+                                <option value="{{ value }}" {% if form.health_type.value == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-tag me-2"></i>Health Type <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" name="veterinarian" id="id_veterinarian" 
+                                   class="form-control" value="{{ form.veterinarian.value|default:'' }}" required>
+                            <label><i class="bi bi-person-badge me-2"></i>Veterinarian <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medical Details -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-clipboard2-pulse text-danger me-2"></i>
+                    Medical Details
+                </h6>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="form-floating">
+                            <input type="text" name="diagnosis" id="id_diagnosis" 
+                                   class="form-control" value="{{ form.diagnosis.value|default:'' }}" required
+                                   placeholder="Diagnosis">
+                            <label><i class="bi bi-chat-text me-2"></i>Diagnosis <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-floating">
+                            <textarea name="treatment" id="id_treatment" 
+                                      class="form-control" style="height: 100px"
+                                      placeholder="Treatment">{{ form.treatment.value|default:'' }}</textarea>
+                            <label><i class="bi bi-eyedropper me-2"></i>Treatment</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-floating">
+                            <textarea name="medications" id="id_medications" 
+                                      class="form-control" style="height: 80px"
+                                      placeholder="Medications">{{ form.medications.value|default:'' }}</textarea>
+                            <label><i class="bi bi-capsule me-2"></i>Medications</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Follow-up & Cost -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-calendar-check text-danger me-2"></i>
+                    Follow-up & Cost
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="next_checkup_date" id="id_next_checkup_date" 
+                                   class="form-control" value="{{ form.next_checkup_date.value|date:'Y-m-d'|default:'' }}">
+                            <label><i class="bi bi-calendar-plus me-2"></i>Next Checkup Date</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="treatment_cost" id="id_treatment_cost" 
+                                   class="form-control" value="{{ form.treatment_cost.value|default:'' }}"
+                                   placeholder="Cost" step="0.01" min="0" oninput="calculateTotal()">
+                            <label><i class="bi bi-cash me-2"></i>Treatment Cost (৳)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <div class="form-floating">
+                    <textarea name="notes" id="id_notes" 
+                              class="form-control" style="height: 100px"
+                              placeholder="Additional Notes">{{ form.notes.value|default:'' }}</textarea>
+                    <label><i class="bi bi-journal-text me-2"></i>Additional Notes</label>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-lightning-charge text-danger me-2"></i>
+                    Quick Actions
+                </h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="setFollowup(7)">7 days</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="setFollowup(14)">14 days</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="setFollowup(30)">30 days</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="setToday()">Today</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="addNote('Patient stable')">Stable</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="addNote('Follow-up required')">Follow-up</button>
+                </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="preview-card bg-light rounded-3 p-4 mb-4" id="livePreview">
+                <h6 class="mb-3">
+                    <i class="bi bi-eye-fill text-danger me-2"></i>
+                    Record Preview
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Cattle:</span>
+                            <span class="fw-bold" id="previewCattle">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Type:</span>
+                            <span id="previewType">—</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Date:</span>
+                            <span id="previewDate">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Vet:</span>
+                            <span id="previewVet">—</span>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Diagnosis:</span>
+                            <span class="fw-bold text-danger" id="previewDiagnosis">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{% url 'dairy:health_list' %}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-lg me-1"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-danger px-5">
+                    <i class="bi bi-check-lg me-1"></i> {{ submit_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .emergency-toggle {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+    
+    .emergency-toggle.bg-danger {
+        border-color: #dc3545;
+    }
+    
+    .emergency-toggle.bg-light:hover {
+        background-color: #ffe9e9 !important;
+    }
+    
+    .preview-card {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .form-floating > label {
+        padding-left: 1.75rem;
+    }
+</style>
+
+<script>
+    // Emergency toggle
+    function toggleEmergency() {
+        const checkbox = document.getElementById('id_is_emergency');
+        const toggle = document.getElementById('emergencyToggle');
+        
+        if (checkbox.checked) {
+            toggle.classList.remove('bg-light');
+            toggle.classList.add('bg-danger', 'text-white');
+        } else {
+            toggle.classList.remove('bg-danger', 'text-white');
+            toggle.classList.add('bg-light');
+        }
+    }
+
+    // Set follow-up date
+    function setFollowup(days) {
+        const date = new Date();
+        date.setDate(date.getDate() + days);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        document.getElementById('id_next_checkup_date').value = `${year}-${month}-${day}`;
+    }
+
+    // Set today's date
+    function setToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('id_date').value = today;
+    }
+
+    // Add quick note
+    function addNote(note) {
+        const notesField = document.getElementById('id_notes');
+        if (notesField.value) {
+            notesField.value += '\n' + note;
+        } else {
+            notesField.value = note;
+        }
+    }
+
+    // Update health type styling
+    function updateHealthType() {
+        const type = document.getElementById('id_health_type');
+        // Could add visual feedback based on type
+    }
+
+    // Live preview updates
+    function updatePreview() {
+        // Cattle
+        const cattleSelect = document.getElementById('id_cattle');
+        if (cattleSelect.value) {
+            const selected = cattleSelect.options[cattleSelect.selectedIndex];
+            document.getElementById('previewCattle').textContent = selected.dataset.tag;
+        }
+
+        // Health type
+        const type = document.getElementById('id_health_type');
+        document.getElementById('previewType').textContent = 
+            type.options[type.selectedIndex]?.text || '—';
+
+        // Date
+        const date = document.getElementById('id_date').value;
+        document.getElementById('previewDate').textContent = date || '—';
+
+        // Veterinarian
+        const vet = document.getElementById('id_veterinarian').value;
+        document.getElementById('previewVet').textContent = vet || '—';
+
+        // Diagnosis
+        const diagnosis = document.getElementById('id_diagnosis').value;
+        document.getElementById('previewDiagnosis').textContent = diagnosis || '—';
+    }
+
+    // Calculate total cost
+    function calculateTotal() {
+        // Could add cost calculations here
+    }
+
+    // Add event listeners
+    ['id_cattle', 'id_health_type', 'id_date', 'id_veterinarian', 'id_diagnosis'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', updatePreview);
+        document.getElementById(id)?.addEventListener('change', updatePreview);
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        updatePreview();
+        toggleEmergency();
+        
+        // Set today's date if empty
+        const dateField = document.getElementById('id_date');
+        if (!dateField.value) {
+            setToday();
+        }
+    });
+
+    // Form validation
+    document.getElementById('healthForm').addEventListener('submit', function(e) {
+        const required = ['id_cattle', 'id_date', 'id_health_type', 'id_veterinarian', 'id_diagnosis'];
+        let isValid = true;
+        
+        required.forEach(id => {
+            const field = document.getElementById(id);
+            if (!field.value) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl + Enter to submit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('healthForm').submit();
+        }
+    });
+
+    // Warn before leaving
+    let formDirty = false;
+    document.querySelectorAll('#healthForm input, #healthForm select, #healthForm textarea').forEach(field => {
+        field.addEventListener('change', () => formDirty = true);
+        field.addEventListener('input', () => formDirty = true);
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+</script>
+{% endblock %}
