@@ -1,0 +1,276 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Delete Milk Sale{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 600px;">
+    <!-- Delete Confirmation Card -->
+    <div class="form-card border-0 shadow-lg text-center">
+        <div class="form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Milk Sale
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon -->
+        <div class="warning-icon mx-auto my-4">
+            <i class="bi bi-cash-stack fs-1 text-danger"></i>
+        </div>
+
+        <!-- Record Summary -->
+        <h4 class="fw-bold mb-2">Are you sure?</h4>
+        <p class="text-muted mb-4">
+            You are about to delete a milk sale from 
+            <strong>{{ sale.date|date:"F d, Y" }}</strong>
+        </p>
+
+        <!-- Sale Details Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Date</small>
+                            <span class="fw-bold">{{ sale.date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Type</small>
+                            <span class="badge {% if sale.sale_type == 'WHOLESALE' %}bg-primary{% elif sale.sale_type == 'RETAIL' %}bg-info{% else %}bg-success{% endif %}">
+                                {{ sale.get_sale_type_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Quantity</small>
+                            <span class="fw-bold">{{ sale.quantity }} L</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Total Amount</small>
+                            <span class="fw-bold text-success">৳{{ sale.total_amount|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Customer</small>
+                            <span>{{ sale.customer_name|default:"—" }}</span>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Payment Status</small>
+                            {% if sale.payment_received %}
+                            <span class="badge bg-success">Paid</span>
+                            {% else %}
+                            <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>This will affect:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Daily sales reports</li>
+                    <li>Monthly revenue calculations</li>
+                    <li>Financial summaries</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                I understand that this action is permanent
+            </label>
+        </div>
+
+        <!-- Countdown Timer -->
+        <div class="countdown-timer bg-danger text-white rounded-3 p-3 mb-4" id="countdownTimer" style="display: none;">
+            <i class="bi bi-clock-history me-2"></i>
+            <span>Deleting in </span>
+            <span class="fw-bold fs-3 mx-2" id="countdownNumber">5</span>
+            <span>seconds...</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'dairy:milk_sale_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="button" class="btn btn-danger px-5 py-3" id="deleteBtn" onclick="startCountdown()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Record
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer Note -->
+        <p class="text-muted small mt-4 mb-0">
+            <i class="bi bi-shield-lock me-1"></i>
+            This action will be logged
+        </p>
+    </div>
+</div>
+
+<!-- Final Confirmation Modal -->
+<div class="modal fade" id="finalConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Final Warning
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-cash-stack fs-1 text-danger d-block mb-3"></i>
+                <h5 class="mb-3">Last chance!</h5>
+                <p class="mb-4">
+                    You're about to delete a sale of <strong>{{ sale.quantity }}L</strong><br>
+                    worth <strong>৳{{ sale.total_amount|floatformat:2 }}</strong>
+                </p>
+                <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+                    <i class="bi bi-exclamation-circle-fill fs-4"></i>
+                    <div class="text-start">
+                        <strong>This cannot be undone!</strong>
+                    </div>
+                </div>
+                <div class="form-check text-start">
+                    <input class="form-check-input" type="checkbox" id="finalConfirm">
+                    <label class="form-check-label fw-bold" for="finalConfirm">
+                        Yes, delete this sale permanently
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="finalDeleteBtn" onclick="submitDelete()" disabled>
+                    Delete Permanently
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .warning-icon {
+        width: 100px;
+        height: 100px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px 10px rgba(220, 53, 69, 0.1);
+        }
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+    }
+    
+    .countdown-timer {
+        animation: pulseCountdown 1s infinite;
+    }
+    
+    @keyframes pulseCountdown {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+</style>
+
+<script>
+    let countdownInterval;
+    let countdownValue = 5;
+
+    function toggleDeleteButton() {
+        document.getElementById('deleteBtn').disabled = !document.getElementById('confirmDelete').checked;
+    }
+
+    function startCountdown() {
+        const deleteBtn = document.getElementById('deleteBtn');
+        const countdownTimer = document.getElementById('countdownTimer');
+        const countdownNumber = document.getElementById('countdownNumber');
+        
+        deleteBtn.disabled = true;
+        countdownTimer.style.display = 'block';
+        
+        countdownInterval = setInterval(() => {
+            countdownValue--;
+            countdownNumber.textContent = countdownValue;
+            
+            if (countdownValue <= 0) {
+                clearInterval(countdownInterval);
+                countdownTimer.style.display = 'none';
+                countdownValue = 5;
+                countdownNumber.textContent = countdownValue;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('finalConfirmModal'));
+                modal.show();
+                
+                deleteBtn.disabled = false;
+            }
+        }, 1000);
+    }
+
+    document.getElementById('finalConfirm').addEventListener('change', function() {
+        document.getElementById('finalDeleteBtn').disabled = !this.checked;
+    });
+
+    function submitDelete() {
+        document.getElementById('deleteForm').submit();
+    }
+
+    // Reset on modal close
+    document.getElementById('finalConfirmModal').addEventListener('hidden.bs.modal', function() {
+        clearInterval(countdownInterval);
+        document.getElementById('countdownTimer').style.display = 'none';
+        countdownValue = 5;
+        document.getElementById('countdownNumber').textContent = countdownValue;
+        document.getElementById('finalConfirm').checked = false;
+        document.getElementById('finalDeleteBtn').disabled = true;
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.location.href = "{% url 'dairy:milk_sale_list' %}";
+        }
+        
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !document.getElementById('deleteBtn').disabled) {
+            e.preventDefault();
+            startCountdown();
+        }
+    });
+</script>
+{% endblock %}

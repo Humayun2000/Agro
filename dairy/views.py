@@ -11,6 +11,13 @@ from decimal import Decimal
 import csv
 import json
 
+# PDF generation imports
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+
 from .models import *
 from .forms import *
 
@@ -420,7 +427,7 @@ class CattleCreateView(LoginRequiredMixin, CreateView):
     model = Cattle
     form_class = CattleForm
     template_name = 'dairy/cattle/form.html'
-    success_url = reverse_lazy('cattle_list')
+    success_url = reverse_lazy('dairy:cattle_list')
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -460,7 +467,7 @@ class CattleDeleteView(LoginRequiredMixin, DeleteView):
     """Delete cattle"""
     model = Cattle
     template_name = 'dairy/cattle/delete.html'
-    success_url = reverse_lazy('cattle_list')
+    success_url = reverse_lazy('dairy:cattle_list')
     
     def delete(self, request, *args, **kwargs):
         cattle = self.get_object()
@@ -2792,5 +2799,662 @@ class ExportFinancialCSVView(LoginRequiredMixin, View):
 
 
 
+# ==================== MISSING CSV EXPORT VIEWS ====================
+
+class ExportHealthCSVView(LoginRequiredMixin, View):
+    """Export health records to CSV"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="health_records_export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Date', 'Cattle Tag', 'Health Type', 'Diagnosis', 'Treatment', 
+                        'Veterinarian', 'Cost', 'Emergency', 'Follow-up Date'])
+        
+        for record in HealthRecord.objects.select_related('cattle').all():
+            writer.writerow([
+                record.date.strftime('%Y-%m-%d'),
+                record.cattle.tag_number,
+                record.get_health_type_display(),
+                record.diagnosis,
+                record.treatment or '',
+                record.veterinarian,
+                record.treatment_cost or '',
+                'Yes' if record.is_emergency else 'No',
+                record.next_checkup_date.strftime('%Y-%m-%d') if record.next_checkup_date else ''
+            ])
+        
+        return response
 
 
+class ExportFeedingCSVView(LoginRequiredMixin, View):
+    """Export feeding records to CSV"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="feeding_records_export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Date', 'Time', 'Cattle Tag', 'Feed Type', 'Quantity (kg)', 
+                        'Cost/kg', 'Total Cost', 'Quality', 'Notes'])
+        
+        for record in FeedingRecord.objects.select_related('cattle').all():
+            writer.writerow([
+                record.date.strftime('%Y-%m-%d'),
+                record.feed_time.strftime('%H:%M'),
+                record.cattle.tag_number,
+                record.get_feed_type_display(),
+                record.quantity,
+                record.cost_per_kg,
+                record.total_cost,
+                record.get_feed_quality_display(),
+                record.notes or ''
+            ])
+        
+        return response
+
+
+class ExportWeightCSVView(LoginRequiredMixin, View):
+    """Export weight records to CSV"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="weight_records_export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Date', 'Cattle Tag', 'Weight (kg)', 'Daily Gain (kg/day)', 'Age (days)', 'Notes'])
+        
+        for record in WeightRecord.objects.select_related('cattle').all():
+            writer.writerow([
+                record.date.strftime('%Y-%m-%d'),
+                record.cattle.tag_number,
+                record.weight,
+                record.daily_gain or '',
+                record.age_in_days or '',
+                record.notes or ''
+            ])
+        
+        return response
+
+
+class ExportBreedingCSVView(LoginRequiredMixin, View):
+    """Export breeding records to CSV"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="breeding_records_export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Breeding Date', 'Dam Tag', 'Sire Tag', 'Method', 'Status', 
+                        'Pregnant', 'Pregnancy Check', 'Expected Calving', 'Actual Calving', 'Offspring', 'Notes'])
+        
+        for record in BreedingRecord.objects.select_related('cattle', 'sire', 'offspring').all():
+            writer.writerow([
+                record.breeding_date.strftime('%Y-%m-%d'),
+                record.cattle.tag_number,
+                record.sire.tag_number if record.sire else '',
+                record.breeding_method,
+                record.get_status_display(),
+                'Yes' if record.is_pregnant else 'No',
+                record.pregnancy_check_date.strftime('%Y-%m-%d') if record.pregnancy_check_date else '',
+                record.expected_calving_date.strftime('%Y-%m-%d') if record.expected_calving_date else '',
+                record.actual_calving_date.strftime('%Y-%m-%d') if record.actual_calving_date else '',
+                record.offspring.tag_number if record.offspring else '',
+                record.notes or ''
+            ])
+        
+        return response
+
+
+class ExportVaccinationCSVView(LoginRequiredMixin, View):
+    """Export vaccination records to CSV"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="vaccination_records_export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Scheduled Date', 'Cattle Tag', 'Vaccine Type', 'Status', 
+                        'Administered Date', 'Batch Number', 'Dosage', 'Cost', 'Notes'])
+        
+        for record in VaccinationSchedule.objects.select_related('cattle', 'administered_by').all():
+            writer.writerow([
+                record.scheduled_date.strftime('%Y-%m-%d'),
+                record.cattle.tag_number,
+                record.get_vaccine_type_display(),
+                'Completed' if record.is_completed else 'Pending',
+                record.administered_date.strftime('%Y-%m-%d') if record.administered_date else '',
+                record.batch_number or '',
+                record.dosage or '',
+                record.cost or '',
+                record.notes or ''
+            ])
+        
+        return response
+
+# ==================== REPORT DASHBOARD VIEW ====================
+
+class ReportDashboardView(LoginRequiredMixin, TemplateView):
+    """Reports dashboard/index page"""
+    template_name = 'dairy/reports/index.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        today = timezone.now().date()
+        
+        context['current_year'] = today.year
+        context['current_month'] = today.month
+        context['current_month_name'] = today.strftime('%B')
+        context['prev_month'] = today.month - 1 if today.month > 1 else 12
+        context['prev_year'] = today.year - 1
+        context['current_date'] = today.isoformat()
+        context['prev_year'] = today.year - 1
+        
+        context['total_cattle'] = Cattle.objects.filter(status='ACTIVE').count()
+        
+        # YTD Revenue
+        ytd_revenue = MilkSale.objects.filter(date__year=today.year).aggregate(total=Sum('total_amount'))['total'] or 0
+        context['ytd_revenue'] = ytd_revenue
+        
+        # Recent reports (placeholder - you can implement based on your needs)
+        context['recent_reports'] = []
+        
+        return context
+
+
+# ==================== MILK PRODUCTION REPORT VIEW ====================
+
+class MilkProductionReportView(LoginRequiredMixin, TemplateView):
+    """Milk production report"""
+    template_name = 'dairy/reports/milk_production.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        year = int(self.request.GET.get('year', timezone.now().year))
+        
+        monthly_data = []
+        for month in range(1, 13):
+            month_start = datetime(year, month, 1).date()
+            if month == 12:
+                month_end = datetime(year, 12, 31).date()
+            else:
+                month_end = datetime(year, month + 1, 1).date() - timedelta(days=1)
+            
+            total = MilkRecord.objects.filter(date__range=[month_start, month_end]).aggregate(total=Sum('quantity'))['total'] or 0
+            count = MilkRecord.objects.filter(date__range=[month_start, month_end]).count()
+            avg_fat = MilkRecord.objects.filter(date__range=[month_start, month_end]).aggregate(avg=Avg('fat_percentage'))['avg'] or 0
+            
+            monthly_data.append({
+                'month': month_start.strftime('%B'),
+                'total': total,
+                'count': count,
+                'avg_fat': avg_fat
+            })
+        
+        context['monthly_data'] = monthly_data
+        context['year'] = year
+        context['years'] = range(2020, timezone.now().year + 1)
+        
+        return context
+
+
+# ==================== HEALTH SUMMARY REPORT VIEW ====================
+
+class HealthSummaryReportView(LoginRequiredMixin, TemplateView):
+    """Health summary report"""
+    template_name = 'dairy/reports/health_summary.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        year = int(self.request.GET.get('year', timezone.now().year))
+        
+        health_types = []
+        for health_type, label in HealthRecord.HEALTH_TYPES:
+            count = HealthRecord.objects.filter(health_type=health_type, date__year=year).count()
+            cost = HealthRecord.objects.filter(health_type=health_type, date__year=year).aggregate(total=Sum('treatment_cost'))['total'] or 0
+            
+            if count > 0:
+                health_types.append({
+                    'type': label,
+                    'count': count,
+                    'cost': cost
+                })
+        
+        emergencies = HealthRecord.objects.filter(is_emergency=True, date__year=year).count()
+        total_cases = HealthRecord.objects.filter(date__year=year).count()
+        total_cost = HealthRecord.objects.filter(date__year=year).aggregate(total=Sum('treatment_cost'))['total'] or 0
+        
+        context['health_types'] = health_types
+        context['emergencies'] = emergencies
+        context['total_cases'] = total_cases
+        context['total_cost'] = total_cost
+        context['year'] = year
+        context['years'] = range(2020, timezone.now().year + 1)
+        
+        return context
+
+
+# ==================== BREEDING PERFORMANCE REPORT VIEW ====================
+
+class BreedingPerformanceReportView(LoginRequiredMixin, TemplateView):
+    """Breeding performance report"""
+    template_name = 'dairy/reports/breeding_performance.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        year = int(self.request.GET.get('year', timezone.now().year))
+        
+        total_breedings = BreedingRecord.objects.filter(breeding_date__year=year).count()
+        successful = BreedingRecord.objects.filter(breeding_date__year=year, status='CALVED').count()
+        failed = BreedingRecord.objects.filter(breeding_date__year=year, status='FAILED').count()
+        ongoing = BreedingRecord.objects.filter(breeding_date__year=year, status='CONFIRMED').count()
+        
+        # Monthly breakdown
+        monthly_data = []
+        for month in range(1, 13):
+            month_breedings = BreedingRecord.objects.filter(
+                breeding_date__year=year,
+                breeding_date__month=month
+            ).count()
+            
+            month_calvings = BreedingRecord.objects.filter(
+                actual_calving_date__year=year,
+                actual_calving_date__month=month
+            ).count()
+            
+            monthly_data.append({
+                'month': datetime(year, month, 1).strftime('%B'),
+                'breedings': month_breedings,
+                'calvings': month_calvings
+            })
+        
+        context['total_breedings'] = total_breedings
+        context['successful'] = successful
+        context['failed'] = failed
+        context['ongoing'] = ongoing
+        context['success_rate'] = round((successful / total_breedings * 100) if total_breedings > 0 else 0, 1)
+        context['monthly_data'] = monthly_data
+        context['year'] = year
+        context['years'] = range(2020, timezone.now().year + 1)
+        
+        return context
+
+
+# ==================== PDF EXPORT VIEWS ====================
+
+class ExportCattlePDFView(LoginRequiredMixin, View):
+    """Export cattle data to PDF"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="cattle_export.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        title = Paragraph("Cattle Export Report", styles['Title'])
+        elements.append(title)
+        
+        data = [['Tag Number', 'Name', 'Type', 'Breed', 'Gender', 'Age', 'Weight', 'Status']]
+        for cattle in Cattle.objects.all()[:50]:
+            data.append([
+                cattle.tag_number,
+                cattle.name or '-',
+                cattle.get_cattle_type_display(),
+                cattle.get_breed_display(),
+                cattle.get_gender_display(),
+                str(cattle.age_in_months()) + 'mo',
+                str(cattle.weight) + 'kg' if cattle.weight else '-',
+                cattle.status
+            ])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        return response
+
+
+class ExportMilkPDFView(LoginRequiredMixin, View):
+    """Export milk records to PDF"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="milk_records_export.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        title = Paragraph("Milk Records Export", styles['Title'])
+        elements.append(title)
+        
+        data = [['Date', 'Cattle', 'Session', 'Quantity (L)', 'Fat %', 'Temperature']]
+        for record in MilkRecord.objects.select_related('cattle').all()[:50]:
+            data.append([
+                record.date.strftime('%Y-%m-%d'),
+                record.cattle.tag_number,
+                record.get_session_display(),
+                str(record.quantity),
+                str(record.fat_percentage) if record.fat_percentage else '-',
+                str(record.temperature) if record.temperature else '-'
+            ])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        return response
+
+
+class ExportHealthPDFView(LoginRequiredMixin, View):
+    """Export health records to PDF"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="health_records_export.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        title = Paragraph("Health Records Export", styles['Title'])
+        elements.append(title)
+        
+        data = [['Date', 'Cattle', 'Health Type', 'Diagnosis', 'Veterinarian', 'Cost']]
+        for record in HealthRecord.objects.select_related('cattle').all()[:50]:
+            data.append([
+                record.date.strftime('%Y-%m-%d'),
+                record.cattle.tag_number,
+                record.get_health_type_display(),
+                record.diagnosis[:30] + '...' if len(record.diagnosis) > 30 else record.diagnosis,
+                record.veterinarian,
+                str(record.treatment_cost) if record.treatment_cost else '-'
+            ])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        return response
+
+
+class ExportFeedingPDFView(LoginRequiredMixin, View):
+    """Export feeding records to PDF"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="feeding_records_export.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        title = Paragraph("Feeding Records Export", styles['Title'])
+        elements.append(title)
+        
+        data = [['Date', 'Time', 'Cattle', 'Feed Type', 'Quantity (kg)', 'Cost']]
+        for record in FeedingRecord.objects.select_related('cattle').all()[:50]:
+            data.append([
+                record.date.strftime('%Y-%m-%d'),
+                record.feed_time.strftime('%H:%M'),
+                record.cattle.tag_number,
+                record.get_feed_type_display(),
+                str(record.quantity),
+                str(record.total_cost)
+            ])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        return response
+
+
+class ExportWeightPDFView(LoginRequiredMixin, View):
+    """Export weight records to PDF"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="weight_records_export.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        title = Paragraph("Weight Records Export", styles['Title'])
+        elements.append(title)
+        
+        data = [['Date', 'Cattle', 'Weight (kg)', 'Daily Gain', 'Age (days)']]
+        for record in WeightRecord.objects.select_related('cattle').all()[:50]:
+            data.append([
+                record.date.strftime('%Y-%m-%d'),
+                record.cattle.tag_number,
+                str(record.weight),
+                str(record.daily_gain) if record.daily_gain else '-',
+                str(record.age_in_days) if record.age_in_days else '-'
+            ])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        return response
+
+
+class ExportBreedingPDFView(LoginRequiredMixin, View):
+    """Export breeding records to PDF"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="breeding_records_export.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        title = Paragraph("Breeding Records Export", styles['Title'])
+        elements.append(title)
+        
+        data = [['Breeding Date', 'Dam', 'Sire', 'Method', 'Status', 'Expected Calving']]
+        for record in BreedingRecord.objects.select_related('cattle', 'sire').all()[:50]:
+            data.append([
+                record.breeding_date.strftime('%Y-%m-%d'),
+                record.cattle.tag_number,
+                record.sire.tag_number if record.sire else '-',
+                record.breeding_method,
+                record.get_status_display(),
+                record.expected_calving_date.strftime('%Y-%m-%d') if record.expected_calving_date else '-'
+            ])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        return response
+
+
+class ExportVaccinationPDFView(LoginRequiredMixin, View):
+    """Export vaccination records to PDF"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="vaccination_records_export.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        title = Paragraph("Vaccination Records Export", styles['Title'])
+        elements.append(title)
+        
+        data = [['Scheduled Date', 'Cattle', 'Vaccine', 'Status', 'Administered', 'Batch']]
+        for record in VaccinationSchedule.objects.select_related('cattle').all()[:50]:
+            data.append([
+                record.scheduled_date.strftime('%Y-%m-%d'),
+                record.cattle.tag_number,
+                record.get_vaccine_type_display(),
+                'Completed' if record.is_completed else 'Pending',
+                record.administered_date.strftime('%Y-%m-%d') if record.administered_date else '-',
+                record.batch_number or '-'
+            ])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        return response
+
+
+class ExportSalesPDFView(LoginRequiredMixin, View):
+    """Export sales records to PDF"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="sales_export.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        title = Paragraph("Sales Export", styles['Title'])
+        elements.append(title)
+        
+        data = [['Date', 'Type', 'Details', 'Quantity', 'Amount', 'Status']]
+        
+        # Milk Sales
+        for sale in MilkSale.objects.all()[:25]:
+            data.append([
+                sale.date.strftime('%Y-%m-%d'),
+                'Milk Sale',
+                sale.customer_name or 'Retail',
+                str(sale.quantity) + ' L',
+                '৳' + str(sale.total_amount),
+                'Paid' if sale.payment_received else 'Pending'
+            ])
+        
+        # Cattle Sales
+        for sale in CattleSale.objects.select_related('cattle').all()[:25]:
+            data.append([
+                sale.sale_date.strftime('%Y-%m-%d'),
+                'Cattle Sale',
+                sale.cattle.tag_number,
+                '1 head',
+                '৳' + str(sale.sale_price),
+                'Paid' if sale.payment_received else 'Pending'
+            ])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        return response
+
+
+class ExportFinancialPDFView(LoginRequiredMixin, View):
+    """Export financial records to PDF"""
+    
+    def get(self, request):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="financial_export.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        title = Paragraph("Financial Export", styles['Title'])
+        elements.append(title)
+        
+        # Summary Section
+        total_income = MilkSale.objects.aggregate(total=Sum('total_amount'))['total'] or 0
+        total_expenses = Expense.objects.aggregate(total=Sum('amount'))['total'] or 0
+        total_investments = Investment.objects.aggregate(total=Sum('amount'))['total'] or 0
+        
+        data = [
+            ['Financial Summary', '', ''],
+            ['Total Income', '৳' + str(total_income), ''],
+            ['Total Expenses', '৳' + str(total_expenses), ''],
+            ['Net Profit', '৳' + str(total_income - total_expenses), ''],
+            ['', '', ''],
+            ['Expenses by Category', '', ''],
+        ]
+        
+        # Expenses by category
+        for category in ExpenseCategory.objects.all():
+            category_total = Expense.objects.filter(category=category).aggregate(total=Sum('amount'))['total'] or 0
+            if category_total > 0:
+                data.append([category.name, '৳' + str(category_total), ''])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        return response

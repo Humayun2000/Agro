@@ -1,0 +1,505 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Investments{% endblock %}
+
+{% block dairy_content %}
+<div class="container-fluid px-0">
+    <!-- Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">
+                <i class="bi bi-pie-chart text-success me-2"></i>
+                Farm Investments
+            </h4>
+            <p class="text-muted mb-0">Track all farm investments and capital expenditure</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="exportData()">
+                <i class="bi bi-download me-1"></i> Export
+            </button>
+            <a href="{% url 'dairy:investment_add' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle me-1"></i> Add Investment
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-cash-stack fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Total Investment</h6>
+                            <h3 class="mb-0">৳{{ total_investment|default:"0"|floatformat:0 }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-building fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Infrastructure</h6>
+                            <h3 class="mb-0">৳{{ infrastructure_total|default:"0"|floatformat:0 }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-tools fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Equipment</h6>
+                            <h3 class="mb-0">৳{{ equipment_total|default:"0"|floatformat:0 }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-shield fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Cattle Purchase</h6>
+                            <h3 class="mb-0">৳{{ cattle_total|default:"0"|floatformat:0 }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Investment Type Summary -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Investment by Type</h6>
+                    <div class="row">
+                        {% for type in investment_types %}
+                        <div class="col-md-2 col-6 mb-2">
+                            <div class="type-card bg-light rounded-3 p-2 text-center">
+                                <small class="text-muted d-block">{{ type.name }}</small>
+                                <span class="fw-bold">৳{{ type.total|floatformat:0 }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-funnel"></i>
+                Filters
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Investment Type</label>
+                        <select name="type" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            {% for value, label in investment_type_choices %}
+                            <option value="{{ value }}" {% if request.GET.type == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date Range</label>
+                        <select name="range" class="form-select" onchange="this.form.submit()">
+                            <option value="all" {% if request.GET.range == 'all' or not request.GET.range %}selected{% endif %}>All Time</option>
+                            <option value="month" {% if request.GET.range == 'month' %}selected{% endif %}>This Month</option>
+                            <option value="year" {% if request.GET.range == 'year' %}selected{% endif %}>This Year</option>
+                            <option value="custom" {% if request.GET.range == 'custom' %}selected{% endif %}>Custom</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Min Amount</label>
+                        <input type="number" name="min_amount" class="form-control" value="{{ request.GET.min_amount }}" placeholder="Min ৳">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-search me-1"></i> Apply
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Custom Date Range -->
+                <div class="row mt-3" id="customDateRange" style="display: {% if request.GET.range == 'custom' %}flex{% else %}none{% endif %};">
+                    <div class="col-md-5">
+                        <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date }}">
+                    </div>
+                    <div class="col-md-5">
+                        <input type="date" name="end_date" class="form-control" value="{{ request.GET.end_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-success w-100">Apply</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Investments Table -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-list-ul"></i>
+                Investment Records
+                <span class="badge bg-success ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDelete()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="investmentTable">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Date</th>
+                        <th>Investment Type</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Related Cattle</th>
+                        <th>Notes</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="investmentTableBody">
+                    {% for investment in investments %}
+                    <tr data-id="{{ investment.id }}" class="investment-row">
+                        <td>
+                            <input type="checkbox" class="form-check-input record-checkbox" value="{{ investment.id }}">
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ investment.date|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ investment.date|timesince }} ago</small>
+                        </td>
+                        <td>
+                            <span class="badge {% if investment.investment_type == 'INFRASTRUCTURE' %}bg-primary{% elif investment.investment_type == 'EQUIPMENT' %}bg-info{% elif investment.investment_type == 'CATTLE' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                {{ investment.get_investment_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ investment.description|truncatechars:30 }}</td>
+                        <td class="fw-bold text-success">৳{{ investment.amount|floatformat:2 }}</td>
+                        <td>
+                            {% if investment.cattle %}
+                            <a href="{% url 'dairy:cattle_detail' investment.cattle.id %}" class="text-decoration-none">
+                                {{ investment.cattle.tag_number }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if investment.notes %}
+                            <span class="text-muted" title="{{ investment.notes }}">{{ investment.notes|truncatechars:15 }}</span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'dairy:investment_edit' investment.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete({{ investment.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <i class="bi bi-pie-chart fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No investments found</h5>
+                            <p class="text-muted mb-3">Start tracking your farm investments</p>
+                            <a href="{% url 'dairy:investment_add' %}" class="btn btn-success">
+                                <i class="bi bi-plus-circle me-2"></i>Add First Investment
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-success border-success">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Investment Charts -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pie-chart text-success me-2"></i>
+                        Investment Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="typeChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up text-success me-2"></i>
+                        Investment Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this investment record?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This action cannot be undone.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Custom date range toggle
+    document.querySelector('select[name="range"]').addEventListener('change', function() {
+        const customRange = document.getElementById('customDateRange');
+        customRange.style.display = this.value === 'custom' ? 'flex' : 'none';
+        if (this.value !== 'custom') {
+            document.getElementById('filterForm').submit();
+        }
+    });
+
+    // Initialize Type Chart
+    const typeCtx = document.getElementById('typeChart').getContext('2d');
+    new Chart(typeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [{% for item in type_data %}'{{ item.name }}',{% endfor %}],
+            datasets: [{
+                data: [{% for item in type_data %}{{ item.total }},{% endfor %}],
+                backgroundColor: [
+                    '#20c997', '#0d6efd', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Initialize Trend Chart
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: {{ trend_labels|safe }},
+            datasets: [{
+                label: 'Investment (৳)',
+                data: {{ trend_data|safe }},
+                borderColor: '#20c997',
+                backgroundColor: 'rgba(32, 201, 151, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Amount (৳)'
+                    }
+                }
+            }
+        }
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.record-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.record-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDelete(investmentId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        document.getElementById('confirmDeleteBtn').href = "{% url 'dairy:investment_delete' 0 %}".replace('0', investmentId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDelete() {
+        const selected = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} investment records?`)) {
+            showLoading();
+            fetch('/dairy/api/bulk/investments/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      location.reload();
+                  } else {
+                      alert('Error: ' + data.error);
+                      hideLoading();
+                  }
+              });
+        }
+    }
+
+    // Export data
+    function exportData() {
+        window.location.href = "{% url 'dairy:export_financial' %}";
+    }
+</script>
+
+<style>
+    .type-card {
+        transition: all 0.3s ease;
+    }
+    
+    .type-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .investment-row:hover {
+        background-color: #f0fff4;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

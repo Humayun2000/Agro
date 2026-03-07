@@ -1,0 +1,462 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Milk Sales{% endblock %}
+
+{% block dairy_content %}
+<div class="container-fluid px-0">
+    <!-- Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">
+                <i class="bi bi-cash text-success me-2"></i>
+                Milk Sales
+            </h4>
+            <p class="text-muted mb-0">Track milk sales revenue and customers</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="exportData()">
+                <i class="bi bi-download me-1"></i> Export
+            </button>
+            <a href="{% url 'dairy:milk_sale_add' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle me-1"></i> Add Sale
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-calendar-day fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Today's Sales</h6>
+                            <h3 class="mb-0" id="todayTotal">{{ today_total|default:"0"|floatformat:0 }} ৳</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-calendar-month fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">This Month</h6>
+                            <h3 class="mb-0">{{ monthly_total|default:"0"|floatformat:0 }} ৳</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-calendar-year fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">This Year</h6>
+                            <h3 class="mb-0">{{ yearly_total|default:"0"|floatformat:0 }} ৳</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-cup fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Total Quantity</h6>
+                            <h3 class="mb-0">{{ total_quantity|default:"0"|floatformat:0 }} L</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-funnel"></i>
+                Filters
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Date Range</label>
+                        <select name="range" class="form-select" onchange="this.form.submit()">
+                            <option value="today" {% if request.GET.range == 'today' %}selected{% endif %}>Today</option>
+                            <option value="week" {% if request.GET.range == 'week' or not request.GET.range %}selected{% endif %}>This Week</option>
+                            <option value="month" {% if request.GET.range == 'month' %}selected{% endif %}>This Month</option>
+                            <option value="year" {% if request.GET.range == 'year' %}selected{% endif %}>This Year</option>
+                            <option value="custom" {% if request.GET.range == 'custom' %}selected{% endif %}>Custom</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Sale Type</label>
+                        <select name="type" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            <option value="WHOLESALE" {% if request.GET.type == 'WHOLESALE' %}selected{% endif %}>Wholesale</option>
+                            <option value="RETAIL" {% if request.GET.type == 'RETAIL' %}selected{% endif %}>Retail</option>
+                            <option value="DIRECT" {% if request.GET.type == 'DIRECT' %}selected{% endif %}>Direct</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Payment Status</label>
+                        <select name="payment" class="form-select" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option value="paid" {% if request.GET.payment == 'paid' %}selected{% endif %}>Paid</option>
+                            <option value="pending" {% if request.GET.payment == 'pending' %}selected{% endif %}>Pending</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <a href="{% url 'dairy:milk_sale_list' %}" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle me-1"></i> Clear
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Custom Date Range -->
+                <div class="row mt-3" id="customDateRange" style="display: {% if request.GET.range == 'custom' %}flex{% else %}none{% endif %};">
+                    <div class="col-md-5">
+                        <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date }}">
+                    </div>
+                    <div class="col-md-5">
+                        <input type="date" name="end_date" class="form-control" value="{{ request.GET.end_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">Apply</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sales Table -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-list-ul"></i>
+                Milk Sales Records
+                <span class="badge bg-success ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDelete()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="saleTable">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Date</th>
+                        <th>Quantity (L)</th>
+                        <th>Price/L</th>
+                        <th>Total Amount</th>
+                        <th>Sale Type</th>
+                        <th>Customer</th>
+                        <th>Payment</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="saleTableBody">
+                    {% for sale in sales %}
+                    <tr data-id="{{ sale.id }}" class="sale-row">
+                        <td>
+                            <input type="checkbox" class="form-check-input record-checkbox" value="{{ sale.id }}">
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ sale.date|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ sale.date|timesince }} ago</small>
+                        </td>
+                        <td class="fw-bold">{{ sale.quantity }} L</td>
+                        <td>৳{{ sale.price_per_liter|floatformat:2 }}</td>
+                        <td class="fw-bold text-success">৳{{ sale.total_amount|floatformat:2 }}</td>
+                        <td>
+                            <span class="badge {% if sale.sale_type == 'WHOLESALE' %}bg-primary{% elif sale.sale_type == 'RETAIL' %}bg-info{% else %}bg-success{% endif %}">
+                                {{ sale.get_sale_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ sale.customer_name|default:"—" }}</td>
+                        <td>
+                            {% if sale.payment_received %}
+                            <span class="badge bg-success">Paid</span>
+                            {% else %}
+                            <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'dairy:milk_sale_edit' sale.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete({{ sale.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5">
+                            <i class="bi bi-cash fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No milk sales found</h5>
+                            <p class="text-muted mb-3">Start tracking your milk sales</p>
+                            <a href="{% url 'dairy:milk_sale_add' %}" class="btn btn-success">
+                                <i class="bi bi-plus-circle me-2"></i>Add First Sale
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-success border-success">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Sales Summary Charts -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pie-chart text-success me-2"></i>
+                        Sales by Type
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="salesTypeChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up text-success me-2"></i>
+                        Monthly Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyTrendChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this milk sale record?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This action cannot be undone.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Custom date range toggle
+    document.querySelector('select[name="range"]').addEventListener('change', function() {
+        const customRange = document.getElementById('customDateRange');
+        customRange.style.display = this.value === 'custom' ? 'flex' : 'none';
+        if (this.value !== 'custom') {
+            document.getElementById('filterForm').submit();
+        }
+    });
+
+    // Initialize Charts
+    const typeCtx = document.getElementById('salesTypeChart').getContext('2d');
+    new Chart(typeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [{% for item in sales_by_type %}'{{ item.type }}',{% endfor %}],
+            datasets: [{
+                data: [{% for item in sales_by_type %}{{ item.total }},{% endfor %}],
+                backgroundColor: ['#0d6efd', '#20c997', '#ffc107'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    const trendCtx = document.getElementById('monthlyTrendChart').getContext('2d');
+    new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: {{ monthly_labels|safe }},
+            datasets: [{
+                label: 'Sales (৳)',
+                data: {{ monthly_data|safe }},
+                borderColor: '#20c997',
+                backgroundColor: 'rgba(32, 201, 151, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.record-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.record-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDelete(saleId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        document.getElementById('confirmDeleteBtn').href = "{% url 'dairy:milk_sale_delete' 0 %}".replace('0', saleId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDelete() {
+        const selected = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} sales records?`)) {
+            showLoading();
+            fetch('/dairy/api/bulk/milk-sales/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      location.reload();
+                  } else {
+                      alert('Error: ' + data.error);
+                      hideLoading();
+                  }
+              });
+        }
+    }
+
+    // Export data
+    function exportData() {
+        window.location.href = "{% url 'dairy:export_sales' %}";
+    }
+</script>
+
+<style>
+    .sale-row:hover {
+        background-color: #f0fff4;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

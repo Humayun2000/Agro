@@ -1,0 +1,383 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Form Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-primary text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}pencil-square{% endif %} me-2"></i>
+                {{ title }}
+            </h3>
+            <p class="mb-0 opacity-75">
+                {% if action == 'add' %}Record a new cattle sale{% else %}Update cattle sale record{% endif %}
+            </p>
+        </div>
+
+        <form method="post" id="saleForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Cattle Selection -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-shield text-primary me-2"></i>
+                    Select Cattle
+                </h6>
+                <div class="form-group">
+                    <select name="cattle" id="id_cattle" class="form-select form-select-lg" required onchange="loadCattleData()">
+                        <option value="">Choose cattle...</option>
+                        {% for cattle in form.cattle.field.queryset %}
+                        <option value="{{ cattle.id }}" 
+                                data-tag="{{ cattle.tag_number }}"
+                                data-name="{{ cattle.name|default:'Unnamed' }}"
+                                data-breed="{{ cattle.get_breed_display }}"
+                                data-purchase="{{ cattle.purchase_price|default:'0' }}"
+                                data-expenses="{{ cattle.total_expenses }}"
+                                {% if form.cattle.value|stringformat:"s" == cattle.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }} ({{ cattle.get_breed_display }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if form.cattle.errors %}
+                    <div class="text-danger small mt-2">{{ form.cattle.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Selected Cattle Info -->
+                <div class="selected-cattle-info mt-3 p-3 bg-light rounded-3" id="selectedCattleInfo" style="display: none;">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="cattle-avatar bg-primary text-white rounded-3 p-3">
+                                    <span class="fs-3 fw-bold" id="selectedCattleAvatar">?</span>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1" id="selectedCattleTag"></h6>
+                                    <p class="text-muted mb-0" id="selectedCattleBreed"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="cattle-stats">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <small class="text-muted">Purchase Price:</small>
+                                    <span class="fw-bold" id="selectedPurchasePrice">৳0</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <small class="text-muted">Total Expenses:</small>
+                                    <span class="fw-bold" id="selectedExpenses">৳0</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">Total Investment:</small>
+                                    <span class="fw-bold" id="selectedInvestment">৳0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sale Details -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-info-circle text-primary me-2"></i>
+                    Sale Details
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="sale_date" id="id_sale_date" 
+                                   class="form-control" value="{{ form.sale_date.value|date:'Y-m-d'|default:'' }}" required
+                                   onchange="calculateProfit()">
+                            <label><i class="bi bi-calendar me-2"></i>Sale Date <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="sale_price" id="id_sale_price" 
+                                   class="form-control" value="{{ form.sale_price.value|default:'' }}"
+                                   placeholder="Sale price" step="0.01" min="0" required
+                                   oninput="calculateProfit()">
+                            <label><i class="bi bi-cash me-2"></i>Sale Price (৳) <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buyer Information -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-person text-primary me-2"></i>
+                    Buyer Information
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <div class="form-floating">
+                            <input type="text" name="buyer_name" id="id_buyer_name" 
+                                   class="form-control" value="{{ form.buyer_name.value|default:'' }}"
+                                   placeholder="Buyer name" required>
+                            <label><i class="bi bi-person me-2"></i>Buyer Name <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-check form-switch mt-3">
+                            <input type="checkbox" name="payment_received" id="id_payment_received" 
+                                   class="form-check-input" {% if form.payment_received.value %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="id_payment_received">
+                                Payment Received
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12">
+                        <div class="form-floating">
+                            <input type="text" name="buyer_contact" id="id_buyer_contact" 
+                                   class="form-control" value="{{ form.buyer_contact.value|default:'' }}"
+                                   placeholder="Contact number">
+                            <label><i class="bi bi-phone me-2"></i>Contact Number</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profit Analysis Card -->
+            <div class="profit-card bg-light rounded-3 p-4 mb-4" id="profitCard" style="display: none;">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-graph-up text-primary me-2"></i>
+                    Profit Analysis
+                </h6>
+                
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <small class="text-muted d-block">Purchase Price</small>
+                            <span class="fs-5 fw-bold" id="profitPurchase">৳0</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <small class="text-muted d-block">Expenses</small>
+                            <span class="fs-5 fw-bold" id="profitExpenses">৳0</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <small class="text-muted d-block">Sale Price</small>
+                            <span class="fs-5 fw-bold" id="profitSale">৳0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profit-result mt-3 p-3 bg-white rounded-3 text-center">
+                    <div class="d-flex justify-content-center align-items-center gap-3">
+                        <span class="fs-4">Net Profit/Loss:</span>
+                        <span class="fs-2 fw-bold" id="profitResult">৳0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <div class="form-floating">
+                    <textarea name="notes" id="id_notes" 
+                              class="form-control" style="height: 100px"
+                              placeholder="Additional Notes">{{ form.notes.value|default:'' }}</textarea>
+                    <label><i class="bi bi-journal-text me-2"></i>Notes</label>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-lightning-charge text-primary me-2"></i>
+                    Quick Actions
+                </h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="setToday()">Today</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="suggestPrice()">Suggest Price</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="markAsPaid()">Mark Paid</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addNote('Healthy cattle')">Healthy</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addNote('Good condition')">Good condition</button>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{% url 'dairy:cattle_sale_list' %}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-lg me-1"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary px-5">
+                    <i class="bi bi-check-lg me-1"></i> {{ submit_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .cattle-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .selected-cattle-info {
+        border-left: 4px solid #0d6efd;
+        animation: slideDown 0.3s ease;
+    }
+    
+    .profit-card {
+        border-left: 4px solid #20c997;
+    }
+    
+    .profit-result {
+        border-left: 4px solid #0d6efd;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<script>
+    let cattleData = {};
+
+    // Load cattle data
+    function loadCattleData() {
+        const select = document.getElementById('id_cattle');
+        const infoDiv = document.getElementById('selectedCattleInfo');
+        
+        if (select.value) {
+            const selected = select.options[select.selectedIndex];
+            cattleData = {
+                id: select.value,
+                tag: selected.dataset.tag,
+                name: selected.dataset.name,
+                breed: selected.dataset.breed,
+                purchase: parseFloat(selected.dataset.purchase) || 0,
+                expenses: parseFloat(selected.dataset.expenses) || 0
+            };
+            
+            document.getElementById('selectedCattleAvatar').textContent = cattleData.tag[0];
+            document.getElementById('selectedCattleTag').textContent = cattleData.tag;
+            document.getElementById('selectedCattleBreed').textContent = cattleData.breed;
+            
+            const totalInvestment = cattleData.purchase + cattleData.expenses;
+            
+            document.getElementById('selectedPurchasePrice').textContent = '৳' + cattleData.purchase.toFixed(2);
+            document.getElementById('selectedExpenses').textContent = '৳' + cattleData.expenses.toFixed(2);
+            document.getElementById('selectedInvestment').textContent = '৳' + totalInvestment.toFixed(2);
+            
+            infoDiv.style.display = 'block';
+            calculateProfit();
+        } else {
+            infoDiv.style.display = 'none';
+            document.getElementById('profitCard').style.display = 'none';
+        }
+    }
+
+    // Calculate profit
+    function calculateProfit() {
+        const salePrice = parseFloat(document.getElementById('id_sale_price').value) || 0;
+        
+        if (cattleData.id && salePrice > 0) {
+            const totalInvestment = cattleData.purchase + cattleData.expenses;
+            const profit = salePrice - totalInvestment;
+            
+            document.getElementById('profitPurchase').textContent = '৳' + cattleData.purchase.toFixed(2);
+            document.getElementById('profitExpenses').textContent = '৳' + cattleData.expenses.toFixed(2);
+            document.getElementById('profitSale').textContent = '৳' + salePrice.toFixed(2);
+            
+            const profitResult = document.getElementById('profitResult');
+            profitResult.textContent = '৳' + profit.toFixed(2);
+            profitResult.className = profit >= 0 ? 'fs-2 fw-bold text-success' : 'fs-2 fw-bold text-danger';
+            
+            document.getElementById('profitCard').style.display = 'block';
+        }
+    }
+
+    // Set today's date
+    function setToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('id_sale_date').value = today;
+    }
+
+    // Suggest price based on weight and market rate
+    function suggestPrice() {
+        // This would normally fetch from API, using placeholder
+        const suggestedPrice = 50000; // Placeholder
+        document.getElementById('id_sale_price').value = suggestedPrice;
+        calculateProfit();
+    }
+
+    // Mark as paid
+    function markAsPaid() {
+        document.getElementById('id_payment_received').checked = true;
+    }
+
+    // Add quick note
+    function addNote(note) {
+        const notesField = document.getElementById('id_notes');
+        if (notesField.value) {
+            notesField.value += '\n' + note;
+        } else {
+            notesField.value = note;
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set today's date if empty
+        const dateField = document.getElementById('id_sale_date');
+        if (!dateField.value) {
+            setToday();
+        }
+        
+        // Load cattle data if selected
+        if (document.getElementById('id_cattle').value) {
+            loadCattleData();
+        }
+    });
+
+    // Form validation
+    document.getElementById('saleForm').addEventListener('submit', function(e) {
+        const cattle = document.getElementById('id_cattle').value;
+        const price = document.getElementById('id_sale_price').value;
+        const date = document.getElementById('id_sale_date').value;
+        const buyer = document.getElementById('id_buyer_name').value;
+        
+        if (!cattle || !price || !date || !buyer) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+        }
+    });
+
+    // Warn before leaving
+    let formDirty = false;
+    document.querySelectorAll('#saleForm input, #saleForm select, #saleForm textarea').forEach(field => {
+        field.addEventListener('change', () => formDirty = true);
+        field.addEventListener('input', () => formDirty = true);
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+</script>
+{% endblock %}

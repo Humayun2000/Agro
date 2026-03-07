@@ -234,11 +234,16 @@
                         <td>{{ record.age_in_days|default:"—" }} days</td>
                         <td>
                             <div class="progress" style="height: 8px; width: 100px;">
-                                {% with percentage=record.weight|default:0|divisibleby:target_weight|multiply:100 %}
-                                <div class="progress-bar bg-success" style="width: {{ percentage|default:0 }}%"></div>
+                                {% with target=target_weight|default:500 %}
+                                {% if target > 0 and record.weight %}
+                                    {% widthratio record.weight target 100 as percentage %}
+                                    <div class="progress-bar bg-success" style="width: {{ percentage }}%"></div>
+                                {% else %}
+                                    <div class="progress-bar bg-success" style="width: 0%"></div>
+                                {% endif %}
                                 {% endwith %}
                             </div>
-                            <small class="text-muted">{{ record.weight|default:0 }} / {{ target_weight }} kg</small>
+                            <small class="text-muted">{{ record.weight|default:0 }} / {{ target_weight|default:500 }} kg</small>
                         </td>
                         <td>
                             <div class="d-flex gap-2">
@@ -576,7 +581,8 @@
 
     // Export data
     function exportData() {
-        window.location.href = "{% url 'dairy:export_weight' %}";
+        // Updated to use the correct URL
+        window.location.href = "{% url 'dairy:export_weight_csv' %}";
     }
 
     // Initialize

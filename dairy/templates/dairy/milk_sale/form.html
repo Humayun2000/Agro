@@ -1,0 +1,251 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Form Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-success text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}pencil-square{% endif %} me-2"></i>
+                {{ title }}
+            </h3>
+            <p class="mb-0 opacity-75">
+                {% if action == 'add' %}Record a new milk sale{% else %}Update milk sale record{% endif %}
+            </p>
+        </div>
+
+        <form method="post" id="saleForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Sale Details -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-info-circle text-success me-2"></i>
+                    Sale Details
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="date" id="id_date" 
+                                   class="form-control" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required>
+                            <label><i class="bi bi-calendar me-2"></i>Date <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select name="sale_type" id="id_sale_type" class="form-select" required>
+                                <option value="">Select type...</option>
+                                {% for value, label in form.sale_type.field.choices %}
+                                <option value="{{ value }}" {% if form.sale_type.value == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-tag me-2"></i>Sale Type <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quantity & Price -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-calculator text-success me-2"></i>
+                    Quantity & Price
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="quantity" id="id_quantity" 
+                                   class="form-control" value="{{ form.quantity.value|default:'' }}"
+                                   placeholder="Quantity" step="0.01" min="0" required
+                                   oninput="calculateTotal()">
+                            <label><i class="bi bi-cup me-2"></i>Quantity (L) <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="price_per_liter" id="id_price_per_liter" 
+                                   class="form-control" value="{{ form.price_per_liter.value|default:'' }}"
+                                   placeholder="Price per liter" step="0.01" min="0" required
+                                   oninput="calculateTotal()">
+                            <label><i class="bi bi-cash me-2"></i>Price per Liter (৳) <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Information -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-person text-success me-2"></i>
+                    Customer Information
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <div class="form-floating">
+                            <input type="text" name="customer_name" id="id_customer_name" 
+                                   class="form-control" value="{{ form.customer_name.value|default:'' }}"
+                                   placeholder="Customer name">
+                            <label><i class="bi bi-person me-2"></i>Customer Name</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-check form-switch mt-3">
+                            <input type="checkbox" name="payment_received" id="id_payment_received" 
+                                   class="form-check-input" {% if form.payment_received.value %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="id_payment_received">
+                                Payment Received
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Calculation Card -->
+            <div class="calculation-card bg-light rounded-3 p-4 mb-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <small class="text-muted d-block">Quantity</small>
+                            <span class="fs-4 fw-bold" id="displayQuantity">0 L</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <small class="text-muted d-block">Price/L</small>
+                            <span class="fs-4 fw-bold" id="displayPrice">৳0</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <small class="text-muted d-block">Total Amount</small>
+                            <span class="fs-3 fw-bold text-success" id="displayTotal">৳0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <div class="form-floating">
+                    <textarea name="notes" id="id_notes" 
+                              class="form-control" style="height: 100px"
+                              placeholder="Additional Notes">{{ form.notes.value|default:'' }}</textarea>
+                    <label><i class="bi bi-journal-text me-2"></i>Notes</label>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-lightning-charge text-success me-2"></i>
+                    Quick Actions
+                </h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="setToday()">Today</button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="setCommonPrice(60)">৳60/L</button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="setCommonPrice(65)">৳65/L</button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="setCommonPrice(70)">৳70/L</button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="markAsPaid()">Mark Paid</button>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{% url 'dairy:milk_sale_list' %}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-lg me-1"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-success px-5">
+                    <i class="bi bi-check-lg me-1"></i> {{ submit_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .calculation-card {
+        border-left: 4px solid #20c997;
+    }
+    
+    .quick-actions .btn-outline-success {
+        border-width: 2px;
+    }
+</style>
+
+<script>
+    // Calculate total amount
+    function calculateTotal() {
+        const quantity = parseFloat(document.getElementById('id_quantity').value) || 0;
+        const price = parseFloat(document.getElementById('id_price_per_liter').value) || 0;
+        const total = quantity * price;
+        
+        document.getElementById('displayQuantity').textContent = quantity.toFixed(2) + ' L';
+        document.getElementById('displayPrice').textContent = '৳' + price.toFixed(2);
+        document.getElementById('displayTotal').textContent = '৳' + total.toFixed(2);
+    }
+
+    // Set today's date
+    function setToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('id_date').value = today;
+    }
+
+    // Set common price
+    function setCommonPrice(price) {
+        document.getElementById('id_price_per_liter').value = price;
+        calculateTotal();
+    }
+
+    // Mark as paid
+    function markAsPaid() {
+        document.getElementById('id_payment_received').checked = true;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set today's date if empty
+        const dateField = document.getElementById('id_date');
+        if (!dateField.value) {
+            setToday();
+        }
+        
+        // Calculate initial total
+        calculateTotal();
+    });
+
+    // Form validation
+    document.getElementById('saleForm').addEventListener('submit', function(e) {
+        const quantity = document.getElementById('id_quantity').value;
+        const price = document.getElementById('id_price_per_liter').value;
+        const date = document.getElementById('id_date').value;
+        const type = document.getElementById('id_sale_type').value;
+        
+        if (!quantity || !price || !date || !type) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+        }
+    });
+
+    // Warn before leaving
+    let formDirty = false;
+    document.querySelectorAll('#saleForm input, #saleForm select, #saleForm textarea').forEach(field => {
+        field.addEventListener('change', () => formDirty = true);
+        field.addEventListener('input', () => formDirty = true);
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,434 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Yearly Report{% endblock %}
+
+{% block dairy_content %}
+<div class="container-fluid px-0">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">
+                <i class="bi bi-calendar-year text-primary me-2"></i>
+                Yearly Financial Report
+            </h4>
+            <p class="text-muted mb-0">Comprehensive annual farm performance analysis for {{ year }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="exportPDF()">
+                <i class="bi bi-file-pdf me-1"></i> Export PDF
+            </button>
+            <button class="btn btn-outline-success" onclick="exportExcel()">
+                <i class="bi bi-file-excel me-1"></i> Export Excel
+            </button>
+            <button class="btn btn-outline-secondary" onclick="window.print()">
+                <i class="bi bi-printer me-1"></i> Print
+            </button>
+        </div>
+    </div>
+
+    <!-- Year Selector -->
+    <div class="table-container mb-4">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label">Year</label>
+                <select name="year" class="form-select">
+                    {% for y in years %}
+                    <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search me-1"></i> Generate Report
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50 mb-2">Total Revenue</h6>
+                    <h2 class="mb-0">৳{{ total_revenue|floatformat:2 }}</h2>
+                    <small class="text-white-50">Milk + Cattle Sales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50 mb-2">Total Expenses</h6>
+                    <h2 class="mb-0">৳{{ total_expenses|floatformat:2 }}</h2>
+                    <small class="text-white-50">All farm expenses</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-success text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50 mb-2">Net Profit</h6>
+                    <h2 class="mb-0">৳{{ net_profit|floatformat:2 }}</h2>
+                    <small class="text-white-50">Revenue - Expenses</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-info text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50 mb-2">Profit Margin</h6>
+                    <h2 class="mb-0">{{ profit_margin|default:"0"|floatformat:1 }}%</h2>
+                    <small class="text-white-50">of total revenue</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="bi bi-droplet fs-1 text-warning"></i>
+                    <h3 class="mt-2">{{ total_milk|default:"0"|floatformat:0 }} L</h3>
+                    <small class="text-muted">Total Milk</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="bi bi-tag fs-1 text-primary"></i>
+                    <h3 class="mt-2">{{ cattle_sold|default:"0" }}</h3>
+                    <small class="text-muted">Cattle Sold</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="bi bi-egg fs-1 text-success"></i>
+                    <h3 class="mt-2">{{ calves_born|default:"0" }}</h3>
+                    <small class="text-muted">Calves Born</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="bi bi-shield fs-1 text-info"></i>
+                    <h3 class="mt-2">{{ avg_herd_size|default:"0" }}</h3>
+                    <small class="text-muted">Avg Herd Size</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="bi bi-cash-stack fs-1 text-warning"></i>
+                    <h3 class="mt-2">৳{{ avg_milk_price|default:"0"|floatformat:2 }}</h3>
+                    <small class="text-muted">Avg Milk Price</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="bi bi-graph-up fs-1 text-danger"></i>
+                    <h3 class="mt-2">{{ roi|default:"0"|floatformat:1 }}%</h3>
+                    <small class="text-muted">ROI</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Performance Chart -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bar-chart text-primary me-2"></i>
+                        Monthly Performance - {{ year }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyChart" style="height: 400px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Breakdown Table -->
+    <div class="table-container mb-4">
+        <div class="table-header">
+            <h5 class="table-title">
+                <i class="bi bi-table me-2"></i>
+                Monthly Breakdown
+            </h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Milk Sales (৳)</th>
+                        <th>Cattle Sales (৳)</th>
+                        <th>Total Income (৳)</th>
+                        <th>Expenses (৳)</th>
+                        <th>Profit (৳)</th>
+                        <th>Margin</th>
+                        <th>Milk (L)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for month in monthly_data %}
+                    <tr>
+                        <td class="fw-bold">{{ month.month }}</td>
+                        <td>৳{{ month.milk_sales|floatformat:2 }}</td>
+                        <td>৳{{ month.cattle_sales|floatformat:2 }}</td>
+                        <td>৳{{ month.total_income|floatformat:2 }}</td>
+                        <td>৳{{ month.expenses|floatformat:2 }}</td>
+                        <td class="fw-bold {% if month.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ৳{{ month.profit|floatformat:2 }}
+                        </td>
+                        <td>
+                            <span class="badge {% if month.margin >= 20 %}bg-success{% elif month.margin >= 10 %}bg-info{% else %}bg-warning{% endif %}">
+                                {{ month.margin|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>{{ month.milk_quantity|floatformat:0 }} L</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-dark">
+                    <tr>
+                        <th>Total</th>
+                        <th>৳{{ total_milk_sales|floatformat:2 }}</th>
+                        <th>৳{{ total_cattle_sales|floatformat:2 }}</th>
+                        <th>৳{{ total_revenue|floatformat:2 }}</th>
+                        <th>৳{{ total_expenses|floatformat:2 }}</th>
+                        <th>৳{{ net_profit|floatformat:2 }}</th>
+                        <th>{{ profit_margin|floatformat:1 }}%</th>
+                        <th>{{ total_milk|floatformat:0 }} L</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Expense Analysis -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pie-chart text-warning me-2"></i>
+                        Annual Expenses by Category
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="expensePieChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-table text-info me-2"></i>
+                        Category Breakdown
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in annual_categories %}
+                            <tr>
+                                <td>{{ cat.name }}</td>
+                                <td>৳{{ cat.total|floatformat:2 }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span>{{ cat.percentage|floatformat:1 }}%</span>
+                                        <div class="progress flex-grow-1" style="height: 5px;">
+                                            <div class="progress-bar bg-warning" style="width: {{ cat.percentage }}%"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Performers -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-trophy-fill text-warning me-2"></i>
+                        Top Producing Cattle
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for cattle in top_producers %}
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded-3">
+                        <div>
+                            <span class="fw-bold">{{ cattle.tag_number }}</span>
+                            <small class="text-muted d-block">{{ cattle.name|default:"Unnamed" }}</small>
+                        </div>
+                        <span class="badge bg-warning">{{ cattle.total_milk|floatformat:0 }} L</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-4">No data available</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">
+                        <i class="bi bi-trophy-fill text-primary me-2"></i>
+                        Top Profit Cattle
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for cattle in top_profit %}
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded-3">
+                        <div>
+                            <span class="fw-bold">{{ cattle.tag_number }}</span>
+                            <small class="text-muted d-block">{{ cattle.name|default:"Unnamed" }}</small>
+                        </div>
+                        <span class="badge bg-success">৳{{ cattle.profit|floatformat:0 }}</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-4">No data available</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Monthly Performance Chart
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    new Chart(monthlyCtx, {
+        type: 'line',
+        data: {
+            labels: {{ monthly_labels|safe }},
+            datasets: [
+                {
+                    label: 'Income (৳)',
+                    data: {{ monthly_income|safe }},
+                    borderColor: '#20c997',
+                    backgroundColor: 'rgba(32, 201, 151, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Expenses (৳)',
+                    data: {{ monthly_expenses|safe }},
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Profit (৳)',
+                    data: {{ monthly_profit|safe }},
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Amount (৳)'
+                    }
+                }
+            }
+        }
+    });
+
+    // Expense Pie Chart
+    const expensePieCtx = document.getElementById('expensePieChart').getContext('2d');
+    new Chart(expensePieCtx, {
+        type: 'pie',
+        data: {
+            labels: [{% for cat in annual_categories %}'{{ cat.name }}',{% endfor %}],
+            datasets: [{
+                data: [{% for cat in annual_categories %}{{ cat.total }},{% endfor %}],
+                backgroundColor: [
+                    '#ffc107', '#fd7e14', '#dc3545', '#20c997', '#0d6efd', '#6f42c1'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Export functions
+    function exportPDF() {
+        window.location.href = `{% url 'dairy:yearly_report' %}?year={{ year }}&format=pdf`;
+    }
+
+    function exportExcel() {
+        window.location.href = `{% url 'dairy:yearly_report' %}?year={{ year }}&format=excel`;
+    }
+</script>
+
+<style>
+    @media print {
+        .btn, .table-container .table-header .badge {
+            display: none;
+        }
+        .card {
+            break-inside: avoid;
+        }
+    }
+    
+    .table tfoot {
+        font-weight: bold;
+    }
+</style>
+{% endblock %}

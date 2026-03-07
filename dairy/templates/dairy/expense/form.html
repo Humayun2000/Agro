@@ -1,0 +1,266 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Form Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-warning text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}pencil-square{% endif %} me-2"></i>
+                {{ title }}
+            </h3>
+            <p class="mb-0 opacity-75">
+                {% if action == 'add' %}Record a new farm expense{% else %}Update expense record{% endif %}
+            </p>
+        </div>
+
+        <form method="post" id="expenseForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Basic Information -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-info-circle text-warning me-2"></i>
+                    Basic Information
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" name="date" id="id_date" 
+                                   class="form-control" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required>
+                            <label><i class="bi bi-calendar me-2"></i>Date <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select name="category" id="id_category" class="form-select" required>
+                                <option value="">Select category...</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if form.category.value|stringformat:"s" == category.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-tag me-2"></i>Category <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-floating">
+                            <input type="text" name="description" id="id_description" 
+                                   class="form-control" value="{{ form.description.value|default:'' }}"
+                                   placeholder="Description" required>
+                            <label><i class="bi bi-chat-text me-2"></i>Description <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Details -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-cash text-warning me-2"></i>
+                    Payment Details
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="number" name="amount" id="id_amount" 
+                                   class="form-control" value="{{ form.amount.value|default:'' }}"
+                                   placeholder="Amount" step="0.01" min="0" required
+                                   oninput="updateAmount()">
+                            <label><i class="bi bi-cash me-2"></i>Amount (৳) <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select name="payment_method" id="id_payment_method" class="form-select" required>
+                                {% for value, label in form.payment_method.field.choices %}
+                                <option value="{{ value }}" {% if form.payment_method.value == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label><i class="bi bi-credit-card me-2"></i>Payment Method <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" name="receipt_number" id="id_receipt_number" 
+                                   class="form-control" value="{{ form.receipt_number.value|default:'' }}"
+                                   placeholder="Receipt number">
+                            <label><i class="bi bi-receipt me-2"></i>Receipt Number</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Cattle (Optional) -->
+            <div class="mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-shield text-warning me-2"></i>
+                    Related Cattle (Optional)
+                </h6>
+                <div class="form-floating">
+                    <select name="cattle" id="id_cattle" class="form-select">
+                        <option value="">Not related to specific cattle</option>
+                        {% for cattle in form.cattle.field.queryset %}
+                        <option value="{{ cattle.id }}" {% if form.cattle.value|stringformat:"s" == cattle.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cattle.tag_number }} - {{ cattle.name|default:"Unnamed" }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <label><i class="bi bi-shield me-2"></i>Link to Cattle</label>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <div class="form-floating">
+                    <textarea name="notes" id="id_notes" 
+                              class="form-control" style="height: 100px"
+                              placeholder="Additional Notes">{{ form.notes.value|default:'' }}</textarea>
+                    <label><i class="bi bi-journal-text me-2"></i>Notes</label>
+                </div>
+            </div>
+
+            <!-- Budget Alert -->
+            <div class="budget-alert bg-light rounded-3 p-3 mb-4" id="budgetAlert" style="display: none;">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="bi bi-exclamation-triangle-fill fs-3 text-warning"></i>
+                    <div>
+                        <strong>Monthly Budget Alert</strong>
+                        <p class="mb-0 small" id="budgetMessage">This expense exceeds your monthly budget</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-lightning-charge text-warning me-2"></i>
+                    Quick Actions
+                </h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setToday()">Today</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setCommonAmount(1000)">৳1,000</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setCommonAmount(5000)">৳5,000</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setCommonAmount(10000)">৳10,000</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="addNote('Paid in cash')">Paid in cash</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="addNote('Receipt attached')">Receipt</button>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{% url 'dairy:expense_list' %}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-lg me-1"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-warning px-5">
+                    <i class="bi bi-check-lg me-1"></i> {{ submit_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .budget-alert {
+        border-left: 4px solid #ffc107;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.8;
+        }
+    }
+</style>
+
+<script>
+    // Set today's date
+    function setToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('id_date').value = today;
+    }
+
+    // Set common amount
+    function setCommonAmount(amount) {
+        document.getElementById('id_amount').value = amount;
+        updateAmount();
+    }
+
+    // Update amount and check budget
+    function updateAmount() {
+        const amount = parseFloat(document.getElementById('id_amount').value) || 0;
+        
+        // Simple budget check (you can enhance this with real budget data)
+        if (amount > 5000) {
+            document.getElementById('budgetAlert').style.display = 'block';
+            document.getElementById('budgetMessage').textContent = 
+                `This expense of ৳${amount.toFixed(2)} is above your typical spending.`;
+        } else {
+            document.getElementById('budgetAlert').style.display = 'none';
+        }
+    }
+
+    // Add quick note
+    function addNote(note) {
+        const notesField = document.getElementById('id_notes');
+        if (notesField.value) {
+            notesField.value += '\n' + note;
+        } else {
+            notesField.value = note;
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set today's date if empty
+        const dateField = document.getElementById('id_date');
+        if (!dateField.value) {
+            setToday();
+        }
+        
+        // Update amount display
+        updateAmount();
+    });
+
+    // Form validation
+    document.getElementById('expenseForm').addEventListener('submit', function(e) {
+        const date = document.getElementById('id_date').value;
+        const category = document.getElementById('id_category').value;
+        const description = document.getElementById('id_description').value;
+        const amount = document.getElementById('id_amount').value;
+        const payment = document.getElementById('id_payment_method').value;
+        
+        if (!date || !category || !description || !amount || !payment) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+        }
+    });
+
+    // Warn before leaving
+    let formDirty = false;
+    document.querySelectorAll('#expenseForm input, #expenseForm select, #expenseForm textarea').forEach(field => {
+        field.addEventListener('change', () => formDirty = true);
+        field.addEventListener('input', () => formDirty = true);
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+</script>
+{% endblock %}

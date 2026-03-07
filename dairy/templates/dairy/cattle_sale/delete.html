@@ -1,0 +1,292 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Delete Cattle Sale{% endblock %}
+
+{% block dairy_content %}
+<div class="container" style="max-width: 650px;">
+    <!-- Delete Confirmation Card -->
+    <div class="form-card border-0 shadow-lg">
+        <div class="form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Cattle Sale
+            </h3>
+            <p class="mb-0 opacity-75">This will mark the cattle as ACTIVE again</p>
+        </div>
+
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-tag-fill fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove sale record?</h4>
+            <p class="text-muted">
+                You are about to delete a cattle sale from 
+                <strong>{{ sale.sale_date|date:"F d, Y" }}</strong>
+            </p>
+        </div>
+
+        <!-- Sale Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="cattle-avatar bg-danger text-white rounded-3 p-3">
+                        <span class="fs-2 fw-bold">{{ sale.cattle.tag_number|first }}</span>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ sale.cattle.tag_number }}</h5>
+                        <p class="text-muted mb-0">{{ sale.cattle.name|default:"Unnamed" }}</p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Sale Date</small>
+                            <span class="fw-bold">{{ sale.sale_date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Sale Price</small>
+                            <span class="fw-bold text-success">৳{{ sale.sale_price|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Purchase Price</small>
+                            <span class="fw-bold">৳{{ sale.cattle.purchase_price|default:"0"|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Profit/Loss</small>
+                            {% with profit=sale.profit_loss %}
+                                <span class="fw-bold {% if profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {% if profit >= 0 %}+{% endif %}৳{{ profit|floatformat:2 }}
+                                </span>
+                            {% endwith %}
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Buyer</small>
+                            <span class="fw-bold">{{ sale.buyer_name }}</span>
+                            {% if sale.buyer_contact %}
+                            <small class="text-muted d-block">{{ sale.buyer_contact }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>This action will:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Delete the sale record permanently</li>
+                    <li>Mark <strong>{{ sale.cattle.tag_number }}</strong> as ACTIVE again</li>
+                    <li>Remove this profit/loss from reports</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                I understand that this will reactivate the cattle
+            </label>
+        </div>
+
+        <!-- Countdown Timer -->
+        <div class="countdown-timer bg-danger text-white rounded-3 p-3 mb-4" id="countdownTimer" style="display: none;">
+            <div class="d-flex align-items-center justify-content-center gap-3">
+                <i class="bi bi-clock-history fs-4"></i>
+                <span>Deleting in</span>
+                <span class="fw-bold fs-2" id="countdownNumber">5</span>
+                <span>seconds...</span>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'dairy:cattle_sale_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="button" class="btn btn-danger px-5 py-3" id="deleteBtn" onclick="startCountdown()" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Record
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Final Confirmation Modal -->
+<div class="modal fade" id="finalConfirmModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    FINAL WARNING
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-tag-fill fs-1 text-danger d-block mb-3"></i>
+                <h5 class="mb-3">Last chance to reconsider!</h5>
+                
+                <div class="alert alert-warning mb-4">
+                    <p class="mb-2"><strong>After deletion:</strong></p>
+                    <p class="mb-0">
+                        <span class="badge bg-success p-2">{{ sale.cattle.tag_number }}</span> 
+                        will be marked as 
+                        <span class="badge bg-primary p-2">ACTIVE</span>
+                    </p>
+                </div>
+                
+                <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+                    <i class="bi bi-exclamation-circle-fill fs-4"></i>
+                    <div class="text-start">
+                        <strong>This cannot be undone!</strong>
+                        <p class="mb-0 small">The sale record will be permanently lost.</p>
+                    </div>
+                </div>
+                
+                <div class="form-check text-start">
+                    <input class="form-check-input" type="checkbox" id="finalConfirm">
+                    <label class="form-check-label fw-bold" for="finalConfirm">
+                        Yes, delete this sale and reactivate the cattle
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="finalDeleteBtn" onclick="submitDelete()" disabled>
+                    Delete Permanently
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .warning-icon {
+        width: 100px;
+        height: 100px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px 10px rgba(220, 53, 69, 0.1);
+        }
+    }
+    
+    .cattle-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+    }
+    
+    .countdown-timer {
+        animation: pulseCountdown 1s infinite;
+    }
+    
+    @keyframes pulseCountdown {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+</style>
+
+<script>
+    let countdownInterval;
+    let countdownValue = 5;
+
+    function toggleDeleteButton() {
+        document.getElementById('deleteBtn').disabled = !document.getElementById('confirmDelete').checked;
+    }
+
+    function startCountdown() {
+        const deleteBtn = document.getElementById('deleteBtn');
+        const countdownTimer = document.getElementById('countdownTimer');
+        const countdownNumber = document.getElementById('countdownNumber');
+        
+        deleteBtn.disabled = true;
+        countdownTimer.style.display = 'block';
+        
+        countdownInterval = setInterval(() => {
+            countdownValue--;
+            countdownNumber.textContent = countdownValue;
+            
+            if (countdownValue <= 0) {
+                clearInterval(countdownInterval);
+                countdownTimer.style.display = 'none';
+                countdownValue = 5;
+                countdownNumber.textContent = countdownValue;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('finalConfirmModal'));
+                modal.show();
+                
+                deleteBtn.disabled = false;
+            }
+        }, 1000);
+    }
+
+    document.getElementById('finalConfirm').addEventListener('change', function() {
+        document.getElementById('finalDeleteBtn').disabled = !this.checked;
+    });
+
+    function submitDelete() {
+        document.getElementById('deleteForm').submit();
+    }
+
+    // Reset on modal close
+    document.getElementById('finalConfirmModal').addEventListener('hidden.bs.modal', function() {
+        clearInterval(countdownInterval);
+        document.getElementById('countdownTimer').style.display = 'none';
+        countdownValue = 5;
+        document.getElementById('countdownNumber').textContent = countdownValue;
+        document.getElementById('finalConfirm').checked = false;
+        document.getElementById('finalDeleteBtn').disabled = true;
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.location.href = "{% url 'dairy:cattle_sale_list' %}";
+        }
+        
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !document.getElementById('deleteBtn').disabled) {
+            e.preventDefault();
+            startCountdown();
+        }
+    });
+</script>
+{% endblock %}
