@@ -3,11 +3,15 @@
 
 {% block page_title %}Dashboard{% endblock %}
 
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Dashboard</li>
+{% endblock %}
+
 {% block dairy_content %}
 <div class="container-fluid px-0">
     <!-- Welcome Banner -->
     <div class="alert alert-primary d-flex align-items-center justify-content-between mb-4 animate-slide" 
-         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 15px;">
         <div>
             <h4 class="mb-2 fw-bold">👋 Welcome back, {{ request.user.get_full_name|default:request.user.username }}!</h4>
             <p class="mb-0 opacity-75">
@@ -150,7 +154,7 @@
     <div class="module-grid">
         <!-- Cattle Management -->
         <div class="module-card">
-            <div class="module-icon cattle">
+            <div class="module-icon" style="background: #e9ecef; color: #4361ee;">
                 <i class="bi bi-shield"></i>
             </div>
             <h5 class="module-title">Cattle Management</h5>
@@ -170,7 +174,7 @@
 
         <!-- Milk Production -->
         <div class="module-card">
-            <div class="module-icon milk">
+            <div class="module-icon" style="background: #fff3cd; color: #f8961e;">
                 <i class="bi bi-droplet"></i>
             </div>
             <h5 class="module-title">Milk Production</h5>
@@ -190,7 +194,7 @@
 
         <!-- Health Records -->
         <div class="module-card">
-            <div class="module-icon health">
+            <div class="module-icon" style="background: #f8d7da; color: #f72585;">
                 <i class="bi bi-heart-pulse"></i>
             </div>
             <h5 class="module-title">Health Records</h5>
@@ -210,7 +214,7 @@
 
         <!-- Vaccinations -->
         <div class="module-card">
-            <div class="module-icon vaccination">
+            <div class="module-icon" style="background: #e9ecef; color: #7209b7;">
                 <i class="bi bi-shield-check"></i>
             </div>
             <h5 class="module-title">Vaccinations</h5>
@@ -230,7 +234,7 @@
 
         <!-- Weight Tracking -->
         <div class="module-card">
-            <div class="module-icon weight">
+            <div class="module-icon" style="background: #d4edda; color: #4cc9f0;">
                 <i class="bi bi-graph-up"></i>
             </div>
             <h5 class="module-title">Weight Tracking</h5>
@@ -250,7 +254,7 @@
 
         <!-- Feeding Records -->
         <div class="module-card">
-            <div class="module-icon feeding">
+            <div class="module-icon" style="background: #e9ecef; color: #fd7e14;">
                 <i class="bi bi-basket"></i>
             </div>
             <h5 class="module-title">Feeding Records</h5>
@@ -270,7 +274,7 @@
 
         <!-- Breeding Records -->
         <div class="module-card">
-            <div class="module-icon breeding">
+            <div class="module-icon" style="background: #f8d7da; color: #e83e8c;">
                 <i class="bi bi-heart"></i>
             </div>
             <h5 class="module-title">Breeding Records</h5>
@@ -290,7 +294,7 @@
 
         <!-- Milk Sales -->
         <div class="module-card">
-            <div class="module-icon finance">
+            <div class="module-icon" style="background: #cce5ff; color: #17a2b8;">
                 <i class="bi bi-cash"></i>
             </div>
             <h5 class="module-title">Milk Sales</h5>
@@ -304,6 +308,44 @@
                 </a>
                 <a href="{% url 'dairy:milk_sale_add' %}" class="btn-module btn-add">
                     <i class="bi bi-plus"></i> Add Sale
+                </a>
+            </div>
+        </div>
+
+        <!-- Expenses -->
+        <div class="module-card">
+            <div class="module-icon" style="background: #f8d7da; color: #dc3545;">
+                <i class="bi bi-receipt"></i>
+            </div>
+            <h5 class="module-title">Expenses</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-cash"></i> <span id="monthlyExpenses">0</span> This Month</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:expense_list' %}" class="btn-module btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:expense_add' %}" class="btn-module btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Investments -->
+        <div class="module-card">
+            <div class="module-icon" style="background: #d4edda; color: #28a745;">
+                <i class="bi bi-pie-chart"></i>
+            </div>
+            <h5 class="module-title">Investments</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-cash-stack"></i> <span id="totalInvestments">0</span> Total</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:investment_list' %}" class="btn-module btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:investment_add' %}" class="btn-module btn-add">
+                    <i class="bi bi-plus"></i> Add
                 </a>
             </div>
         </div>
@@ -348,37 +390,47 @@
     </div>
 
     <!-- Quick Actions -->
-    <div class="table-container mt-4">
-        <h5 class="table-title mb-4">
-            <i class="bi bi-lightning-charge text-warning"></i>
-            Quick Actions
-        </h5>
-        <div class="row g-3">
-            <div class="col-md-3 col-6">
-                <a href="{% url 'dairy:cattle_add' %}" class="btn btn-outline-primary w-100 py-3">
-                    <i class="bi bi-plus-circle d-block fs-3 mb-2"></i>
-                    <span>Add Cattle</span>
-                </a>
-            </div>
-            <div class="col-md-3 col-6">
-                <a href="{% url 'dairy:milk_add' %}" class="btn btn-outline-warning w-100 py-3">
-                    <i class="bi bi-droplet d-block fs-3 mb-2"></i>
-                    <span>Add Milk</span>
-                </a>
-            </div>
-            <div class="col-md-3 col-6">
-                <a href="{% url 'dairy:health_add' %}" class="btn btn-outline-danger w-100 py-3">
-                    <i class="bi bi-heart-pulse d-block fs-3 mb-2"></i>
-                    <span>Health Check</span>
-                </a>
-            </div>
-            <div class="col-md-3 col-6">
-                <a href="{% url 'dairy:vaccination_add' %}" class="btn btn-outline-success w-100 py-3">
-                    <i class="bi bi-shield-check d-block fs-3 mb-2"></i>
-                    <span>Vaccinate</span>
-                </a>
-            </div>
-        </div>
+    <div class="quick-actions">
+        <a href="{% url 'dairy:cattle_add' %}" class="quick-action-btn">
+            <i class="bi bi-plus-circle"></i>
+            <span>Add Cattle</span>
+        </a>
+        <a href="{% url 'dairy:milk_add' %}" class="quick-action-btn">
+            <i class="bi bi-droplet"></i>
+            <span>Add Milk</span>
+        </a>
+        <a href="{% url 'dairy:health_add' %}" class="quick-action-btn">
+            <i class="bi bi-heart-pulse"></i>
+            <span>Health Check</span>
+        </a>
+        <a href="{% url 'dairy:vaccination_add' %}" class="quick-action-btn">
+            <i class="bi bi-shield-check"></i>
+            <span>Vaccinate</span>
+        </a>
+        <a href="{% url 'dairy:weight_add' %}" class="quick-action-btn">
+            <i class="bi bi-graph-up"></i>
+            <span>Add Weight</span>
+        </a>
+        <a href="{% url 'dairy:feeding_add' %}" class="quick-action-btn">
+            <i class="bi bi-basket"></i>
+            <span>Add Feeding</span>
+        </a>
+        <a href="{% url 'dairy:breeding_add' %}" class="quick-action-btn">
+            <i class="bi bi-heart"></i>
+            <span>Breeding</span>
+        </a>
+        <a href="{% url 'dairy:expense_add' %}" class="quick-action-btn">
+            <i class="bi bi-receipt"></i>
+            <span>Add Expense</span>
+        </a>
+        <a href="{% url 'dairy:investment_add' %}" class="quick-action-btn">
+            <i class="bi bi-pie-chart"></i>
+            <span>Add Investment</span>
+        </a>
+        <a href="{% url 'dairy:monthly_report' %}" class="quick-action-btn">
+            <i class="bi bi-file-text"></i>
+            <span>Reports</span>
+        </a>
     </div>
 </div>
 
@@ -441,6 +493,10 @@
         document.getElementById('pregnant').textContent = data.breeding?.pregnant || 0;
         document.getElementById('todaySales').textContent = data.sales?.today_quantity || 0;
         document.getElementById('todayRevenue').innerHTML = '৳' + (data.sales?.today_revenue || 0).toLocaleString();
+        
+        // Additional financial modules
+        document.getElementById('monthlyExpenses').textContent = data.expenses?.monthly || 0;
+        document.getElementById('totalInvestments').textContent = data.investments?.total || 0;
     }
 
     // Load chart data
@@ -457,14 +513,14 @@
             milkChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.labels,
+                    labels: data.labels || [],
                     datasets: [{
                         label: 'Milk Production (L)',
-                        data: data.values,
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        data: data.values || [],
+                        borderColor: '#4361ee',
+                        backgroundColor: 'rgba(67, 97, 238, 0.1)',
                         borderWidth: 3,
-                        pointBackgroundColor: '#667eea',
+                        pointBackgroundColor: '#4361ee',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
                         pointRadius: 5,

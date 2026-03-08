@@ -112,22 +112,24 @@ class Cattle(models.Model):
         return self.milk_records.aggregate(total=models.Sum('quantity'))['total'] or 0
     
     def total_milk_revenue(self):
-        """Total revenue from milk sales"""
-        return self.milk_sales.aggregate(total=models.Sum('total_amount'))['total'] or 0
+        """Total revenue from milk sales - Not applicable per cattle"""
+        # Milk sales are global, not attributed to individual cattle
+        return 0
     
     def total_expenses(self):
         """Total expenses for this cattle"""
-        feed_cost = self.feeding_records.aggregate(total=models.Sum('cost'))['total'] or 0
+        # FIXED: Changed 'cost' to 'total_cost' for feeding records
+        feed_cost = self.feeding_records.aggregate(total=models.Sum('total_cost'))['total'] or 0
         health_cost = self.health_records.aggregate(total=models.Sum('treatment_cost'))['total'] or 0
         return feed_cost + health_cost
     
     def net_profit(self):
         """Net profit from this cattle"""
-        revenue = self.total_milk_revenue()
+        # Only include revenue from cattle sale, not milk sales
+        revenue = 0
         if hasattr(self, 'sale_record'):
             revenue += self.sale_record.sale_price
         return revenue - self.total_expenses() - (self.purchase_price or 0)
-
 
 # ==================== MILK PRODUCTION ====================
 

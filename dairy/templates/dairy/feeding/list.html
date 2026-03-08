@@ -110,6 +110,10 @@
                 </div>
             </div>
         </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-muted text-center">No feed type data available</p>
+        </div>
         {% endfor %}
     </div>
 
@@ -444,6 +448,7 @@
     let currentFeedingId = null;
 
     // Initialize Feed Chart
+    {% if feed_summary %}
     const ctx = document.getElementById('feedChart').getContext('2d');
     new Chart(ctx, {
         type: 'doughnut',
@@ -467,6 +472,7 @@
             }
         }
     });
+    {% endif %}
 
     // Select All functionality
     document.getElementById('selectAll').addEventListener('change', function(e) {
@@ -489,6 +495,7 @@
     // Delete confirmation
     function confirmDelete(recordId) {
         const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        // FIXED: Added 'dairy:' namespace to URL
         document.getElementById('confirmDeleteBtn').href = "{% url 'dairy:feeding_delete' 0 %}".replace('0', recordId);
         modal.show();
     }
@@ -572,9 +579,9 @@
         }
     }
 
-    // Export data
+    // Export data - FIXED: Added 'dairy:' namespace to URL
     function exportData() {
-        window.location.href = "{% url 'dairy:export_feeding' %}";
+        window.location.href = "{% url 'dairy:export_feeding_csv' %}";
     }
 
     // Auto-refresh every 60 seconds

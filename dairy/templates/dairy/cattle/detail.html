@@ -55,7 +55,7 @@
                     <div class="text-success mb-2">
                         <i class="bi bi-percent fs-1"></i>
                     </div>
-                    <h3 class="mb-1">{{ avg_fat }}%</h3>
+                    <h3 class="mb-1">{{ avg_fat|floatformat:1 }}%</h3>
                     <p class="text-muted mb-0">Avg Fat</p>
                 </div>
             </div>
@@ -66,7 +66,7 @@
                     <div class="text-info mb-2">
                         <i class="bi bi-graph-up fs-1"></i>
                     </div>
-                    <h3 class="mb-1">{{ daily_gain }} kg</h3>
+                    <h3 class="mb-1">{{ daily_gain|floatformat:2 }} kg</h3>
                     <p class="text-muted mb-0">Daily Gain</p>
                 </div>
             </div>
@@ -74,11 +74,11 @@
         <div class="col-md-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-warning mb-2">
+                    <div class="text-danger mb-2">
                         <i class="bi bi-cash-stack fs-1"></i>
                     </div>
-                    <h3 class="mb-1">৳ {{ total_revenue|floatformat:0 }}</h3>
-                    <p class="text-muted mb-0">Total Revenue</p>
+                    <h3 class="mb-1">৳ {{ total_expenses|floatformat:0 }}</h3>
+                    <p class="text-muted mb-0">Total Expenses</p>
                 </div>
             </div>
         </div>
@@ -186,11 +186,20 @@
                         </tr>
                         <tr>
                             <td class="text-muted">Purchase Price:</td>
-                            <td class="fw-bold">৳ {{ cattle.purchase_price|default:"0" }}</td>
+                            <td class="fw-bold">৳ {{ cattle.purchase_price|default:"0"|floatformat:0 }}</td>
                         </tr>
                         <tr>
                             <td class="text-muted">Current Value:</td>
-                            <td class="fw-bold text-success">৳ {{ cattle.current_value|default:"0" }}</td>
+                            <td class="fw-bold text-success">৳ {{ cattle.current_value|default:"0"|floatformat:0 }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Net Profit/Loss:</td>
+                            <td class="fw-bold {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ৳ {{ net_profit|floatformat:0 }}
+                                {% if cattle.sale_record %}
+                                <small class="text-muted d-block">(Sold for ৳ {{ cattle.sale_record.sale_price|floatformat:0 }})</small>
+                                {% endif %}
+                            </td>
                         </tr>
                     </table>
                 </div>
@@ -329,6 +338,7 @@
                                 {% empty %}
                                 <tr>
                                     <td colspan="5" class="text-center py-4">
+                                        <i class="bi bi-droplet fs-2 d-block text-muted mb-2"></i>
                                         <p class="text-muted mb-0">No milk records found</p>
                                     </td>
                                 </tr>
@@ -362,11 +372,12 @@
                                     </td>
                                     <td>{{ record.diagnosis|truncatechars:50 }}</td>
                                     <td>{{ record.veterinarian }}</td>
-                                    <td>৳ {{ record.treatment_cost|default:"0" }}</td>
+                                    <td>৳ {{ record.treatment_cost|default:"0"|floatformat:0 }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
                                     <td colspan="5" class="text-center py-4">
+                                        <i class="bi bi-heart-pulse fs-2 d-block text-muted mb-2"></i>
                                         <p class="text-muted mb-0">No health records found</p>
                                     </td>
                                 </tr>
@@ -395,7 +406,7 @@
                                     <td class="fw-bold">{{ record.weight }} kg</td>
                                     <td>
                                         {% if record.daily_gain %}
-                                        <span class="text-success">{{ record.daily_gain }} kg/day</span>
+                                        <span class="text-success">{{ record.daily_gain|floatformat:2 }} kg/day</span>
                                         {% else %}
                                         -
                                         {% endif %}
@@ -405,6 +416,7 @@
                                 {% empty %}
                                 <tr>
                                     <td colspan="4" class="text-center py-4">
+                                        <i class="bi bi-graph-up fs-2 d-block text-muted mb-2"></i>
                                         <p class="text-muted mb-0">No weight records found</p>
                                     </td>
                                 </tr>
@@ -414,7 +426,7 @@
                     </div>
                 </div>
 
-                <!-- Feeding Records Tab -->
+                <!-- Feeding Records Tab - UPDATED with total_cost -->
                 <div class="tab-pane fade" id="feeding" role="tabpanel">
                     <div class="table-responsive">
                         <table class="table">
@@ -424,6 +436,8 @@
                                     <th>Time</th>
                                     <th>Feed Type</th>
                                     <th>Quantity (kg)</th>
+                                    <th>Cost/kg</th>
+                                    <th>Total Cost</th>
                                     <th>Quality</th>
                                 </tr>
                             </thead>
@@ -434,6 +448,8 @@
                                     <td>{{ record.feed_time|time:"H:i" }}</td>
                                     <td>{{ record.get_feed_type_display }}</td>
                                     <td>{{ record.quantity }} kg</td>
+                                    <td>৳ {{ record.cost_per_kg|floatformat:2 }}</td>
+                                    <td>৳ {{ record.total_cost|floatformat:2 }}</td>
                                     <td>
                                         <span class="badge {% if record.feed_quality == 4 %}bg-success{% elif record.feed_quality == 3 %}bg-info{% elif record.feed_quality == 2 %}bg-warning{% else %}bg-danger{% endif %}">
                                             {{ record.get_feed_quality_display }}
@@ -442,7 +458,8 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">
+                                    <td colspan="7" class="text-center py-4">
+                                        <i class="bi bi-basket fs-2 d-block text-muted mb-2"></i>
                                         <p class="text-muted mb-0">No feeding records found</p>
                                     </td>
                                 </tr>
@@ -481,6 +498,7 @@
                                 {% empty %}
                                 <tr>
                                     <td colspan="5" class="text-center py-4">
+                                        <i class="bi bi-heart fs-2 d-block text-muted mb-2"></i>
                                         <p class="text-muted mb-0">No breeding records found</p>
                                     </td>
                                 </tr>
@@ -519,6 +537,7 @@
                                 {% empty %}
                                 <tr>
                                     <td colspan="5" class="text-center py-4">
+                                        <i class="bi bi-shield-check fs-2 d-block text-muted mb-2"></i>
                                         <p class="text-muted mb-0">No vaccination records found</p>
                                     </td>
                                 </tr>
@@ -547,7 +566,7 @@
                 <p class="mb-3">Are you sure you want to delete {{ cattle.tag_number }}?</p>
                 <div class="alert alert-warning">
                     <i class="bi bi-info-circle me-2"></i>
-                    This will also delete all associated records (milk, health, weight, etc.).
+                    This will also delete all associated records (milk, health, weight, feeding, breeding, vaccinations).
                 </div>
             </div>
             <div class="modal-footer">
@@ -565,23 +584,22 @@
     }
 
     // Save last active tab to localStorage
-    const tabEl = document.querySelector('button[data-bs-toggle="tab"]');
-    if (tabEl) {
+    document.addEventListener('DOMContentLoaded', function() {
         const triggerTabList = [].slice.call(document.querySelectorAll('#recordTabs button'));
         triggerTabList.forEach(function(triggerEl) {
             triggerEl.addEventListener('shown.bs.tab', function(event) {
-                localStorage.setItem('lastActiveTab', event.target.id);
+                localStorage.setItem('lastCattleTab', event.target.id);
             });
         });
 
         // Restore last active tab
-        const lastTab = localStorage.getItem('lastActiveTab');
+        const lastTab = localStorage.getItem('lastCattleTab');
         if (lastTab) {
             const tab = document.getElementById(lastTab);
             if (tab) {
                 new bootstrap.Tab(tab).show();
             }
         }
-    }
+    });
 </script>
 {% endblock %}

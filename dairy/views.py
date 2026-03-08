@@ -380,7 +380,6 @@ class CattleListView(LoginRequiredMixin, ListView):
 
 
 class CattleDetailView(LoginRequiredMixin, DetailView):
-    """View cattle details"""
     model = Cattle
     template_name = 'dairy/cattle/detail.html'
     context_object_name = 'cattle'
@@ -388,6 +387,7 @@ class CattleDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         cattle = self.get_object()
+        today = timezone.now().date()
         
         # Related records
         context['milk_records'] = MilkRecord.objects.filter(cattle=cattle).order_by('-date', '-session')[:10]
@@ -396,16 +396,17 @@ class CattleDetailView(LoginRequiredMixin, DetailView):
         context['feeding_records'] = FeedingRecord.objects.filter(cattle=cattle).order_by('-date', '-feed_time')[:5]
         context['breeding_records'] = BreedingRecord.objects.filter(cattle=cattle).order_by('-breeding_date')[:5]
         context['vaccinations'] = VaccinationSchedule.objects.filter(cattle=cattle).order_by('-scheduled_date')[:5]
+        context['today'] = today
         
         # Statistics
         context['total_milk'] = MilkRecord.objects.filter(cattle=cattle).aggregate(total=Sum('quantity'))['total'] or 0
         context['avg_fat'] = MilkRecord.objects.filter(cattle=cattle).aggregate(avg=Avg('fat_percentage'))['avg'] or 0
         context['total_expenses'] = cattle.total_expenses()
-        context['total_revenue'] = cattle.total_milk_revenue()
+        context['total_revenue'] = 0  # Changed: milk sales are global, not per cattle
         context['net_profit'] = cattle.net_profit()
         
         # Weight gain calculation
-        if context['weight_records'].exists() and len(context['weight_records']) >= 2:
+        if context['weight_records'] and len(context['weight_records']) >= 2:
             first_weight = context['weight_records'].last()
             last_weight = context['weight_records'].first()
             days_diff = (last_weight.date - first_weight.date).days
@@ -420,7 +421,6 @@ class CattleDetailView(LoginRequiredMixin, DetailView):
         context['age_in_months'] = cattle.age_in_months()
         
         return context
-
 
 class CattleCreateView(LoginRequiredMixin, CreateView):
     """Create new cattle"""
@@ -448,7 +448,7 @@ class CattleUpdateView(LoginRequiredMixin, UpdateView):
     model = Cattle
     form_class = CattleForm
     template_name = 'dairy/cattle/form.html'
-    success_url = reverse_lazy('cattle_list')
+    success_url = reverse_lazy('dairy:cattle_list')
     
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -514,7 +514,7 @@ class MilkRecordCreateView(LoginRequiredMixin, CreateView):
     model = MilkRecord
     form_class = MilkRecordForm
     template_name = 'dairy/milk/form.html'
-    success_url = reverse_lazy('milk_list')
+    success_url = reverse_lazy('dairy:milk_list')
     
     def form_valid(self, form):
         form.instance.recorded_by = self.request.user
@@ -535,7 +535,7 @@ class MilkRecordUpdateView(LoginRequiredMixin, UpdateView):
     model = MilkRecord
     form_class = MilkRecordForm
     template_name = 'dairy/milk/form.html'
-    success_url = reverse_lazy('milk_list')
+    success_url = reverse_lazy('dairy:milk_list')
     
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -554,7 +554,7 @@ class MilkRecordDeleteView(LoginRequiredMixin, DeleteView):
     """Delete milk record"""
     model = MilkRecord
     template_name = 'dairy/milk/delete.html'
-    success_url = reverse_lazy('milk_list')
+    success_url = reverse_lazy('dairy:milk_list')
     
     def delete(self, request, *args, **kwargs):
         record = self.get_object()
@@ -597,7 +597,7 @@ class MilkSaleCreateView(LoginRequiredMixin, CreateView):
     model = MilkSale
     form_class = MilkSaleForm
     template_name = 'dairy/milk_sale/form.html'
-    success_url = reverse_lazy('milk_sale_list')
+    success_url = reverse_lazy('dairy:milk_sale_list')
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -617,7 +617,7 @@ class MilkSaleUpdateView(LoginRequiredMixin, UpdateView):
     model = MilkSale
     form_class = MilkSaleForm
     template_name = 'dairy/milk_sale/form.html'
-    success_url = reverse_lazy('milk_sale_list')
+    success_url = reverse_lazy('dairy:milk_sale_list')
     
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -629,7 +629,7 @@ class MilkSaleDeleteView(LoginRequiredMixin, DeleteView):
     """Delete milk sale"""
     model = MilkSale
     template_name = 'dairy/milk_sale/delete.html'
-    success_url = reverse_lazy('milk_sale_list')
+    success_url = reverse_lazy('dairy:milk_sale_list')
     
     def delete(self, request, *args, **kwargs):
         messages.success(request, 'Milk sale deleted successfully!')
@@ -654,7 +654,7 @@ class CattleSaleCreateView(LoginRequiredMixin, CreateView):
     model = CattleSale
     form_class = CattleSaleForm
     template_name = 'dairy/cattle_sale/form.html'
-    success_url = reverse_lazy('cattle_sale_list')
+    success_url = reverse_lazy('dairy:cattle_sale_list')
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -666,20 +666,48 @@ class CattleSaleCreateView(LoginRequiredMixin, CreateView):
         messages.success(self.request, f'{cattle.tag_number} sold for ৳{form.instance.sale_price}!')
         return response
 
+class CattleDetailView(LoginRequiredMixin, DetailView):
+    model = Cattle
+    template_name = 'dairy/cattle/detail.html'
+    context_object_name = 'cattle'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        cattle = self.get_object()
+        today = timezone.now().date()
+        
+        # Related records
+        context['milk_records'] = MilkRecord.objects.filter(cattle=cattle).order_by('-date', '-session')[:10]
+        context['health_records'] = HealthRecord.objects.filter(cattle=cattle).order_by('-date')[:5]
+        context['weight_records'] = WeightRecord.objects.filter(cattle=cattle).order_by('-date')[:5]
+        context['feeding_records'] = FeedingRecord.objects.filter(cattle=cattle).order_by('-date', '-feed_time')[:5]
+        context['breeding_records'] = BreedingRecord.objects.filter(cattle=cattle).order_by('-breeding_date')[:5]
+        context['vaccinations'] = VaccinationSchedule.objects.filter(cattle=cattle).order_by('-scheduled_date')[:5]
+        context['today'] = today
+        
+        # Statistics
+        context['total_milk'] = MilkRecord.objects.filter(cattle=cattle).aggregate(total=Sum('quantity'))['total'] or 0
+        context['avg_fat'] = MilkRecord.objects.filter(cattle=cattle).aggregate(avg=Avg('fat_percentage'))['avg'] or 0
+        context['total_expenses'] = cattle.total_expenses()
+        context['total_revenue'] = cattle.total_milk_revenue()
+        context['net_profit'] = cattle.net_profit()
+        
+        return context
+
 
 class CattleSaleUpdateView(LoginRequiredMixin, UpdateView):
     """Update cattle sale"""
     model = CattleSale
     form_class = CattleSaleForm
     template_name = 'dairy/cattle_sale/form.html'
-    success_url = reverse_lazy('cattle_sale_list')
+    success_url = reverse_lazy('dairy:cattle_sale_list')
 
 
 class CattleSaleDeleteView(LoginRequiredMixin, DeleteView):
     """Delete cattle sale"""
     model = CattleSale
     template_name = 'dairy/cattle_sale/delete.html'
-    success_url = reverse_lazy('cattle_sale_list')
+    success_url = reverse_lazy('dairy:cattle_sale_list')
     
     def delete(self, request, *args, **kwargs):
         sale = self.get_object()
@@ -718,7 +746,7 @@ class HealthRecordCreateView(LoginRequiredMixin, CreateView):
     model = HealthRecord
     form_class = HealthRecordForm
     template_name = 'dairy/health/form.html'
-    success_url = reverse_lazy('health_list')
+    success_url = reverse_lazy('dairy:health_list')
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -738,14 +766,14 @@ class HealthRecordUpdateView(LoginRequiredMixin, UpdateView):
     model = HealthRecord
     form_class = HealthRecordForm
     template_name = 'dairy/health/form.html'
-    success_url = reverse_lazy('health_list')
+    success_url = reverse_lazy('dairy:health_list')
 
 
 class HealthRecordDeleteView(LoginRequiredMixin, DeleteView):
     """Delete health record"""
     model = HealthRecord
     template_name = 'dairy/health/delete.html'
-    success_url = reverse_lazy('health_list')
+    success_url = reverse_lazy('dairy:health_list')
 
 
 # ==================== WEIGHT RECORD VIEWS ====================
@@ -766,7 +794,7 @@ class WeightRecordCreateView(LoginRequiredMixin, CreateView):
     model = WeightRecord
     form_class = WeightRecordForm
     template_name = 'dairy/weight/form.html'
-    success_url = reverse_lazy('weight_list')
+    success_url = reverse_lazy('dairy:weight_list')
     
     def form_valid(self, form):
         form.instance.recorded_by = self.request.user
@@ -786,14 +814,14 @@ class WeightRecordUpdateView(LoginRequiredMixin, UpdateView):
     model = WeightRecord
     form_class = WeightRecordForm
     template_name = 'dairy/weight/form.html'
-    success_url = reverse_lazy('weight_list')
+    success_url = reverse_lazy('dairy:weight_list')
 
 
 class WeightRecordDeleteView(LoginRequiredMixin, DeleteView):
     """Delete weight record"""
     model = WeightRecord
     template_name = 'dairy/weight/delete.html'
-    success_url = reverse_lazy('weight_list')
+    success_url = reverse_lazy('dairy:weight_list')
 
 
 # ==================== FEEDING RECORD VIEWS ====================
@@ -823,7 +851,7 @@ class FeedingRecordCreateView(LoginRequiredMixin, CreateView):
     model = FeedingRecord
     form_class = FeedingRecordForm
     template_name = 'dairy/feeding/form.html'
-    success_url = reverse_lazy('feeding_list')
+    success_url = reverse_lazy('dairy:feeding_list')
     
     def form_valid(self, form):
         form.instance.fed_by = self.request.user
@@ -843,14 +871,14 @@ class FeedingRecordUpdateView(LoginRequiredMixin, UpdateView):
     model = FeedingRecord
     form_class = FeedingRecordForm
     template_name = 'dairy/feeding/form.html'
-    success_url = reverse_lazy('feeding_list')
+    success_url = reverse_lazy('dairy:feeding_list')
 
 
 class FeedingRecordDeleteView(LoginRequiredMixin, DeleteView):
     """Delete feeding record"""
     model = FeedingRecord
     template_name = 'dairy/feeding/delete.html'
-    success_url = reverse_lazy('feeding_list')
+    success_url = reverse_lazy('dairy:feeding_list')
 
 
 # ==================== BREEDING RECORD VIEWS ====================
@@ -884,7 +912,7 @@ class BreedingRecordCreateView(LoginRequiredMixin, CreateView):
     model = BreedingRecord
     form_class = BreedingRecordForm
     template_name = 'dairy/breeding/form.html'
-    success_url = reverse_lazy('breeding_list')
+    success_url = reverse_lazy('dairy:breeding_list')
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -904,14 +932,14 @@ class BreedingRecordUpdateView(LoginRequiredMixin, UpdateView):
     model = BreedingRecord
     form_class = BreedingRecordForm
     template_name = 'dairy/breeding/form.html'
-    success_url = reverse_lazy('breeding_list')
+    success_url = reverse_lazy('dairy:breeding_list')
 
 
 class BreedingRecordDeleteView(LoginRequiredMixin, DeleteView):
     """Delete breeding record"""
     model = BreedingRecord
     template_name = 'dairy/breeding/delete.html'
-    success_url = reverse_lazy('breeding_list')
+    success_url = reverse_lazy('dairy:breeding_list')
 
 
 # ==================== VACCINATION VIEWS ====================
@@ -948,7 +976,7 @@ class VaccinationCreateView(LoginRequiredMixin, CreateView):
     model = VaccinationSchedule
     form_class = VaccinationForm
     template_name = 'dairy/vaccination/form.html'
-    success_url = reverse_lazy('vaccination_list')
+    success_url = reverse_lazy('dairy:vaccination_list')
     
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -967,7 +995,7 @@ class VaccinationUpdateView(LoginRequiredMixin, UpdateView):
     model = VaccinationSchedule
     form_class = VaccinationForm
     template_name = 'dairy/vaccination/form.html'
-    success_url = reverse_lazy('vaccination_list')
+    success_url = reverse_lazy('dairy:vaccination_list')
     
     def form_valid(self, form):
         if form.instance.is_completed and not form.instance.administered_date:
@@ -982,7 +1010,7 @@ class VaccinationDeleteView(LoginRequiredMixin, DeleteView):
     """Delete vaccination"""
     model = VaccinationSchedule
     template_name = 'dairy/vaccination/delete.html'
-    success_url = reverse_lazy('vaccination_list')
+    success_url = reverse_lazy('dairy:vaccination_list')
 
 
 # ==================== EXPENSE VIEWS ====================
@@ -1012,7 +1040,7 @@ class ExpenseCreateView(LoginRequiredMixin, CreateView):
     model = Expense
     form_class = ExpenseForm
     template_name = 'dairy/expense/form.html'
-    success_url = reverse_lazy('expense_list')
+    success_url = reverse_lazy('dairy:expense_list')
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -1026,14 +1054,14 @@ class ExpenseUpdateView(LoginRequiredMixin, UpdateView):
     model = Expense
     form_class = ExpenseForm
     template_name = 'dairy/expense/form.html'
-    success_url = reverse_lazy('expense_list')
+    success_url = reverse_lazy('dairy:expense_list')
 
 
 class ExpenseDeleteView(LoginRequiredMixin, DeleteView):
     """Delete expense"""
     model = Expense
     template_name = 'dairy/expense/delete.html'
-    success_url = reverse_lazy('expense_list')
+    success_url = reverse_lazy('dairy:expense_list')
 
 
 # ==================== INVESTMENT VIEWS ====================
@@ -1054,7 +1082,7 @@ class InvestmentCreateView(LoginRequiredMixin, CreateView):
     model = Investment
     form_class = InvestmentForm
     template_name = 'dairy/investment/form.html'
-    success_url = reverse_lazy('investment_list')
+    success_url = reverse_lazy('dairy:investment_list')
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -1068,14 +1096,14 @@ class InvestmentUpdateView(LoginRequiredMixin, UpdateView):
     model = Investment
     form_class = InvestmentForm
     template_name = 'dairy/investment/form.html'
-    success_url = reverse_lazy('investment_list')
+    success_url = reverse_lazy('dairy:investment_list')
 
 
 class InvestmentDeleteView(LoginRequiredMixin, DeleteView):
     """Delete investment"""
     model = Investment
     template_name = 'dairy/investment/delete.html'
-    success_url = reverse_lazy('investment_list')
+    success_url = reverse_lazy('dairy:investment_list')
 
 
 # ==================== REPORT VIEWS ====================

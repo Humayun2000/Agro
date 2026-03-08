@@ -47,11 +47,12 @@ urlpatterns = [
     path('weight/<int:pk>/edit/', views.WeightRecordUpdateView.as_view(), name='weight_edit'),
     path('weight/<int:pk>/delete/', views.WeightRecordDeleteView.as_view(), name='weight_delete'),
     
-    # ==================== FEEDING RECORDS ====================
+        # ==================== FEEDING RECORDS ====================
     path('feeding/', views.FeedingRecordListView.as_view(), name='feeding_list'),
     path('feeding/add/', views.FeedingRecordCreateView.as_view(), name='feeding_add'),
     path('feeding/<int:pk>/edit/', views.FeedingRecordUpdateView.as_view(), name='feeding_edit'),
     path('feeding/<int:pk>/delete/', views.FeedingRecordDeleteView.as_view(), name='feeding_delete'),
+
     
     # ==================== BREEDING RECORDS ====================
     path('breeding/', views.BreedingRecordListView.as_view(), name='breeding_list'),

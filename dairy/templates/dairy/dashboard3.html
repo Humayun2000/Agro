@@ -1,0 +1,1046 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Dashboard</li>
+{% endblock %}
+
+{% block dairy_content %}
+<div class="container-fluid px-0">
+    <!-- Welcome Banner - Full Width -->
+    <div class="welcome-banner animate-slide">
+        <div class="welcome-content">
+            <h4 class="welcome-title">
+                👋 Welcome back, {{ request.user.get_full_name|default:request.user.username }}!
+            </h4>
+            <p class="welcome-time">
+                <i class="bi bi-clock me-2"></i>
+                <span id="live-clock"></span>
+                <span class="mx-3">|</span>
+                <i class="bi bi-calendar3 me-2"></i>
+                {% now "l, F j, Y" %}
+            </p>
+        </div>
+        <button class="btn-refresh" onclick="refreshDashboard()">
+            <i class="bi bi-arrow-repeat me-1"></i> Refresh
+        </button>
+    </div>
+
+    <!-- Statistics Cards Grid -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="bi bi-shield"></i>
+            </div>
+            <div class="stat-value" id="totalCattle">0</div>
+            <div class="stat-label">Total Cattle</div>
+            <div class="stat-trend trend-up">
+                <i class="bi bi-arrow-up"></i> <span id="cattleTrendValue">0</span>%
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="bi bi-cup-hot"></i>
+            </div>
+            <div class="stat-value" id="dairyCattle">0</div>
+            <div class="stat-label">Dairy Cattle</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon yellow">
+                <i class="bi bi-droplet"></i>
+            </div>
+            <div class="stat-value" id="todayMilk">0 <small>L</small></div>
+            <div class="stat-label">Today's Milk</div>
+            <div class="stat-trend trend-up">
+                <i class="bi bi-droplet-half"></i> <span id="avgFat">0</span>% fat
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <i class="bi bi-tree"></i>
+            </div>
+            <div class="stat-value" id="beefCattle">0</div>
+            <div class="stat-label">Beef Cattle</div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="quick-stats-grid">
+        <div class="quick-stat-card">
+            <div class="quick-stat-icon danger">
+                <i class="bi bi-heart-pulse"></i>
+            </div>
+            <div class="quick-stat-content">
+                <h6>Health Alerts</h6>
+                <h3 id="healthAlerts">0</h3>
+                <small id="emergencyCount">0 emergencies</small>
+            </div>
+        </div>
+
+        <div class="quick-stat-card">
+            <div class="quick-stat-icon success">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <div class="quick-stat-content">
+                <h6>Due to Calve</h6>
+                <h3 id="dueToCalve">0</h3>
+                <small id="calvingSoon">0 this month</small>
+            </div>
+        </div>
+
+        <div class="quick-stat-card">
+            <div class="quick-stat-icon warning">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="quick-stat-content">
+                <h6>Vaccinations Due</h6>
+                <h3 id="vaccinationsDue">0</h3>
+                <small id="overdueVax">0 overdue</small>
+            </div>
+        </div>
+
+        <div class="quick-stat-card">
+            <div class="quick-stat-icon info">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="quick-stat-content">
+                <h6>Monthly Revenue</h6>
+                <h3 id="monthlyRevenue">৳0</h3>
+                <small id="revenueTrend">+0% from last month</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Management Modules Section -->
+    <h5 class="section-title">
+        <i class="bi bi-grid-3x3-gap-fill me-2"></i>
+        Management Modules
+    </h5>
+    
+    <div class="module-grid">
+        <!-- Cattle Management -->
+        <div class="module-card">
+            <div class="module-icon cattle">
+                <i class="bi bi-shield"></i>
+            </div>
+            <h5 class="module-title">Cattle Management</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-check-circle-fill text-success"></i> <span id="activeCattle">0</span> Active</span>
+                <span><i class="bi bi-shield"></i> <span id="totalCattleSmall">0</span> Total</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:cattle_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:cattle_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Milk Production -->
+        <div class="module-card">
+            <div class="module-icon milk">
+                <i class="bi bi-droplet"></i>
+            </div>
+            <h5 class="module-title">Milk Production</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-calendar-day"></i> <span id="todayMilkSmall">0</span> L Today</span>
+                <span><i class="bi bi-calendar-month"></i> <span id="monthlyMilk">0</span> L Month</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:milk_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:milk_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Health Records -->
+        <div class="module-card">
+            <div class="module-icon health">
+                <i class="bi bi-heart-pulse"></i>
+            </div>
+            <h5 class="module-title">Health Records</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-file-text"></i> <span id="healthRecords">0</span> Total</span>
+                <span><i class="bi bi-exclamation-triangle text-danger"></i> <span id="emergencyRecords">0</span> Emergency</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:health_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:health_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Vaccinations -->
+        <div class="module-card">
+            <div class="module-icon vaccination">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <h5 class="module-title">Vaccinations</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-calendar"></i> <span id="upcomingVax">0</span> Upcoming</span>
+                <span><i class="bi bi-exclamation-triangle text-danger"></i> <span id="overdueVaxCount">0</span> Overdue</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:vaccination_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:vaccination_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Schedule
+                </a>
+            </div>
+        </div>
+
+        <!-- Weight Tracking -->
+        <div class="module-card">
+            <div class="module-icon weight">
+                <i class="bi bi-graph-up"></i>
+            </div>
+            <h5 class="module-title">Weight Tracking</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-file-text"></i> <span id="weightRecords">0</span> Records</span>
+                <span><i class="bi bi-arrow-up"></i> <span id="avgGain">0</span> kg/day</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:weight_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:weight_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Feeding Records -->
+        <div class="module-card">
+            <div class="module-icon feeding">
+                <i class="bi bi-basket"></i>
+            </div>
+            <h5 class="module-title">Feeding Records</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-calendar-day"></i> <span id="todayFeedings">0</span> Today</span>
+                <span><i class="bi bi-cake"></i> <span id="totalFeed">0</span> kg</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:feeding_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:feeding_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Breeding Records -->
+        <div class="module-card">
+            <div class="module-icon breeding">
+                <i class="bi bi-heart"></i>
+            </div>
+            <h5 class="module-title">Breeding Records</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-heart"></i> <span id="inHeat">0</span> In Heat</span>
+                <span><i class="bi bi-egg"></i> <span id="pregnant">0</span> Pregnant</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:breeding_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:breeding_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Milk Sales -->
+        <div class="module-card">
+            <div class="module-icon sales">
+                <i class="bi bi-cash"></i>
+            </div>
+            <h5 class="module-title">Milk Sales</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-cup"></i> <span id="todaySales">0</span> L Sold</span>
+                <span><i class="bi bi-cash-stack"></i> <span id="todayRevenue">৳0</span></span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:milk_sale_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:milk_sale_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Add Sale
+                </a>
+            </div>
+        </div>
+
+        <!-- Expenses -->
+        <div class="module-card">
+            <div class="module-icon expenses">
+                <i class="bi bi-receipt"></i>
+            </div>
+            <h5 class="module-title">Expenses</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-cash"></i> <span id="monthlyExpenses">৳0</span> This Month</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:expense_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:expense_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Investments -->
+        <div class="module-card">
+            <div class="module-icon investments">
+                <i class="bi bi-pie-chart"></i>
+            </div>
+            <h5 class="module-title">Investments</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-cash-stack"></i> <span id="totalInvestments">৳0</span> Total</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:investment_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:investment_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Add
+                </a>
+            </div>
+        </div>
+
+        <!-- Cattle Sales -->
+        <div class="module-card">
+            <div class="module-icon cattle-sales">
+                <i class="bi bi-tag"></i>
+            </div>
+            <h5 class="module-title">Cattle Sales</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-cash"></i> <span id="cattleSales">0</span> Sold</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:cattle_sale_list' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{% url 'dairy:cattle_sale_add' %}" class="btn-add">
+                    <i class="bi bi-plus"></i> Add Sale
+                </a>
+            </div>
+        </div>
+
+        <!-- Reports -->
+        <div class="module-card">
+            <div class="module-icon reports">
+                <i class="bi bi-file-text"></i>
+            </div>
+            <h5 class="module-title">Reports</h5>
+            <div class="module-stats">
+                <span><i class="bi bi-calendar-month"></i> Monthly</span>
+                <span><i class="bi bi-calendar-year"></i> Annual</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'dairy:monthly_report' %}" class="btn-view">
+                    <i class="bi bi-eye"></i> Monthly
+                </a>
+                <a href="{% url 'dairy:yearly_report' %}" class="btn-add">
+                    <i class="bi bi-eye"></i> Annual
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Activities Row -->
+    <div class="charts-row">
+        <!-- Milk Production Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h5 class="chart-title">
+                    <i class="bi bi-graph-up text-primary"></i>
+                    Milk Production Trends
+                </h5>
+                <div class="btn-group">
+                    <button class="btn-period active" onclick="loadChart('week')">Week</button>
+                    <button class="btn-period" onclick="loadChart('month')">Month</button>
+                    <button class="btn-period" onclick="loadChart('year')">Year</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="milkChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="activities-card">
+            <h5 class="activities-title">
+                <i class="bi bi-clock-history text-info"></i>
+                Recent Activities
+            </h5>
+            <div id="activityList" class="activities-list">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Bar -->
+    <div class="quick-actions-bar">
+        <a href="{% url 'dairy:cattle_add' %}" class="quick-action-item">
+            <i class="bi bi-plus-circle"></i>
+            <span>Add Cattle</span>
+        </a>
+        <a href="{% url 'dairy:milk_add' %}" class="quick-action-item">
+            <i class="bi bi-droplet"></i>
+            <span>Add Milk</span>
+        </a>
+        <a href="{% url 'dairy:health_add' %}" class="quick-action-item">
+            <i class="bi bi-heart-pulse"></i>
+            <span>Health Check</span>
+        </a>
+        <a href="{% url 'dairy:vaccination_add' %}" class="quick-action-item">
+            <i class="bi bi-shield-check"></i>
+            <span>Vaccinate</span>
+        </a>
+        <a href="{% url 'dairy:weight_add' %}" class="quick-action-item">
+            <i class="bi bi-graph-up"></i>
+            <span>Add Weight</span>
+        </a>
+        <a href="{% url 'dairy:feeding_add' %}" class="quick-action-item">
+            <i class="bi bi-basket"></i>
+            <span>Add Feeding</span>
+        </a>
+        <a href="{% url 'dairy:breeding_add' %}" class="quick-action-item">
+            <i class="bi bi-heart"></i>
+            <span>Breeding</span>
+        </a>
+        <a href="{% url 'dairy:milk_sale_add' %}" class="quick-action-item">
+            <i class="bi bi-cash"></i>
+            <span>Add Sale</span>
+        </a>
+        <a href="{% url 'dairy:expense_add' %}" class="quick-action-item">
+            <i class="bi bi-receipt"></i>
+            <span>Add Expense</span>
+        </a>
+        <a href="{% url 'dairy:investment_add' %}" class="quick-action-item">
+            <i class="bi bi-pie-chart"></i>
+            <span>Add Investment</span>
+        </a>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+/* Additional styles for full-width dashboard */
+.welcome-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+}
+
+.welcome-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.welcome-time {
+    opacity: 0.9;
+    margin-bottom: 0;
+    font-size: 0.95rem;
+}
+
+.btn-refresh {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 15px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.btn-refresh:hover {
+    background: white;
+    color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+/* Quick Stats Grid */
+.quick-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 25px;
+    margin-bottom: 40px;
+}
+
+.quick-stat-card {
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.quick-stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+
+.quick-stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+}
+
+.quick-stat-icon.danger { background: #f8d7da; color: #f72585; }
+.quick-stat-icon.success { background: #d4edda; color: #28a745; }
+.quick-stat-icon.warning { background: #fff3cd; color: #ffc107; }
+.quick-stat-icon.info { background: #cce5ff; color: #17a2b8; }
+
+.quick-stat-content h6 {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+}
+
+.quick-stat-content h3 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 5px;
+}
+
+.quick-stat-content small {
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+/* Section Title */
+.section-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+}
+
+.section-title i {
+    color: #667eea;
+}
+
+/* Charts Row */
+.charts-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 25px;
+    margin-bottom: 40px;
+}
+
+.chart-card {
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.chart-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-group {
+    display: flex;
+    gap: 5px;
+    background: #f8fafc;
+    padding: 5px;
+    border-radius: 15px;
+}
+
+.btn-period {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #64748b;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-period:hover {
+    background: white;
+    color: #667eea;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.05);
+}
+
+.btn-period.active {
+    background: white;
+    color: #667eea;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.05);
+}
+
+.chart-container {
+    height: 300px;
+    position: relative;
+}
+
+.activities-card {
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+.activities-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.activities-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.activities-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.activities-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.activities-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.activities-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: #f8fafc;
+    border-radius: 15px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+}
+
+.activity-item:hover {
+    transform: translateX(5px);
+    background: white;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.activity-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+}
+
+.activity-icon.primary { background: #e9ecef; color: #4361ee; }
+.activity-icon.success { background: #d4edda; color: #28a745; }
+.activity-icon.warning { background: #fff3cd; color: #ffc107; }
+.activity-icon.danger { background: #f8d7da; color: #dc3545; }
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-content p {
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.activity-time {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Quick Actions Bar */
+.quick-actions-bar {
+    background: white;
+    border-radius: 20px;
+    padding: 20px 25px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    margin-top: 30px;
+}
+
+.quick-action-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: #f8fafc;
+    border-radius: 15px;
+    color: #475569;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.quick-action-item i {
+    font-size: 1.2rem;
+    color: #667eea;
+    transition: all 0.3s ease;
+}
+
+.quick-action-item:hover {
+    background: var(--primary-gradient);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.quick-action-item:hover i {
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f1f5f9;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .quick-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .charts-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .welcome-banner {
+        flex-direction: column;
+        text-align: center;
+        gap: 20px;
+    }
+    
+    .quick-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-header {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .quick-actions-bar {
+        padding: 15px;
+    }
+    
+    .quick-action-item {
+        width: calc(50% - 8px);
+    }
+}
+</style>
+
+<script>
+    let milkChart = null;
+
+    // Refresh dashboard data
+    async function refreshDashboard() {
+        showLoading();
+        try {
+            const response = await fetch('/dairy/api/dashboard/stats/');
+            const data = await response.json();
+            
+            if (data.success) {
+                updateStats(data.data);
+                updateModules(data.data);
+            }
+        } catch (error) {
+            console.error('Error refreshing dashboard:', error);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // Update statistics
+    function updateStats(data) {
+        document.getElementById('totalCattle').textContent = data.cattle?.total || 0;
+        document.getElementById('dairyCattle').textContent = data.cattle?.dairy || 0;
+        document.getElementById('beefCattle').textContent = data.cattle?.beef || 0;
+        document.getElementById('todayMilk').innerHTML = (data.milk?.today || 0) + ' <small>L</small>';
+        document.getElementById('avgFat').textContent = (data.milk?.avg_fat || 0).toFixed(1);
+        
+        document.getElementById('healthAlerts').textContent = data.health?.alerts || 0;
+        document.getElementById('emergencyCount').textContent = (data.health?.emergencies || 0) + ' emergencies';
+        document.getElementById('dueToCalve').textContent = data.breeding?.due_to_calve || 0;
+        document.getElementById('calvingSoon').textContent = (data.breeding?.due_this_month || 0) + ' this month';
+        document.getElementById('vaccinationsDue').textContent = data.health?.upcoming_vaccinations || 0;
+        document.getElementById('overdueVax').textContent = (data.health?.overdue_vaccinations || 0) + ' overdue';
+        
+        const monthlyRevenue = data.finance?.monthly_revenue || 0;
+        document.getElementById('monthlyRevenue').innerHTML = '৳' + monthlyRevenue.toLocaleString();
+        
+        const revenueTrend = data.finance?.revenue_trend || 0;
+        document.getElementById('revenueTrend').innerHTML = (revenueTrend > 0 ? '+' : '') + revenueTrend + '% from last month';
+        
+        document.getElementById('cattleTrendValue').textContent = data.trends?.cattle || 0;
+    }
+
+    // Update module cards
+    function updateModules(data) {
+        document.getElementById('activeCattle').textContent = data.cattle?.active || 0;
+        document.getElementById('totalCattleSmall').textContent = data.cattle?.total || 0;
+        document.getElementById('todayMilkSmall').textContent = data.milk?.today || 0;
+        document.getElementById('monthlyMilk').textContent = data.milk?.month || 0;
+        document.getElementById('healthRecords').textContent = data.health?.total || 0;
+        document.getElementById('emergencyRecords').textContent = data.health?.emergencies || 0;
+        document.getElementById('upcomingVax').textContent = data.health?.upcoming_vaccinations || 0;
+        document.getElementById('overdueVaxCount').textContent = data.health?.overdue_vaccinations || 0;
+        document.getElementById('weightRecords').textContent = data.weight?.records || 0;
+        document.getElementById('avgGain').textContent = (data.weight?.avg_gain || 0).toFixed(2);
+        document.getElementById('todayFeedings').textContent = data.feeding?.today || 0;
+        document.getElementById('totalFeed').textContent = data.feeding?.total || 0;
+        document.getElementById('inHeat').textContent = data.breeding?.in_heat || 0;
+        document.getElementById('pregnant').textContent = data.breeding?.pregnant || 0;
+        document.getElementById('todaySales').textContent = data.sales?.today_quantity || 0;
+        
+        const todayRevenue = data.sales?.today_revenue || 0;
+        document.getElementById('todayRevenue').innerHTML = '৳' + todayRevenue.toLocaleString();
+        
+        const monthlyExpenses = data.expenses?.monthly || 0;
+        document.getElementById('monthlyExpenses').innerHTML = '৳' + monthlyExpenses.toLocaleString();
+        
+        const totalInvestments = data.investments?.total || 0;
+        document.getElementById('totalInvestments').innerHTML = '৳' + totalInvestments.toLocaleString();
+        
+        document.getElementById('cattleSales').textContent = data.cattle_sales?.count || 0;
+    }
+
+    // Load chart data
+    async function loadChart(period = 'week') {
+        showLoading();
+        try {
+            const response = await fetch(`/dairy/api/dashboard/milk-chart/?period=${period}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                if (milkChart) {
+                    milkChart.destroy();
+                }
+                
+                const ctx = document.getElementById('milkChart').getContext('2d');
+                milkChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels || [],
+                        datasets: [{
+                            label: 'Milk Production (L)',
+                            data: data.values || [],
+                            borderColor: '#4361ee',
+                            backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#4361ee',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.parsed.y.toFixed(1) + ' Liters';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: '#f1f5f9'
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Liters',
+                                    color: '#64748b'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + ' L';
+                                    }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error loading chart:', error);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // Load recent activities
+    async function loadActivities() {
+        try {
+            const response = await fetch('/dairy/api/dashboard/recent-activity/');
+            const data = await response.json();
+            
+            const container = document.getElementById('activityList');
+            if (data.success && data.activities && data.activities.length > 0) {
+                let html = '';
+                data.activities.forEach(activity => {
+                    const iconColor = {
+                        'primary': 'primary',
+                        'success': 'success',
+                        'warning': 'warning',
+                        'danger': 'danger',
+                        'info': 'info'
+                    }[activity.color] || 'primary';
+                    
+                    html += `
+                        <div class="activity-item">
+                            <div class="activity-icon ${iconColor}">
+                                <i class="bi bi-${activity.icon || 'info-circle'}"></i>
+                            </div>
+                            <div class="activity-content">
+                                <p>${activity.description}</p>
+                                <small class="activity-time">
+                                    <i class="bi bi-clock"></i> ${activity.time}
+                                </small>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-clock-history fs-1 d-block mb-3"></i>
+                        <p class="mb-0">No recent activities</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading activities:', error);
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshDashboard();
+        loadChart('week');
+        loadActivities();
+        
+        // Auto-refresh every 60 seconds
+        setInterval(refreshDashboard, 60000);
+    });
+
+    // Chart period buttons
+    document.querySelectorAll('.btn-period').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.btn-period').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const period = this.textContent.toLowerCase();
+            loadChart(period);
+        });
+    });
+</script>
+{% endblock %}
