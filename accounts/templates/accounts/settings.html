@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Settings - Sheikh Agro{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg border-0 rounded-4 mt-4">
+                <div class="card-header bg-primary text-white text-center py-4 rounded-top-4">
+                    <h4 class="mb-0">
+                        <i class="bi bi-gear me-2"></i>
+                        Account Settings
+                    </h4>
+                    <p class="text-white-50 mb-0 mt-2">Manage your preferences and notifications</p>
+                </div>
+                
+                <div class="card-body p-4">
+                    <!-- Messages -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <!-- Settings Form -->
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Theme Settings -->
+                        <div class="settings-section mb-4">
+                            <h5 class="mb-3">
+                                <i class="bi bi-palette text-primary me-2"></i>
+                                Appearance
+                            </h5>
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="theme-option {% if user.theme == 'light' %}active{% endif %}" onclick="setTheme('light')">
+                                                <i class="bi bi-sun fs-1"></i>
+                                                <span>Light</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="theme-option {% if user.theme == 'dark' %}active{% endif %}" onclick="setTheme('dark')">
+                                                <i class="bi bi-moon fs-1"></i>
+                                                <span>Dark</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="theme-option {% if user.theme == 'auto' %}active{% endif %}" onclick="setTheme('auto')">
+                                                <i class="bi bi-circle-half fs-1"></i>
+                                                <span>Auto</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="theme" id="selectedTheme" value="{{ user.theme }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Notification Settings -->
+                        <div class="settings-section mb-4">
+                            <h5 class="mb-3">
+                                <i class="bi bi-bell text-warning me-2"></i>
+                                Notifications
+                            </h5>
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="notification_email" id="notifyEmail"
+                                               {% if user.notification_email %}checked{% endif %}>
+                                        <label class="form-check-label fw-semibold" for="notifyEmail">
+                                            Email Notifications
+                                        </label>
+                                        <div class="text-muted small ms-4">
+                                            Receive updates and alerts via email
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="notification_sms" id="notifySMS"
+                                               {% if user.notification_sms %}checked{% endif %}>
+                                        <label class="form-check-label fw-semibold" for="notifySMS">
+                                            SMS Notifications
+                                        </label>
+                                        <div class="text-muted small ms-4">
+                                            Receive text messages for urgent alerts
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Security Settings -->
+                        <div class="settings-section mb-4">
+                            <h5 class="mb-3">
+                                <i class="bi bi-shield text-danger me-2"></i>
+                                Security
+                            </h5>
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <a href="{% url 'accounts:password_reset' %}" class="btn btn-outline-warning w-100 mb-2">
+                                        <i class="bi bi-key me-2"></i>Change Password
+                                    </a>
+                                    <button type="button" class="btn btn-outline-danger w-100" onclick="enable2FA()">
+                                        <i class="bi bi-shield-lock me-2"></i>Enable Two-Factor Authentication
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Session Management -->
+                        <div class="settings-section mb-4">
+                            <h5 class="mb-3">
+                                <i class="bi bi-laptop text-info me-2"></i>
+                                Active Sessions
+                            </h5>
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-success rounded-circle p-2 me-3">
+                                            <i class="bi bi-check text-white"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">Current Session</h6>
+                                            <small class="text-muted">{{ user.last_login|date:"F d, Y H:i" }}</small>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary w-100">
+                                        <i class="bi bi-x-circle me-2"></i>Log Out All Devices
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Danger Zone -->
+                        <div class="settings-section mb-4">
+                            <h5 class="mb-3 text-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                Danger Zone
+                            </h5>
+                            <div class="card border-danger">
+                                <div class="card-body">
+                                    <p class="text-muted">Once you delete your account, there is no going back. Please be certain.</p>
+                                    <button type="button" class="btn btn-outline-danger w-100" onclick="confirmDelete()">
+                                        <i class="bi bi-trash me-2"></i>Delete Account
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Save Button -->
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">
+                                <i class="bi bi-check-lg me-2"></i>Save Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Account Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Delete Account
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you absolutely sure you want to delete your account?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This action cannot be undone. All your data will be permanently removed.
+                </div>
+                <div class="mb-3">
+                    <label for="confirmText" class="form-label">Type "DELETE" to confirm</label>
+                    <input type="text" class="form-control" id="confirmText" placeholder="DELETE">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>Delete Account</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function setTheme(theme) {
+        document.getElementById('selectedTheme').value = theme;
+        document.querySelectorAll('.theme-option').forEach(opt => {
+            opt.classList.remove('active');
+        });
+        event.currentTarget.classList.add('active');
+    }
+    
+    function enable2FA() {
+        alert('Two-factor authentication setup will be available soon!');
+    }
+    
+    function confirmDelete() {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    }
+    
+    document.getElementById('confirmText').addEventListener('input', function(e) {
+        const deleteBtn = document.getElementById('confirmDeleteBtn');
+        deleteBtn.disabled = e.target.value !== 'DELETE';
+    });
+</script>
+
+<style>
+    .theme-option {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .theme-option:hover {
+        border-color: #0d6efd;
+        background: #f8f9fa;
+    }
+    
+    .theme-option.active {
+        border-color: #0d6efd;
+        background: #e7f1ff;
+    }
+    
+    .theme-option i {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #6c757d;
+    }
+    
+    .theme-option.active i {
+        color: #0d6efd;
+    }
+    
+    .settings-section {
+        border-bottom: 1px solid #e9ecef;
+        padding-bottom: 1.5rem;
+    }
+    
+    .settings-section:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+</style>
+{% endblock %}

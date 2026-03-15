@@ -1,6 +1,7 @@
 from django import forms
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta 
+from django.forms import DateInput, TimeInput, DateTimeInput
 from .models import *
 
 # ==================== BASE FORM WITH BOOTSTRAP ====================
@@ -467,5 +468,183 @@ class DateRangeForm(forms.Form):
         
         if start and end and start > end:
             self.add_error('end_date', 'End date must be after start date')
+        
+        return cleaned_data 
+    
+
+
+# ==================== REPORT FORMS ====================
+
+class MilkProductionReportForm(forms.ModelForm):
+    """Form for generating milk production reports"""
+    
+    class Meta:
+        model = MilkProductionReport
+        fields = ['period', 'year', 'month', 'week', 'start_date', 'end_date', 'notes']
+        widgets = {
+            'start_date': DateInput(attrs={'type': 'date'}),
+            'end_date': DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['year'].initial = timezone.now().year
+        self.fields['month'].initial = timezone.now().month
+        
+        # Make fields conditional based on period
+        self.fields['month'].required = False
+        self.fields['week'].required = False
+        self.fields['start_date'].required = False
+        self.fields['end_date'].required = False
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        period = cleaned_data.get('period')
+        
+        if period == 'DAILY' and not cleaned_data.get('start_date'):
+            raise forms.ValidationError("Start date is required for daily report")
+        
+        if period == 'WEEKLY' and not cleaned_data.get('week'):
+            raise forms.ValidationError("Week number is required for weekly report")
+        
+        if period == 'MONTHLY' and not cleaned_data.get('month'):
+            raise forms.ValidationError("Month is required for monthly report")
+        
+        return cleaned_data
+
+
+class ReportDateRangeForm(forms.Form):
+    """Form for selecting date range for custom reports"""
+    
+    start_date = forms.DateField(widget=DateInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(widget=DateInput(attrs={'type': 'date'}))
+    include_comparison = forms.BooleanField(required=False, initial=True)
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
+        
+        if start_date and end_date and start_date > end_date:
+            raise forms.ValidationError("Start date must be before end date")
+        
+        return cleaned_data    
+
+
+class HealthSummaryReportForm(forms.ModelForm):
+    """Form for generating health summary reports"""
+    
+    class Meta:
+        model = HealthSummaryReport
+        fields = ['title', 'report_type', 'year', 'quarter', 'start_date', 'end_date', 'notes']
+        widgets = {
+            'start_date': DateInput(attrs={'type': 'date'}),
+            'end_date': DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['year'].initial = timezone.now().year
+        
+        # Make fields conditional
+        self.fields['quarter'].required = False
+        self.fields['start_date'].required = False
+        self.fields['end_date'].required = False
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        report_type = cleaned_data.get('report_type')
+        
+        if report_type == 'QUARTERLY' and not cleaned_data.get('quarter'):
+            raise forms.ValidationError("Quarter is required for quarterly report")
+        
+        if report_type == 'CUSTOM':
+            if not cleaned_data.get('start_date'):
+                raise forms.ValidationError("Start date is required for custom report")
+            if not cleaned_data.get('end_date'):
+                raise forms.ValidationError("End date is required for custom report")
+        
+        return cleaned_data
+
+
+class DiseaseTrendFilterForm(forms.Form):
+    """Form for filtering disease trends"""
+    
+    disease = forms.ChoiceField(choices=[], required=False)
+    year = forms.IntegerField(min_value=2020, max_value=2030, required=False)
+    month = forms.ChoiceField(choices=[(i, i) for i in range(1, 13)], required=False)
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Get unique diseases from records
+        diseases = HealthRecord.objects.values_list('diagnosis', flat=True).distinct()
+        disease_choices = [('', 'All Diseases')] + [(d, d) for d in diseases if d]
+        self.fields['disease'].choices = disease_choices
+        self.fields['year'].initial = timezone.now().year    
+
+
+# Add to your existing forms.py
+
+class BreedingPerformanceReportForm(forms.ModelForm):
+    """Form for generating breeding performance reports"""
+    
+    class Meta:
+        model = BreedingPerformanceReport
+        fields = ['title', 'period', 'year', 'month', 'quarter', 'start_date', 'end_date', 'notes']
+        widgets = {
+            'start_date': DateInput(attrs={'type': 'date'}),
+            'end_date': DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['year'].initial = timezone.now().year
+        
+        # Make fields conditional
+        self.fields['month'].required = False
+        self.fields['quarter'].required = False
+        self.fields['start_date'].required = False
+        self.fields['end_date'].required = False
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        period = cleaned_data.get('period')
+        
+        if period == 'MONTHLY' and not cleaned_data.get('month'):
+            raise forms.ValidationError("Month is required for monthly report")
+        
+        if period == 'QUARTERLY' and not cleaned_data.get('quarter'):
+            raise forms.ValidationError("Quarter is required for quarterly report")
+        
+        if period == 'CUSTOM':
+            if not cleaned_data.get('start_date'):
+                raise forms.ValidationError("Start date is required for custom report")
+            if not cleaned_data.get('end_date'):
+                raise forms.ValidationError("End date is required for custom report")
+        
+        return cleaned_data
+
+
+class SireComparisonForm(forms.Form):
+    """Form for comparing sire performance"""
+    
+    sires = forms.ModelMultipleChoiceField(
+        queryset=Cattle.objects.filter(gender='M', status='ACTIVE'),
+        widget=forms.CheckboxSelectMultiple,
+        required=True
+    )
+    start_date = forms.DateField(widget=DateInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(widget=DateInput(attrs={'type': 'date'}))
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
+        
+        if start_date and end_date and start_date > end_date:
+            raise forms.ValidationError("Start date must be before end date")
         
         return cleaned_data

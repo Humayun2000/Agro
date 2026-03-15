@@ -1,0 +1,357 @@
+{% extends 'dairy/reports/base_report.html' %}
+{% load static %}
+
+{% block filters %}
+<div class="filter-group">
+    <label>Period</label>
+    <select name="period">
+        <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>Monthly</option>
+        <option value="quarterly" {% if period == 'quarterly' %}selected{% endif %}>Quarterly</option>
+        <option value="yearly" {% if period == 'yearly' %}selected{% endif %}>Yearly</option>
+        <option value="custom" {% if period == 'custom' %}selected{% endif %}>Custom</option>
+    </select>
+</div>
+
+<div class="filter-group">
+    <label>Year</label>
+    <select name="year">
+        {% for y in years %}
+        <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="filter-group">
+    <label>Month</label>
+    <select name="month">
+        {% for m in months %}
+        <option value="{{ m.value }}" {% if month == m.value %}selected{% endif %}>{{ m.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="filter-group">
+    <label>Quarter</label>
+    <select name="quarter">
+        <option value="1" {% if quarter == 1 %}selected{% endif %}>Q1 (Jan-Mar)</option>
+        <option value="2" {% if quarter == 2 %}selected{% endif %}>Q2 (Apr-Jun)</option>
+        <option value="3" {% if quarter == 3 %}selected{% endif %}>Q3 (Jul-Sep)</option>
+        <option value="4" {% if quarter == 4 %}selected{% endif %}>Q4 (Oct-Dec)</option>
+    </select>
+</div>
+
+<div class="filter-group">
+    <label>Start Date</label>
+    <input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" id="start_date">
+</div>
+
+<div class="filter-group">
+    <label>End Date</label>
+    <input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" id="end_date">
+</div>
+
+<div class="filter-group">
+    <label>Sire</label>
+    <select name="sire">
+        <option value="">All Sires</option>
+        {% for sire in sires %}
+        <option value="{{ sire.id }}" {% if selected_sire == sire.id %}selected{% endif %}>
+            {{ sire.tag_number }} - {{ sire.name|default:'' }}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+{% endblock %}
+
+{% block report_content %}
+<!-- Summary Cards -->
+<div class="summary-grid">
+    <div class="summary-card">
+        <h3>{{ total_breedings }}</h3>
+        <p>Total Breedings</p>
+    </div>
+    
+    <div class="summary-card">
+        <h3 style="color: #28a745;">{{ confirmed_pregnant }}</h3>
+        <p>Confirmed Pregnant</p>
+    </div>
+    
+    <div class="summary-card">
+        <h3 style="color: #dc3545;">{{ failed_conceptions }}</h3>
+        <p>Failed Conceptions</p>
+    </div>
+    
+    <div class="summary-card">
+        <h3>{{ pending_results }}</h3>
+        <p>Pending Results</p>
+    </div>
+    
+    <div class="summary-card">
+        <h3>{{ calved_count }}</h3>
+        <p>Calved</p>
+    </div>
+    
+    <div class="summary-card">
+        <h3 style="color: {% if conception_rate >= 70 %}#28a745{% elif conception_rate >= 50 %}#ffc107{% else %}#dc3545{% endif %};">
+            {{ conception_rate|floatformat:1 }}%
+        </h3>
+        <p>Conception Rate</p>
+    </div>
+</div>
+
+<!-- Success Rate Gauge -->
+<div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 20px; padding: 30px; margin-bottom: 30px; text-align: center;">
+    <h3 style="margin-bottom: 20px;">🎯 Overall Success Rate</h3>
+    <div style="position: relative; width: 200px; height: 200px; margin: 0 auto;">
+        <canvas id="successGauge"></canvas>
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+            <div style="font-size: 3rem; font-weight: 800; color: {% if conception_rate >= 70 %}#28a745{% elif conception_rate >= 50 %}#ffc107{% else %}#dc3545{% endif %};">
+                {{ conception_rate|floatformat:0 }}%
+            </div>
+            <div style="color: #64748b;">Success Rate</div>
+        </div>
+    </div>
+    <div style="display: flex; justify-content: center; gap: 40px; margin-top: 20px;">
+        <div>
+            <div style="font-size: 1.2rem; font-weight: 600;">{{ natural_success_rate|floatformat:1 }}%</div>
+            <div style="color: #64748b;">Natural Breeding</div>
+        </div>
+        <div>
+            <div style="font-size: 1.2rem; font-weight: 600;">{{ ai_success_rate|floatformat:1 }}%</div>
+            <div style="color: #64748b;">Artificial Insemination</div>
+        </div>
+    </div>
+</div>
+
+<!-- Sire Performance Table -->
+<h3 style="margin-bottom: 20px;">🐂 Sire Performance</h3>
+<table class="report-table">
+    <thead>
+        <tr>
+            <th>Sire</th>
+            <th>Breed</th>
+            <th>Total Services</th>
+            <th>Pregnancies</th>
+            <th>Success Rate</th>
+            <th>Performance Bar</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for sire in sire_performance %}
+        <tr>
+            <td>
+                <a href="{% url 'dairy:cattle_detail' sire.sire.id %}" style="color: #667eea; font-weight: 600;">
+                    {{ sire.sire.tag_number }}
+                </a>
+                {% if sire.sire.name %}
+                <br><small>{{ sire.sire.name }}</small>
+                {% endif %}
+            </td>
+            <td>{{ sire.sire.get_breed_display }}</td>
+            <td>{{ sire.total_services }}</td>
+            <td>{{ sire.pregnancies }}</td>
+            <td>
+                <span style="color: {% if sire.success_rate >= 70 %}#28a745{% elif sire.success_rate >= 50 %}#ffc107{% else %}#dc3545{% endif %}; font-weight: bold;">
+                    {{ sire.success_rate|floatformat:1 }}%
+                </span>
+            </td>
+            <td style="width: 200px;">
+                <div style="height: 10px; background: #e9ecef; border-radius: 5px; overflow: hidden;">
+                    <div style="width: {{ sire.success_rate }}%; height: 100%; background: {% if sire.success_rate >= 70 %}#28a745{% elif sire.success_rate >= 50 %}#ffc107{% else %}#dc3545{% endif %}; border-radius: 5px;"></div>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Monthly Breeding Activity -->
+<h3 style="margin: 30px 0 20px;">📊 Monthly Breeding Activity</h3>
+<div class="chart-container" style="height: 300px;">
+    <canvas id="monthlyChart"></canvas>
+</div>
+
+<!-- Upcoming Calving Schedule -->
+<h3 style="margin: 30px 0 20px;">📅 Upcoming Calving Schedule (Next 90 Days)</h3>
+<div style="overflow-x: auto;">
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Expected Date</th>
+                <th>Days Left</th>
+                <th>Cow</th>
+                <th>Breed</th>
+                <th>Sire</th>
+                <th>Breeding Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for calving in upcoming_calving %}
+            <tr>
+                <td><strong>{{ calving.expected_calving_date|date:"M d, Y" }}</strong></td>
+                <td>
+                    {% with days=calving.expected_calving_date|timeuntil:today %}
+                        {% if days|slice:":1" == "0" %}
+                            <span style="color: #dc3545;">Today!</span>
+                        {% else %}
+                            <span style="color: {% if days|length < 30 %}#ffc107{% else %}#28a745{% endif %};">
+                                {{ days }}
+                            </span>
+                        {% endif %}
+                    {% endwith %}
+                </td>
+                <td>
+                    <a href="{% url 'dairy:cattle_detail' calving.cattle.id %}" style="color: #667eea;">
+                        {{ calving.cattle.tag_number }}
+                    </a>
+                </td>
+                <td>{{ calving.cattle.get_breed_display }}</td>
+                <td>
+                    {% if calving.sire %}
+                    <a href="{% url 'dairy:cattle_detail' calving.sire.id %}">{{ calving.sire.tag_number }}</a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>{{ calving.breeding_date|date:"M d, Y" }}</td>
+                <td>
+                    <span style="color: {% if calving.status == 'CONFIRMED' %}#28a745{% else %}#ffc107{% endif %};">
+                        {{ calving.get_status_display }}
+                    </span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px;">
+                    <i class="bi bi-calendar" style="font-size: 3rem; color: #cbd5e1;"></i>
+                    <p style="color: #64748b; margin-top: 10px;">No upcoming calving in next 90 days</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Heat Detection Summary -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px;">
+    <div style="background: #f8f9fa; border-radius: 16px; padding: 20px;">
+        <h4 style="margin-bottom: 15px;">🔥 Heat Detection Summary</h4>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <span>Heat Cycles Detected:</span>
+            <span style="font-weight: bold;">{{ heat_cycles_detected }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <span>Successful Breedings:</span>
+            <span style="font-weight: bold; color: #28a745;">{{ successful_breedings }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <span>Missed Opportunities:</span>
+            <span style="font-weight: bold; color: #dc3545;">{{ missed_opportunities }}</span>
+        </div>
+        <div style="height: 10px; background: #e9ecef; border-radius: 5px; margin-top: 10px;">
+            <div style="width: {{ detection_rate|floatformat:0 }}%; height: 100%; background: linear-gradient(90deg, #28a745, #ffc107); border-radius: 5px;"></div>
+        </div>
+        <p style="text-align: center; margin-top: 10px;">Detection Rate: {{ detection_rate|floatformat:1 }}%</p>
+    </div>
+
+    <div style="background: #f8f9fa; border-radius: 16px; padding: 20px;">
+        <h4 style="margin-bottom: 15px;">👶 Calving Summary</h4>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <span>Total Calves Born:</span>
+            <span style="font-weight: bold;">{{ total_calves }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <span>Male Calves:</span>
+            <span style="font-weight: bold; color: #0d6efd;">{{ male_calves }} ({{ male_percentage|floatformat:1 }}%)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <span>Female Calves:</span>
+            <span style="font-weight: bold; color: #e83e8c;">{{ female_calves }} ({{ female_percentage|floatformat:1 }}%)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <span>Avg Birth Weight:</span>
+            <span style="font-weight: bold;">{{ avg_birth_weight|floatformat:1 }} kg</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+            <span>Calf Survival Rate:</span>
+            <span style="font-weight: bold; color: #28a745;">{{ calf_survival_rate|floatformat:1 }}%</span>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Success Gauge
+    const gaugeCtx = document.getElementById('successGauge').getContext('2d');
+    new Chart(gaugeCtx, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: [{{ conception_rate }}, 100 - {{ conception_rate }}],
+                backgroundColor: ['{% if conception_rate >= 70 %}#28a745{% elif conception_rate >= 50 %}#ffc107{% else %}#dc3545{% endif %}', '#e9ecef'],
+                borderWidth: 0,
+                circumference: 180,
+                rotation: 270
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            }
+        }
+    });
+
+    // Monthly Chart
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    new Chart(monthlyCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ monthly_labels|safe }},
+            datasets: [{
+                label: 'Breedings',
+                data: {{ monthly_breedings|safe }},
+                backgroundColor: '#667eea',
+                borderRadius: 8
+            }, {
+                label: 'Pregnancies',
+                data: {{ monthly_pregnancies|safe }},
+                backgroundColor: '#28a745',
+                borderRadius: 8
+            }, {
+                label: 'Calvings',
+                data: {{ monthly_calvings|safe }},
+                backgroundColor: '#ffc107',
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Monthly Breeding Activity',
+                    font: { size: 14, weight: 'bold' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Events'
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,660 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-exclamation-triangle{% endblock %}
+{% block page_title %}Delete Budget - {{ object.cycle.pond.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:budget_list' %}">Budgets</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete Budget</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:budget_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Budget Plan
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon & Message -->
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-pie-chart fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove this budget plan?</h4>
+            <p class="text-muted">
+                You are about to delete the budget for 
+                <strong>{{ object.cycle.pond.name }}</strong> - 
+                <strong>{{ object.cycle.species.name }}</strong>
+            </p>
+        </div>
+
+        <!-- Budget Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="budget-avatar bg-danger text-white rounded-3 p-3">
+                        <i class="bi bi-pie-chart fs-2"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ object.cycle.pond.name }} - {{ object.cycle.species.name }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-calendar me-1"></i> Cycle: {{ object.cycle.cycle_id|slice:":8" }}
+                            <span class="mx-2">|</span>
+                            <i class="bi bi-tag me-1"></i> Stocked: {{ object.cycle.stocking_date|date:"M d, Y" }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Total Budget</small>
+                            <span class="fw-bold fs-4 text-primary">৳{{ total_budget|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Current Expenses</small>
+                            <span class="fw-bold fs-4 {% if current_expenses > total_budget %}text-danger{% else %}text-success{% endif %}">
+                                ৳{{ current_expenses|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Expected Revenue</small>
+                            <span class="fw-bold text-success">৳{{ object.planned_revenue|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Expected Profit</small>
+                            <span class="fw-bold {% if expected_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ৳{{ expected_profit|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budget Breakdown -->
+                <div class="mt-3">
+                    <h6 class="fw-bold mb-2">Budget Breakdown:</h6>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="bg-white p-2 rounded-3 d-flex justify-content-between">
+                                <span class="text-muted">Fingerlings:</span>
+                                <span class="fw-bold">৳{{ object.planned_fingerling_cost|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-white p-2 rounded-3 d-flex justify-content-between">
+                                <span class="text-muted">Feed:</span>
+                                <span class="fw-bold">৳{{ object.planned_feed_cost|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-white p-2 rounded-3 d-flex justify-content-between">
+                                <span class="text-muted">Medicine:</span>
+                                <span class="fw-bold">৳{{ object.planned_medicine_cost|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-white p-2 rounded-3 d-flex justify-content-between">
+                                <span class="text-muted">Labor:</span>
+                                <span class="fw-bold">৳{{ object.planned_labor_cost|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-white p-2 rounded-3 d-flex justify-content-between">
+                                <span class="text-muted">Other:</span>
+                                <span class="fw-bold">৳{{ object.planned_other_cost|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budget Status -->
+                <div class="mt-3 p-3 bg-white rounded-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Budget Utilization:</span>
+                        <span class="fw-bold {% if utilization_percentage > 100 %}text-danger{% elif utilization_percentage > 80 %}text-warning{% else %}text-success{% endif %}">
+                            {{ utilization_percentage|floatformat:1 }}%
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar 
+                            {% if utilization_percentage > 100 %}bg-danger
+                            {% elif utilization_percentage > 80 %}bg-warning
+                            {% else %}bg-success{% endif %}" 
+                            role="progressbar" 
+                            style="width: {% if utilization_percentage > 100 %}100{% else %}{{ utilization_percentage }}{% endif %}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>⚠️ This will affect financial tracking:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>
+                        <span class="badge bg-primary me-2">৳{{ total_budget|floatformat:2 }}</span>
+                        Budget reference will be removed
+                    </li>
+                    <li>
+                        <span class="badge bg-info me-2">{{ object.cycle.pond.name }}</span>
+                        Pond will have no budget target
+                    </li>
+                    <li>
+                        <span class="badge bg-warning me-2">{{ expense_count }}</span>
+                        Existing expenses will remain but won't be compared to budget
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Cycle Impact -->
+        <div class="card border-0 bg-light mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-arrow-repeat text-info me-2"></i>
+                    Production Cycle Impact
+                </h6>
+                
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="cycle-avatar bg-info text-white rounded-3 p-2">
+                        <i class="bi bi-water"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">{{ object.cycle.pond.name }} - {{ object.cycle.species.name }}</h6>
+                        <small class="text-muted">Stocked: {{ object.cycle.stocking_date|date:"M d, Y" }}</small>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">Current Stage:</span>
+                            <span class="fw-bold">{{ object.cycle.get_status_display }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">Days in Production:</span>
+                            <span class="fw-bold">{{ object.cycle.days_in_production }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">Current Expenses:</span>
+                            <span class="fw-bold">৳{{ current_expenses|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">Without Budget:</span>
+                            <span class="fw-bold">৳{{ current_expenses|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card border-0 bg-light">
+                    <div class="card-body text-center">
+                        <i class="bi bi-graph-up fs-2 text-info d-block mb-2"></i>
+                        <h6>Expected ROI</h6>
+                        <h4 class="{% if expected_roi >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ expected_roi|floatformat:1 }}%
+                        </h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 bg-light">
+                    <div class="card-body text-center">
+                        <i class="bi bi-calculator fs-2 text-warning d-block mb-2"></i>
+                        <h6>Break-even Price</h6>
+                        <h4>৳{{ break_even_price|floatformat:2 }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 bg-light">
+                    <div class="card-body text-center">
+                        <i class="bi bi-trophy fs-2 text-success d-block mb-2"></i>
+                        <h6>Target Harvest</h6>
+                        <h4>{{ object.planned_harvest_kg|floatformat:0 }} kg</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget Status Warning -->
+        {% if utilization_percentage > 100 %}
+        <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div>
+                <strong>Budget Exceeded!</strong>
+                <p class="mb-0 mt-1">
+                    Current expenses exceed budget by <strong>৳{{ current_expenses|add:total_budget|floatformat:2 }}</strong>.
+                    Consider reviewing actual expenses before deleting.
+                </p>
+            </div>
+        </div>
+        {% elif utilization_percentage > 80 %}
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div>
+                <strong>Budget Nearly Exhausted</strong>
+                <p class="mb-0 mt-1">
+                    {{ utilization_percentage|floatformat:1 }}% of budget used. 
+                    This budget is actively being tracked.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                I understand that deleting this budget will:
+                <ul class="mb-0 mt-2">
+                    <li>Remove the financial target for {{ object.cycle.pond.name }}</li>
+                    <li>Stop budget vs actual comparison for this cycle</li>
+                    <li>Not delete any existing expense records</li>
+                </ul>
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'fishery:budget_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger px-5 py-3" id="deleteBtn" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Permanently
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal Script -->
+<script>
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = !checkbox.checked;
+    }
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const confirmDelete = document.getElementById('confirmDelete');
+        if (!confirmDelete.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand the impact of deleting this budget.');
+        }
+    });
+
+    // Countdown timer for safety
+    let countdown = 5;
+    let countdownInterval = null;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const confirmCheck = document.getElementById('confirmDelete');
+
+    confirmCheck.addEventListener('change', function() {
+        if (this.checked && !countdownInterval) {
+            // Store original text
+            const originalText = deleteBtn.innerHTML;
+            
+            // Start countdown
+            deleteBtn.disabled = true;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                deleteBtn.innerHTML = `Wait ${countdown} seconds... <i class="bi bi-hourglass-split ms-2"></i>`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                    countdown = 5;
+                }
+            }, 1000);
+        } else if (!this.checked && countdownInterval) {
+            // Cancel countdown
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3-fill me-2"></i>Delete Permanently';
+            countdown = 5;
+        }
+    });
+
+    // Keyboard shortcut warning
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const deleteBtn = document.getElementById('deleteBtn');
+            const confirmCheck = document.getElementById('confirmDelete');
+            
+            if (!deleteBtn.disabled && confirmCheck.checked) {
+                if (!confirm('Are you absolutely sure? This will permanently delete this budget plan.')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // Add animation class on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.warning-icon').classList.add('pulse-animation');
+        
+        // Animate detail boxes
+        document.querySelectorAll('.detail-box').forEach(el => {
+            el.classList.add('fade-in');
+        });
+    });
+</script>
+
+<style>
+    .warning-icon {
+        width: 120px;
+        height: 120px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px 15px rgba(220, 53, 69, 0.2);
+        }
+    }
+    
+    .budget-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .cycle-avatar {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+        margin-right: 5px;
+    }
+    
+    .badge.bg-primary {
+        background-color: #0d6efd !important;
+    }
+    
+    .badge.bg-info {
+        background-color: #0dcaf0 !important;
+        color: #000;
+    }
+    
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #000;
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Form check styling */
+    .form-check-input:checked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+        color: #dc3545;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+    
+    .form-check-label ul {
+        color: #495057;
+        margin-top: 8px;
+    }
+    
+    /* Disabled button style */
+    #deleteBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* Countdown timer text */
+    #deleteBtn i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Fade in animation */
+    .fade-in {
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Performance metric cards */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    /* Text colors */
+    .text-success {
+        font-weight: 600 !important;
+    }
+    
+    .text-danger {
+        font-weight: 600 !important;
+    }
+    
+    .text-warning {
+        font-weight: 600 !important;
+        color: #ffc107 !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .warning-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .warning-icon i {
+            font-size: 3rem !important;
+        }
+        
+        .budget-avatar {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .budget-avatar i {
+            font-size: 1.5rem !important;
+        }
+        
+        .cycle-avatar {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .btn {
+            padding: 12px 15px !important;
+            font-size: 0.9rem;
+        }
+        
+        h4 {
+            font-size: 1.2rem;
+        }
+        
+        .detail-box {
+            padding: 10px !important;
+        }
+        
+        .badge {
+            font-size: 0.8rem;
+            padding: 3px 6px;
+        }
+        
+        .row.g-3 {
+            --bs-gutter-y: 0.5rem;
+        }
+        
+        .form-check-label ul {
+            font-size: 0.9rem;
+            padding-left: 20px;
+        }
+        
+        .progress {
+            height: 6px !important;
+        }
+        
+        .card .fs-2 {
+            font-size: 1.5rem !important;
+        }
+    }
+
+    /* Print styles */
+    @media print {
+        .btn, .form-check, #deleteBtn {
+            display: none;
+        }
+        
+        .warning-icon {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .bg-danger {
+            background-color: #dc3545 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .alert-warning, .alert-danger {
+            border: 1px solid #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}

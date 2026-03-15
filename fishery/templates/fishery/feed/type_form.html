@@ -1,0 +1,573 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Add New Feed Type{% else %}Edit {{ form.instance.name }}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:feed_type_list' %}">Feed Types</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Add New{% else %}Edit{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:feed_type_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Feed Type Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Add New Feed Type
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Feed Type: {{ form.instance.name }}
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Add a new feed type to your inventory
+                        {% else %}
+                            Update feed type information and stock settings
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="feedTypeForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <!-- Left Column - Basic Info -->
+                        <div class="col-md-6">
+                            <!-- Basic Information Section -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-info-circle text-primary me-2"></i>
+                                    Basic Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-tag me-1 text-primary"></i>
+                                        Feed Name *
+                                    </label>
+                                    {{ form.name }}
+                                    <small class="text-muted">e.g., "Starter Feed", "Grower Pellet"</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-building me-1 text-primary"></i>
+                                        Brand *
+                                    </label>
+                                    {{ form.brand }}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-grid-3x3 me-1 text-primary"></i>
+                                                Category *
+                                            </label>
+                                            {{ form.category }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-arrow-left-right me-1 text-primary"></i>
+                                                Pellet Size (mm) *
+                                            </label>
+                                            {{ form.pellet_size_mm }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Nutritional Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-pie-chart text-success me-2"></i>
+                                    Nutritional Information
+                                </h5>
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-percent me-1 text-success"></i>
+                                                Protein %
+                                            </label>
+                                            {{ form.protein_percentage }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-percent me-1 text-success"></i>
+                                                Fat %
+                                            </label>
+                                            {{ form.fat_percentage }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-percent me-1 text-success"></i>
+                                                Fiber %
+                                            </label>
+                                            {{ form.fiber_percentage }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-info mt-2 mb-0">
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                    Nutritional values are percentages of total composition
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Price & Inventory -->
+                        <div class="col-md-6">
+                            <!-- Pricing Section -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-currency-dollar text-warning me-2"></i>
+                                    Pricing
+                                </h5>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-cash-stack me-1 text-warning"></i>
+                                        Current Price (৳/kg) *
+                                    </label>
+                                    {{ form.current_price }}
+                                    <small class="text-muted">Price per kilogram</small>
+                                </div>
+                            </div>
+
+                            <!-- Inventory Management -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-box-seam text-info me-2"></i>
+                                    Inventory Management
+                                </h5>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-box me-1 text-info"></i>
+                                        Current Stock (kg)
+                                    </label>
+                                    {{ form.current_stock }}
+                                    <small class="text-muted">Current quantity in inventory</small>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-exclamation-triangle me-1 text-warning"></i>
+                                                Reorder Level (kg)
+                                            </label>
+                                            {{ form.reorder_level }}
+                                            <small class="text-muted">Alert when stock falls below this</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-cart me-1 text-success"></i>
+                                                Reorder Quantity (kg)
+                                            </label>
+                                            {{ form.reorder_quantity }}
+                                            <small class="text-muted">Quantity to order when restocking</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Stock Status Preview -->
+                                {% if action == 'edit' %}
+                                <div class="stock-preview mt-3 p-3 bg-light rounded-3">
+                                    <h6 class="mb-2">Stock Status</h6>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>Current:</span>
+                                        <span class="fw-bold {% if form.instance.current_stock <= form.instance.reorder_level %}text-danger{% else %}text-success{% endif %}">
+                                            {{ form.instance.current_stock }} kg
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <span>Reorder Level:</span>
+                                        <span class="fw-bold">{{ form.instance.reorder_level }} kg</span>
+                                    </div>
+                                    <div class="progress mt-2" style="height: 8px;">
+                                        {% with percentage=form.instance.current_stock|default:0 %}
+                                        <div class="progress-bar {% if form.instance.current_stock <= form.instance.reorder_level %}bg-warning{% else %}bg-success{% endif %}" 
+                                             role="progressbar" 
+                                             style="width: {% widthratio form.instance.current_stock form.instance.reorder_level|default:1 100 %}%"></div>
+                                        {% endwith %}
+                                    </div>
+                                    {% if form.instance.current_stock <= form.instance.reorder_level %}
+                                    <div class="alert alert-warning mt-2 mb-0 py-2">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                        Low stock! Consider reordering.
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Supplier Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-truck text-secondary me-2"></i>
+                                    Supplier Information
+                                </h5>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-building me-1 text-secondary"></i>
+                                        Supplier
+                                    </label>
+                                    {{ form.supplier }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-telephone me-1 text-secondary"></i>
+                                        Supplier Contact
+                                    </label>
+                                    {{ form.supplier_contact }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Last Updated</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.updated_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:feed_type_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Add Feed Type{% else %}Update Feed Type{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {% if action == 'edit' %}
+            <!-- Quick Stats for this Feed Type -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="fishery-table-container">
+                        <h5 class="fishery-table-title mb-3">
+                            <i class="bi bi-bar-chart"></i>
+                            Feed Usage Statistics
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Total Purchases</small>
+                                    <h4 class="mb-0">{{ form.instance.feedpurchase_set.count }}</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Total Used</small>
+                                    <h4 class="mb-0">{{ total_used|default:"0" }} kg</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Last Purchase</small>
+                                    <h4 class="mb-0">
+                                        {% if last_purchase %}
+                                            {{ last_purchase.purchase_date|date:"M d" }}
+                                        {% else %}
+                                            Never
+                                        {% endif %}
+                                    </h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Stock Turnover</small>
+                                    <h4 class="mb-0">{{ turnover_rate|default:"0" }} days</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Form Validation Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Validate percentages
+        const protein = document.getElementById('{{ form.protein_percentage.id_for_label }}');
+        const fat = document.getElementById('{{ form.fat_percentage.id_for_label }}');
+        const fiber = document.getElementById('{{ form.fiber_percentage.id_for_label }}');
+        
+        function validatePercentage(input) {
+            const value = parseFloat(input.value) || 0;
+            if (value < 0 || value > 100) {
+                input.setCustomValidity('Value must be between 0 and 100');
+                input.classList.add('is-invalid');
+            } else {
+                input.setCustomValidity('');
+                input.classList.remove('is-invalid');
+            }
+        }
+        
+        if (protein) {
+            protein.addEventListener('input', () => validatePercentage(protein));
+        }
+        if (fat) {
+            fat.addEventListener('input', () => validatePercentage(fat));
+        }
+        if (fiber) {
+            fiber.addEventListener('input', () => validatePercentage(fiber));
+        }
+        
+        // Validate reorder level vs quantity
+        const reorderLevel = document.getElementById('{{ form.reorder_level.id_for_label }}');
+        const reorderQty = document.getElementById('{{ form.reorder_quantity.id_for_label }}');
+        
+        function validateReorder() {
+            const level = parseFloat(reorderLevel.value) || 0;
+            const qty = parseFloat(reorderQty.value) || 0;
+            
+            if (level > 0 && qty > 0 && qty < level) {
+                reorderQty.setCustomValidity('Reorder quantity should be at least equal to reorder level');
+                reorderQty.classList.add('is-invalid');
+            } else {
+                reorderQty.setCustomValidity('');
+                reorderQty.classList.remove('is-invalid');
+            }
+        }
+        
+        if (reorderLevel && reorderQty) {
+            reorderLevel.addEventListener('input', validateReorder);
+            reorderQty.addEventListener('input', validateReorder);
+        }
+    });
+
+    // Form validation
+    document.getElementById('feedTypeForm').addEventListener('submit', function(e) {
+        const name = document.getElementById('{{ form.name.id_for_label }}').value;
+        const brand = document.getElementById('{{ form.brand.id_for_label }}').value;
+        const price = document.getElementById('{{ form.current_price.id_for_label }}').value;
+        const pelletSize = document.getElementById('{{ form.pellet_size_mm.id_for_label }}').value;
+        
+        if (!name.trim()) {
+            e.preventDefault();
+            alert('Please enter a feed name');
+            return;
+        }
+        
+        if (!brand.trim()) {
+            e.preventDefault();
+            alert('Please enter a brand name');
+            return;
+        }
+        
+        if (!pelletSize || parseFloat(pelletSize) <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid pellet size');
+            return;
+        }
+        
+        if (!price || parseFloat(price) <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid price');
+            return;
+        }
+        
+        // Validate stock values if provided
+        const stock = document.getElementById('{{ form.current_stock.id_for_label }}').value;
+        if (stock && parseFloat(stock) < 0) {
+            e.preventDefault();
+            alert('Stock cannot be negative');
+            return;
+        }
+    });
+
+    // Unsaved changes warning
+    let formChanged = false;
+    document.getElementById('feedTypeForm').addEventListener('input', function() {
+        formChanged = true;
+    });
+    
+    window.addEventListener('beforeunload', function(e) {
+        if (formChanged) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+
+    // Calculate turnover rate (for edit mode)
+    {% if action == 'edit' %}
+    function calculateTurnoverRate() {
+        // This would be calculated from actual usage data
+        console.log('Calculating turnover rate...');
+    }
+    {% endif %}
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 20px rgba(13, 110, 253, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+    }
+    
+    .is-invalid {
+        border-color: #dc3545;
+    }
+    
+    .is-invalid:focus {
+        box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
+    }
+    
+    /* Stock preview styling */
+    .stock-preview {
+        border: 1px solid #dee2e6;
+    }
+    
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Quick stats cards */
+    .bg-light.rounded-3 {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .bg-light.rounded-3:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 15px rgba(13, 110, 253, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        .row {
+            flex-direction: column;
+        }
+        
+        .stock-preview {
+            padding: 10px !important;
+        }
+    }
+</style>
+{% endblock %}

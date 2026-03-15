@@ -1,0 +1,620 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-exclamation-triangle{% endblock %}
+{% block page_title %}Delete Expense Record{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:expense_list' %}">Expenses</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete Expense</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:expense_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Expense Record
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon & Message -->
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-receipt fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove this expense record?</h4>
+            <p class="text-muted">
+                You are about to delete an expense from 
+                <strong>{{ object.expense_date|date:"F d, Y" }}</strong>
+            </p>
+        </div>
+
+        <!-- Expense Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="expense-avatar bg-danger text-white rounded-3 p-3">
+                        <i class="bi bi-receipt fs-2"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ object.description }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-calendar me-1"></i> {{ object.expense_date|date:"M d, Y" }}
+                            <span class="mx-2">|</span>
+                            <i class="bi bi-tag me-1"></i> {{ object.get_expense_type_display }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Amount</small>
+                            <span class="fw-bold fs-4 text-danger">৳{{ object.amount|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Payment Method</small>
+                            <span class="fw-bold">{{ object.get_payment_method_display|default:"—" }}</span>
+                            {% if object.paid_to %}
+                            <small class="text-muted d-block">Paid to: {{ object.paid_to }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if object.receipt_number %}
+                <div class="mt-3 p-2 bg-white rounded-3">
+                    <i class="bi bi-receipt me-2 text-muted"></i>
+                    <span>Receipt #: <strong>{{ object.receipt_number }}</strong></span>
+                </div>
+                {% endif %}
+
+                {% if object.notes %}
+                <div class="mt-3 p-3 bg-white rounded-3">
+                    <small class="text-muted d-block">Notes</small>
+                    <p class="mb-0">{{ object.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Financial Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>⚠️ This will affect financial records:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>
+                        <span class="badge bg-danger me-2">৳{{ object.amount|floatformat:2 }}</span>
+                        Will be removed from total expenses
+                    </li>
+                    <li>
+                        <span class="badge bg-warning me-2">{{ object.expense_date|date:"F Y" }}</span>
+                        Monthly expense total will be reduced
+                    </li>
+                    {% if object.cycle %}
+                    <li>
+                        <span class="badge bg-info me-2">{{ object.cycle.cycle_id|slice:":8" }}</span>
+                        Cycle expenses will be adjusted
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Cycle Impact -->
+        {% if object.cycle %}
+        <div class="card border-0 bg-light mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-arrow-repeat text-info me-2"></i>
+                    Production Cycle Impact
+                </h6>
+                
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="cycle-avatar bg-info text-white rounded-3 p-2">
+                        <i class="bi bi-water"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">{{ object.cycle.pond.name }} - {{ object.cycle.species.name }}</h6>
+                        <small class="text-muted">Cycle: {{ object.cycle.cycle_id|slice:":8" }}</small>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">Current Cycle Expenses:</span>
+                            <span class="fw-bold">৳{{ cycle_total|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">After Deletion:</span>
+                            <span class="fw-bold text-success">৳{{ cycle_total|add:object.amount|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if cycle_budget > 0 %}
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Cycle Budget:</span>
+                        <span class="fw-bold">৳{{ cycle_budget|floatformat:2 }}</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        {% widthratio cycle_total cycle_budget 100 as budget_percentage %}
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ budget_percentage }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">Current: {{ budget_percentage }}%</small>
+                        {% with new_percentage=cycle_total|add:object.amount %}
+                            {% widthratio new_percentage cycle_budget 100 as new_budget_percentage %}
+                            <small class="text-success">After: {{ new_budget_percentage }}%</small>
+                        {% endwith %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Monthly Impact -->
+        <div class="card border-0 bg-light mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-calendar-month text-primary me-2"></i>
+                    Monthly Impact
+                </h6>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">Current Month Total:</span>
+                            <span class="fw-bold">৳{{ monthly_total|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">After Deletion:</span>
+                            <span class="fw-bold text-success">৳{{ monthly_total|add:object.amount|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed Purchase Warning -->
+        {% if object.feed_purchase %}
+        <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-basket-fill fs-4"></i>
+            <div>
+                <strong>Linked Feed Purchase</strong>
+                <p class="mb-0 mt-1">
+                    This expense is linked to feed purchase 
+                    <a href="{% url 'fishery:feed_purchase_edit' object.feed_purchase.id %}" class="alert-link">
+                        #{{ object.feed_purchase.id }}
+                    </a>. 
+                    The feed purchase record will not be deleted.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- High Value Warning -->
+        {% if object.amount > 50000 %}
+        <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div>
+                <strong>High Value Expense!</strong>
+                <p class="mb-0 mt-1">
+                    This expense is worth <strong>৳{{ object.amount|floatformat:2 }}</strong>. 
+                    Consider keeping this record for financial accuracy.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Tax Impact -->
+        {% if object.amount > 0 %}
+        <div class="alert alert-secondary d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-calculator-fill fs-4"></i>
+            <div>
+                <strong>Tax Impact (15% VAT)</strong>
+                <p class="mb-0 mt-1">
+                    If VAT was applicable, this would affect 
+                    <strong>৳{{ object.amount|add:"0.15"|floatformat:2 }}</strong> in tax calculations.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                I understand that deleting this expense will:
+                <ul class="mb-0 mt-2">
+                    <li>Remove ৳{{ object.amount|floatformat:2 }} from financial records</li>
+                    <li>Affect monthly expense totals for {{ object.expense_date|date:"F Y" }}</li>
+                    {% if object.cycle %}
+                    <li>Adjust cycle expenses for {{ object.cycle.pond.name }}</li>
+                    {% endif %}
+                    {% if object.feed_purchase %}
+                    <li>The linked feed purchase will remain in the system</li>
+                    {% endif %}
+                </ul>
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'fishery:expense_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger px-5 py-3" id="deleteBtn" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Permanently
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal Script -->
+<script>
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = !checkbox.checked;
+    }
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const confirmDelete = document.getElementById('confirmDelete');
+        if (!confirmDelete.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand the financial impact of deleting this expense.');
+        }
+    });
+
+    // Countdown timer for safety
+    let countdown = 5;
+    let countdownInterval = null;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const confirmCheck = document.getElementById('confirmDelete');
+
+    confirmCheck.addEventListener('change', function() {
+        if (this.checked && !countdownInterval) {
+            // Store original text
+            const originalText = deleteBtn.innerHTML;
+            
+            // Start countdown
+            deleteBtn.disabled = true;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                deleteBtn.innerHTML = `Wait ${countdown} seconds... <i class="bi bi-hourglass-split ms-2"></i>`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                    countdown = 5;
+                }
+            }, 1000);
+        } else if (!this.checked && countdownInterval) {
+            // Cancel countdown
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3-fill me-2"></i>Delete Permanently';
+            countdown = 5;
+        }
+    });
+
+    // Keyboard shortcut warning
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const deleteBtn = document.getElementById('deleteBtn');
+            const confirmCheck = document.getElementById('confirmDelete');
+            
+            if (!deleteBtn.disabled && confirmCheck.checked) {
+                if (!confirm('Are you absolutely sure? This will permanently delete this expense and affect financial records.')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // Add animation class on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.warning-icon').classList.add('pulse-animation');
+        
+        // Animate detail boxes
+        document.querySelectorAll('.detail-box').forEach(el => {
+            el.classList.add('fade-in');
+        });
+    });
+</script>
+
+<style>
+    .warning-icon {
+        width: 120px;
+        height: 120px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px 15px rgba(220, 53, 69, 0.2);
+        }
+    }
+    
+    .expense-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .cycle-avatar {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-secondary {
+        border-left: 4px solid #6c757d;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+        margin-right: 5px;
+    }
+    
+    .badge.bg-danger {
+        background-color: #dc3545 !important;
+    }
+    
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #000;
+    }
+    
+    .badge.bg-info {
+        background-color: #0dcaf0 !important;
+        color: #000;
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Form check styling */
+    .form-check-input:checked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+        color: #dc3545;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+    
+    .form-check-label ul {
+        color: #495057;
+        margin-top: 8px;
+    }
+    
+    /* Disabled button style */
+    #deleteBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* Countdown timer text */
+    #deleteBtn i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Fade in animation */
+    .fade-in {
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Text colors */
+    .text-danger {
+        font-weight: 600 !important;
+    }
+    
+    .text-success {
+        font-weight: 600 !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .warning-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .warning-icon i {
+            font-size: 3rem !important;
+        }
+        
+        .expense-avatar {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .expense-avatar i {
+            font-size: 1.5rem !important;
+        }
+        
+        .cycle-avatar {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .btn {
+            padding: 12px 15px !important;
+            font-size: 0.9rem;
+        }
+        
+        h4 {
+            font-size: 1.2rem;
+        }
+        
+        .detail-box {
+            padding: 10px !important;
+        }
+        
+        .badge {
+            font-size: 0.8rem;
+            padding: 3px 6px;
+        }
+        
+        .row.g-3 {
+            --bs-gutter-y: 0.5rem;
+        }
+        
+        .form-check-label ul {
+            font-size: 0.9rem;
+            padding-left: 20px;
+        }
+        
+        .progress {
+            height: 6px !important;
+        }
+    }
+
+    /* Print styles */
+    @media print {
+        .btn, .form-check, .alert-info, #deleteBtn {
+            display: none;
+        }
+        
+        .warning-icon {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .bg-danger {
+            background-color: #dc3545 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .alert-warning, .alert-danger, .alert-info, .alert-secondary {
+            border: 1px solid #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,243 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_title %}{{ farm.name }}{% endblock %}
+
+{% block page_icon %}bi bi-building{% endblock %}
+
+{% block breadcrumb %}
+<a href="{% url 'fishery:farm_list' %}">Farms</a>
+<span>{{ farm.name }}</span>
+{% endblock %}
+
+{% block header_actions %}
+<div class="btn-group">
+    <a href="{% url 'fishery:farm_edit' farm.id %}" class="btn-outline">
+        <i class="bi bi-pencil"></i> Edit
+    </a>
+    <a href="{% url 'fishery:pond_add' %}?farm={{ farm.id }}" class="btn-primary">
+        <i class="bi bi-plus-circle"></i> Add Pond
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="row">
+    <!-- Farm Information -->
+    <div class="col-md-4 mb-4">
+        <div class="fishery-module-card">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="fishery-module-icon pond" style="width: 60px; height: 60px;">
+                    <i class="bi bi-building fs-1"></i>
+                </div>
+                <div>
+                    <h4 class="mb-1">{{ farm.name }}</h4>
+                    <p class="text-muted mb-0">Reg: {{ farm.registration_number|default:'Not registered' }}</p>
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <h6 class="fw-bold mb-2">📍 Address</h6>
+                <p>{{ farm.address }}<br>
+                {{ farm.city }}, {{ farm.state }}<br>
+                {{ farm.country }}</p>
+                
+                <h6 class="fw-bold mb-2 mt-3">📞 Contact</h6>
+                <p><i class="bi bi-telephone"></i> {{ farm.phone }}<br>
+                <i class="bi bi-envelope"></i> {{ farm.email|default:'Not provided' }}<br>
+                {% if farm.website %}<i class="bi bi-globe"></i> {{ farm.website }}{% endif %}</p>
+                
+                {% if farm.latitude and farm.longitude %}
+                <h6 class="fw-bold mb-2 mt-3">📍 GPS Coordinates</h6>
+                <p>Lat: {{ farm.latitude }}, Long: {{ farm.longitude }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="col-md-8 mb-4">
+        <div class="row">
+            <div class="col-sm-4 mb-3">
+                <div class="fishery-stat-card">
+                    <div class="fishery-stat-icon blue">
+                        <i class="bi bi-water"></i>
+                    </div>
+                    <div class="fishery-stat-value">{{ active_ponds }}</div>
+                    <div class="fishery-stat-label">Active Ponds</div>
+                    <small class="text-muted">Total: {{ ponds|length }}</small>
+                </div>
+            </div>
+            <div class="col-sm-4 mb-3">
+                <div class="fishery-stat-card">
+                    <div class="fishery-stat-icon green">
+                        <i class="bi bi-fish"></i>
+                    </div>
+                    <div class="fishery-stat-value">{{ active_cycles }}</div>
+                    <div class="fishery-stat-label">Active Cycles</div>
+                    <small class="text-muted">Completed: {{ completed_cycles }}</small>
+                </div>
+            </div>
+            <div class="col-sm-4 mb-3">
+                <div class="fishery-stat-card">
+                    <div class="fishery-stat-icon orange">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div class="fishery-stat-value">৳{{ yearly_sales|floatformat:0 }}</div>
+                    <div class="fishery-stat-label">Yearly Sales</div>
+                    <small class="text-muted">{{ yearly_harvest|floatformat:0 }}kg harvest</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pond Area Utilization -->
+        <div class="fishery-module-card mt-3">
+            <h5 class="mb-3">Pond Area Utilization</h5>
+            <div class="progress" style="height: 25px;">
+                <div class="progress-bar bg-success" style="width: {{ stocked_ponds|floatformat:0 }}%">
+                    Stocked: {{ total_pond_area|floatformat:1 }} acres
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-4 text-center">
+                    <div class="fw-bold">{{ total_pond_area|floatformat:1 }}</div>
+                    <small class="text-muted">Total Pond Area (acres)</small>
+                </div>
+                <div class="col-4 text-center">
+                    <div class="fw-bold">{{ farm.total_area }}</div>
+                    <small class="text-muted">Farm Area (acres)</small>
+                </div>
+                <div class="col-4 text-center">
+                    <div class="fw-bold">{{ total_pond_area|floatformat:1|add:farm.total_area|floatformat:1 }}</div>
+                    <small class="text-muted">Available Area</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ponds List -->
+<div class="fishery-table-container mt-4">
+    <div class="fishery-table-header">
+        <div class="fishery-table-title">
+            <i class="bi bi-water"></i>
+            Ponds at {{ farm.name }}
+        </div>
+    </div>
+
+    <table class="fishery-table">
+        <thead>
+            <tr>
+                <th>Pond ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Size (acres)</th>
+                <th>Depth (ft)</th>
+                <th>Status</th>
+                <th>Current Cycle</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pond in ponds %}
+            <tr>
+                <td><strong>{{ pond.pond_id }}</strong></td>
+                <td>{{ pond.name }}</td>
+                <td>{{ pond.get_pond_type_display }}</td>
+                <td>{{ pond.size_in_acres }}</td>
+                <td>{{ pond.average_depth|default:'-' }}</td>
+                <td>
+                    {% if pond.status == 'STOCKED' %}
+                    <span class="fishery-badge fishery-badge-success">{{ pond.get_status_display }}</span>
+                    {% elif pond.status == 'PREPARING' %}
+                    <span class="fishery-badge fishery-badge-warning">{{ pond.get_status_display }}</span>
+                    {% elif pond.status == 'MAINTENANCE' %}
+                    <span class="fishery-badge fishery-badge-danger">{{ pond.get_status_display }}</span>
+                    {% else %}
+                    <span class="fishery-badge fishery-badge-info">{{ pond.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% with cycle=pond.current_cycle %}
+                        {% if cycle %}
+                        <a href="{% url 'fishery:cycle_detail' cycle.id %}">
+                            {{ cycle.species.name }} ({{ cycle.stocking_date }})
+                        </a>
+                        {% else %}
+                        <span class="text-muted">No active cycle</span>
+                        {% endif %}
+                    {% endwith %}
+                </td>
+                <td>
+                    <div class="btn-group" style="gap: 5px;">
+                        <a href="{% url 'fishery:pond_detail' pond.id %}" class="btn-outline" style="padding: 5px 10px;">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{% url 'fishery:pond_edit' pond.id %}" class="btn-outline" style="padding: 5px 10px;">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center py-4">
+                    <p class="mb-2">No ponds added yet</p>
+                    <a href="{% url 'fishery:pond_add' %}?farm={{ farm.id }}" class="btn-primary">
+                        <i class="bi bi-plus-circle"></i> Add First Pond
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Recent Activities -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="fishery-module-card">
+            <h5 class="mb-3"><i class="bi bi-scissors"></i> Recent Harvests</h5>
+            <div class="activities-feed" style="max-height: 300px;">
+                {% for harvest in recent_harvests %}
+                <div class="activity-item">
+                    <div class="activity-icon success">
+                        <i class="bi bi-basket"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p>{{ harvest.cycle.pond.name }} - {{ harvest.quantity_kg }}kg</p>
+                        <div class="activity-time">
+                            <i class="bi bi-clock"></i> {{ harvest.harvest_date }}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center py-3">No recent harvests</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="fishery-module-card">
+            <h5 class="mb-3"><i class="bi bi-basket"></i> Recent Feeding</h5>
+            <div class="activities-feed" style="max-height: 300px;">
+                {% for feed in recent_feeding %}
+                <div class="activity-item">
+                    <div class="activity-icon info">
+                        <i class="bi bi-basket"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p>{{ feed.cycle.pond.name }} - {{ feed.quantity_kg }}kg {{ feed.feed_type.name }}</p>
+                        <div class="activity-time">
+                            <i class="bi bi-clock"></i> {{ feed.date }}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center py-3">No recent feeding</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

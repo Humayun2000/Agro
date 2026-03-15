@@ -1,0 +1,513 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Add New Fish Species{% else %}Edit {{ form.instance.name }}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:species_list' %}">Species</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Add New{% else %}Edit{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:species_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Species Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Add New Fish Species
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Species: {{ form.instance.name }}
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Add a new fish species to your catalog
+                        {% else %}
+                            Update fish species information and parameters
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="speciesForm" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <!-- Left Column - Basic Info -->
+                        <div class="col-md-6">
+                            <!-- Basic Information Section -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-info-circle text-primary me-2"></i>
+                                    Basic Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-tag me-1 text-primary"></i>
+                                        Species Name *
+                                    </label>
+                                    {{ form.name }}
+                                    <small class="text-muted">Common name of the fish species</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-binoculars me-1 text-primary"></i>
+                                        Scientific Name
+                                    </label>
+                                    {{ form.scientific_name }}
+                                    <small class="text-muted">Binomial nomenclature (e.g., Oreochromis niloticus)</small>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-grid-3x3 me-1 text-primary"></i>
+                                                Category *
+                                            </label>
+                                            {{ form.category }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-droplet me-1 text-primary"></i>
+                                                Water Type *
+                                            </label>
+                                            {{ form.water_type }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Growth Parameters Section -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-graph-up text-success me-2"></i>
+                                    Growth Parameters
+                                </h5>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar me-1 text-success"></i>
+                                        Average Growth Days *
+                                    </label>
+                                    {{ form.average_growth_days }}
+                                    <small class="text-muted">Typical days from stocking to harvest</small>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-arrow-down me-1 text-success"></i>
+                                                Min Harvest Weight (g)
+                                            </label>
+                                            {{ form.harvest_weight_min }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-arrow-up me-1 text-success"></i>
+                                                Max Harvest Weight (g)
+                                            </label>
+                                            {{ form.harvest_weight_max }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calculator me-1 text-success"></i>
+                                        Expected FCR
+                                    </label>
+                                    {{ form.expected_fcr }}
+                                    <small class="text-muted">Feed Conversion Ratio (kg feed / kg fish)</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Market & Breeding -->
+                        <div class="col-md-6">
+                            <!-- Market Information Section -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-cash-stack text-warning me-2"></i>
+                                    Market Information
+                                </h5>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-currency-dollar me-1 text-warning"></i>
+                                        Market Price (৳/kg)
+                                    </label>
+                                    {{ form.market_price }}
+                                    <small class="text-muted">Average market price per kg</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar-week me-1 text-warning"></i>
+                                        Demand Season
+                                    </label>
+                                    {{ form.demand_season }}
+                                    <small class="text-muted">e.g., "Winter", "Year-round", "Festival season"</small>
+                                </div>
+                            </div>
+
+                            <!-- Breeding Information Section -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-heart text-danger me-2"></i>
+                                    Breeding Information
+                                </h5>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar me-1 text-danger"></i>
+                                        Breeding Season
+                                    </label>
+                                    {{ form.breeding_season }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-clock me-1 text-danger"></i>
+                                        Gestation Days
+                                    </label>
+                                    {{ form.gestation_days }}
+                                </div>
+                            </div>
+
+                            <!-- Image Upload Section -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-image text-info me-2"></i>
+                                    Species Image
+                                </h5>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-file-image me-1 text-info"></i>
+                                        Image
+                                    </label>
+                                    {% if form.instance.image %}
+                                    <div class="mb-3">
+                                        <img src="{{ form.instance.image.url }}" alt="{{ form.instance.name }}" 
+                                             style="max-height: 150px; border-radius: 10px; border: 1px solid #e9ecef;">
+                                        <div class="form-check mt-2">
+                                            <input type="checkbox" name="image-clear" id="image-clear_id" class="form-check-input">
+                                            <label for="image-clear_id" class="form-check-label text-danger">Clear image</label>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {{ form.image }}
+                                    <small class="text-muted">Upload a photo of the species (JPEG, PNG)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description Section -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-chat-text text-secondary me-2"></i>
+                            Description
+                        </h5>
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-pencil me-1 text-secondary"></i>
+                                Additional Notes
+                            </label>
+                            {{ form.description }}
+                            <small class="text-muted">Any additional information about this species</small>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Last Updated</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.updated_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:species_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Add Species{% else %}Update Species{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {% if action == 'edit' %}
+            <!-- Quick Stats for this Species -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="fishery-table-container">
+                        <h5 class="fishery-table-title mb-3">
+                            <i class="bi bi-bar-chart"></i>
+                            Species Statistics
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Total Cycles</small>
+                                    <h4 class="mb-0">{{ form.instance.productioncycle_set.count }}</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Active Cycles</small>
+                                    <h4 class="mb-0">{{ form.instance.productioncycle_set.all|dictsortreversed:"status"|first|default:"0" }}</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Total Harvest</small>
+                                    <h4 class="mb-0">-- kg</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Avg. FCR</small>
+                                    <h4 class="mb-0">{{ form.instance.expected_fcr|default:"--" }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Form Validation Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-calculate weight range validation
+        const minWeight = document.getElementById('{{ form.harvest_weight_min.id_for_label }}');
+        const maxWeight = document.getElementById('{{ form.harvest_weight_max.id_for_label }}');
+        
+        function validateWeightRange() {
+            const min = parseFloat(minWeight.value) || 0;
+            const max = parseFloat(maxWeight.value) || 0;
+            
+            if (min > 0 && max > 0 && min > max) {
+                maxWeight.setCustomValidity('Maximum weight must be greater than minimum weight');
+                maxWeight.classList.add('is-invalid');
+            } else {
+                maxWeight.setCustomValidity('');
+                maxWeight.classList.remove('is-invalid');
+            }
+        }
+        
+        if (minWeight && maxWeight) {
+            minWeight.addEventListener('input', validateWeightRange);
+            maxWeight.addEventListener('input', validateWeightRange);
+        }
+    });
+
+    // Form validation
+    document.getElementById('speciesForm').addEventListener('submit', function(e) {
+        const name = document.getElementById('{{ form.name.id_for_label }}').value;
+        const growthDays = document.getElementById('{{ form.average_growth_days.id_for_label }}').value;
+        
+        if (!name.trim()) {
+            e.preventDefault();
+            alert('Please enter a species name');
+            return;
+        }
+        
+        if (!growthDays || parseInt(growthDays) <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid number of growth days');
+            return;
+        }
+        
+        // Validate FCR if provided
+        const fcr = document.getElementById('{{ form.expected_fcr.id_for_label }}').value;
+        if (fcr && parseFloat(fcr) <= 0) {
+            e.preventDefault();
+            alert('FCR must be greater than 0');
+            return;
+        }
+        
+        // Validate market price if provided
+        const price = document.getElementById('{{ form.market_price.id_for_label }}').value;
+        if (price && parseFloat(price) < 0) {
+            e.preventDefault();
+            alert('Market price cannot be negative');
+            return;
+        }
+    });
+
+    // Unsaved changes warning
+    let formChanged = false;
+    document.getElementById('speciesForm').addEventListener('input', function() {
+        formChanged = true;
+    });
+    
+    window.addEventListener('beforeunload', function(e) {
+        if (formChanged) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+
+    // Image preview
+    const imageInput = document.getElementById('{{ form.image.id_for_label }}');
+    if (imageInput) {
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // You could show a preview here if desired
+                    console.log('Image selected:', file.name);
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 20px rgba(13, 110, 253, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+    }
+    
+    .is-invalid {
+        border-color: #dc3545;
+    }
+    
+    .is-invalid:focus {
+        box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
+    }
+    
+    /* Image styling */
+    img {
+        max-width: 100%;
+        height: auto;
+        transition: all 0.3s ease;
+    }
+    
+    img:hover {
+        opacity: 0.9;
+    }
+    
+    /* Quick stats cards */
+    .bg-light.rounded-3 {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .bg-light.rounded-3:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 15px rgba(13, 110, 253, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        .row {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}

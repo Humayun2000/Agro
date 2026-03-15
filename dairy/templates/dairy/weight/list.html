@@ -253,10 +253,12 @@
                                 <a href="{% url 'dairy:weight_edit' record.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete({{ record.id }})" title="Delete">
+                                <!-- FIXED: Direct link to delete page -->
+                                <a href="{% url 'dairy:weight_delete' record.id %}" class="btn btn-sm btn-outline-danger" title="Delete">
                                     <i class="bi bi-trash"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-success" onclick="showGrowthChart({{ record.cattle.id }})" title="View Growth">
+                                </a>
+                                <!-- FIXED: Button with direct onclick -->
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="showGrowthChart({{ record.cattle.id }})" title="View Growth">
                                     <i class="bi bi-graph-up"></i>
                                 </button>
                             </div>
@@ -386,32 +388,6 @@
     </div>
 </div>
 
-<!-- Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    Confirm Delete
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to delete this weight record?</p>
-                <div class="alert alert-warning">
-                    <i class="bi bi-info-circle me-2"></i>
-                    This will affect growth tracking statistics.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <a href="#" id="confirmDeleteBtn" class="btn btn-danger">Delete</a>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     let growthChart = null;
@@ -479,26 +455,35 @@
             });
     }
 
-    // Show growth chart modal
+    // Show growth chart modal - FIXED
     function showGrowthChart(cattleId) {
-        const modal = new bootstrap.Modal(document.getElementById('growthChartModal'));
+        // Show loading
+        showLoading();
         
         fetch(`/dairy/api/weight/chart-data/?cattle_id=${cattleId}`)
             .then(response => response.json())
             .then(data => {
-                const ctx = document.getElementById('modalGrowthChart').getContext('2d');
+                // Hide loading
+                hideLoading();
                 
+                // Get modal element
+                const modalEl = document.getElementById('growthChartModal');
+                const modal = new bootstrap.Modal(modalEl);
+                
+                // Destroy previous chart if exists
                 if (modalChart) {
                     modalChart.destroy();
                 }
                 
+                // Create new chart
+                const ctx = document.getElementById('modalGrowthChart').getContext('2d');
                 modalChart = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: data.labels,
+                        labels: data.labels || ['No Data'],
                         datasets: [{
                             label: 'Weight (kg)',
-                            data: data.values,
+                            data: data.values || [0],
                             borderColor: '#28a745',
                             backgroundColor: 'rgba(40, 167, 69, 0.1)',
                             borderWidth: 3,
@@ -517,7 +502,13 @@
                     }
                 });
                 
+                // Show modal
                 modal.show();
+            })
+            .catch(error => {
+                console.error('Error loading growth chart:', error);
+                hideLoading();
+                alert('Could not load growth chart data. Please try again.');
             });
     }
 
@@ -543,16 +534,8 @@
     function compareSelected() {
         const selected = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => cb.value);
         if (selected.length >= 2) {
-            // Implement comparison logic
             alert('Comparison feature coming soon!');
         }
-    }
-
-    // Delete confirmation
-    function confirmDelete(recordId) {
-        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        document.getElementById('confirmDeleteBtn').href = "{% url 'dairy:weight_delete' 0 %}".replace('0', recordId);
-        modal.show();
     }
 
     // Bulk delete
@@ -567,40 +550,61 @@
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({ ids: selected })
-            }).then(response => response.json())
-              .then(data => {
-                  if (data.success) {
-                      location.reload();
-                  } else {
-                      alert('Error: ' + data.error);
-                      hideLoading();
-                  }
-              });
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting');
+                hideLoading();
+            });
         }
     }
 
     // Export data
     function exportData() {
-        // Updated to use the correct URL
         window.location.href = "{% url 'dairy:export_weight_csv' %}";
     }
+
+    // Handle row click - FIXED to exclude links
+    document.querySelectorAll('.weight-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            // Don't toggle if clicking on a link, button, or checkbox
+            if (e.target.closest('a') || e.target.closest('.btn') || e.target.type === 'checkbox') {
+                return;
+            }
+            
+            const checkbox = this.querySelector('.record-checkbox');
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                updateSelectedCount();
+            }
+        });
+    });
 
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
         initChart();
+        updateSelectedCount();
     });
 
-    // Auto-refresh every 60 seconds
-    let autoRefresh = true;
-    setInterval(() => {
-        if (autoRefresh && !document.hidden) {
-            location.reload();
-        }
-    }, 60000);
-
-    document.addEventListener('visibilitychange', () => {
-        autoRefresh = !document.hidden;
-    });
+    // Loading functions
+    function showLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.classList.add('active');
+    }
+    
+    function hideLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.classList.remove('active');
+    }
 </script>
 
 <style>
@@ -626,5 +630,42 @@
         border-radius: 4px;
         transition: width 0.3s ease;
     }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        display: none;
+    }
+    
+    .loading-overlay.active {
+        display: flex;
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #28a745;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
 </style>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+</div>
 {% endblock %}

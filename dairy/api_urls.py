@@ -110,8 +110,8 @@ urlpatterns = [
     path('bulk/cattle/delete/', views.BulkCattleDeleteAPIView.as_view(), name='api_bulk_cattle_delete'),
     path('bulk/milk/delete/', views.BulkMilkDeleteAPIView.as_view(), name='api_bulk_milk_delete'),
     path('bulk/health/delete/', views.BulkHealthDeleteAPIView.as_view(), name='api_bulk_health_delete'),
+    path('bulk/weight/delete/', views.BulkWeightDeleteAPIView.as_view(), name='api_bulk_weight_delete'),  # ADD THIS LINE
     path('bulk/vaccination/complete/', views.BulkVaccinationCompleteAPIView.as_view(), name='api_bulk_vaccination_complete'),
-    
     # ==================== SEARCH APIS ====================
     path('search/cattle/', views.SearchCattleAPIView.as_view(), name='api_search_cattle'),
     path('search/records/', views.SearchRecordsAPIView.as_view(), name='api_search_records'),

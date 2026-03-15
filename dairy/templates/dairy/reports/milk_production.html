@@ -1,0 +1,268 @@
+{% extends 'dairy/reports/base_report.html' %}
+{% load static %}
+
+{% block filters %}
+<div class="filter-group">
+    <label>Report Period</label>
+    <select name="period">
+        <option value="daily" {% if period == 'daily' %}selected{% endif %}>Daily</option>
+        <option value="weekly" {% if period == 'weekly' %}selected{% endif %}>Weekly</option>
+        <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>Monthly</option>
+        <option value="quarterly" {% if period == 'quarterly' %}selected{% endif %}>Quarterly</option>
+        <option value="yearly" {% if period == 'yearly' %}selected{% endif %}>Yearly</option>
+        <option value="custom" {% if period == 'custom' %}selected{% endif %}>Custom</option>
+    </select>
+</div>
+
+<div class="filter-group">
+    <label>Year</label>
+    <select name="year">
+        {% for y in years %}
+        <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="filter-group">
+    <label>Month</label>
+    <select name="month">
+        <option value="">All Months</option>
+        {% for m in months %}
+        <option value="{{ m.value }}" {% if month == m.value %}selected{% endif %}>{{ m.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="filter-group">
+    <label>Start Date</label>
+    <input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" id="start_date">
+</div>
+
+<div class="filter-group">
+    <label>End Date</label>
+    <input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" id="end_date">
+</div>
+
+<div class="filter-group">
+    <label>Cattle</label>
+    <select name="cattle">
+        <option value="">All Cattle</option>
+        {% for cattle in cattle_list %}
+        <option value="{{ cattle.id }}" {% if selected_cattle == cattle.id %}selected{% endif %}>
+            {{ cattle.tag_number }} - {{ cattle.name|default:'' }}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="filter-group">
+    <label>Date Range Presets</label>
+    <div style="display: flex; gap: 5px;">
+        <button type="button" onclick="setDateRange(7)" class="btn-reset" style="padding: 5px 10px;">7 Days</button>
+        <button type="button" onclick="setDateRange(30)" class="btn-reset" style="padding: 5px 10px;">30 Days</button>
+        <button type="button" onclick="setDateRange(90)" class="btn-reset" style="padding: 5px 10px;">90 Days</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block report_content %}
+<!-- Summary Cards -->
+<div class="summary-grid">
+    <div class="summary-card">
+        <h3>{{ total_milk|floatformat:0 }} L</h3>
+        <p>Total Milk Produced</p>
+        <small style="color: {% if milk_growth > 0 %}#28a745{% else %}#dc3545{% endif %};">
+            {% if milk_growth > 0 %}↑{% else %}↓{% endif %} {{ milk_growth|floatformat:1 }}% vs previous period
+        </small>
+    </div>
+    
+    <div class="summary-card">
+        <h3>{{ avg_daily|floatformat:1 }} L</h3>
+        <p>Average Daily Production</p>
+    </div>
+    
+    <div class="summary-card">
+        <h3>{{ avg_fat|floatformat:1 }}%</h3>
+        <p>Average Fat Percentage</p>
+    </div>
+    
+    <div class="summary-card">
+        <h3>{{ total_revenue|floatformat:0 }} ৳</h3>
+        <p>Total Revenue</p>
+        <small>Avg. Price: {{ avg_price|floatformat:2 }} ৳/L</small>
+    </div>
+    
+    <div class="summary-card">
+        <h3>{{ total_lactating }}</h3>
+        <p>Lactating Cows</p>
+        <small>{{ avg_per_cow|floatformat:1 }} L/cow</small>
+    </div>
+    
+    <div class="summary-card">
+        <h3>{{ peak_day|date:"M d, Y" }}</h3>
+        <p>Peak Production Day</p>
+        <small>{{ peak_amount|floatformat:0 }} L</small>
+    </div>
+</div>
+
+<!-- Production Chart -->
+<div class="chart-container">
+    <canvas id="milkChart"></canvas>
+</div>
+
+<!-- Top Producers Table -->
+<h3 style="margin-bottom: 20px;">🥇 Top Producing Cattle</h3>
+<table class="report-table">
+    <thead>
+        <tr>
+            <th>Rank</th>
+            <th>Tag Number</th>
+            <th>Name</th>
+            <th>Breed</th>
+            <th>Total Production (L)</th>
+            <th>Average (L/day)</th>
+            <th>Max Day (L)</th>
+            <th>% of Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for producer in top_producers %}
+        <tr>
+            <td><strong>#{{ forloop.counter }}</strong></td>
+            <td>
+                <a href="{% url 'dairy:cattle_detail' producer.cattle.id %}" style="color: #667eea; text-decoration: none;">
+                    {{ producer.cattle.tag_number }}
+                </a>
+            </td>
+            <td>{{ producer.cattle.name|default:"-" }}</td>
+            <td>{{ producer.cattle.get_breed_display }}</td>
+            <td><strong>{{ producer.total|floatformat:1 }} L</strong></td>
+            <td>{{ producer.avg|floatformat:1 }} L</td>
+            <td>{{ producer.max|floatformat:1 }} L</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span>{{ producer.percentage|floatformat:1 }}%</span>
+                    <div style="flex: 1; height: 8px; background: #e9ecef; border-radius: 4px;">
+                        <div style="width: {{ producer.percentage }}%; height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 4px;"></div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Daily Breakdown -->
+<h3 style="margin: 30px 0 20px;">📅 Daily Production Breakdown</h3>
+<div style="overflow-x: auto;">
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Morning (L)</th>
+                <th>Afternoon (L)</th>
+                <th>Evening (L)</th>
+                <th>Total (L)</th>
+                <th>Avg Fat %</th>
+                <th>Lactating Cows</th>
+                <th>Revenue (৳)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for day in daily_breakdown %}
+            <tr>
+                <td>{{ day.date|date:"M d, Y" }}</td>
+                <td>{{ day.morning|floatformat:1 }}</td>
+                <td>{{ day.afternoon|floatformat:1 }}</td>
+                <td>{{ day.evening|floatformat:1 }}</td>
+                <td><strong>{{ day.total|floatformat:1 }}</strong></td>
+                <td>{{ day.avg_fat|floatformat:1 }}%</td>
+                <td>{{ day.cow_count }}</td>
+                <td>৳{{ day.revenue|floatformat:0 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px;">
+                    <i class="bi bi-droplet" style="font-size: 3rem; color: #cbd5e1;"></i>
+                    <p style="color: #64748b; margin-top: 10px;">No milk production data for selected period</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Chart.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('milkChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_labels|safe }},
+            datasets: [{
+                label: 'Morning',
+                data: {{ morning_data|safe }},
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                tension: 0.4,
+                fill: false
+            }, {
+                label: 'Afternoon',
+                data: {{ afternoon_data|safe }},
+                borderColor: '#fd7e14',
+                backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                tension: 0.4,
+                fill: false
+            }, {
+                label: 'Evening',
+                data: {{ evening_data|safe }},
+                borderColor: '#6f42c1',
+                backgroundColor: 'rgba(111, 66, 193, 0.1)',
+                tension: 0.4,
+                fill: false
+            }, {
+                label: 'Total',
+                data: {{ total_data|safe }},
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Milk Production Trends',
+                    font: { size: 16, weight: 'bold' }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' L';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Liters'
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

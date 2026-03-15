@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Sheikh Agro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Welcome Banner -->
+    <div class="alert alert-primary d-flex align-items-center justify-content-between mb-4" 
+         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 15px;">
+        <div>
+            <h4 class="mb-2 fw-bold">
+                👋 Welcome back, {{ user.full_name }}!
+            </h4>
+            <p class="mb-0 opacity-75">
+                <i class="bi bi-clock me-2"></i>
+                {{ last_login|date:"l, F j, Y H:i" }}
+            </p>
+        </div>
+        <div>
+            <span class="badge bg-white text-dark p-3">
+                <i class="bi bi-calendar me-2"></i> {{ days_since_joined }} days with us
+            </span>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-shield fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Your Role</h6>
+                            <h3 class="mb-0">{{ user.get_role_display }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-person-check fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Account Status</h6>
+                            <h3 class="mb-0 text-success">Active</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-calendar-check fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Member Since</h6>
+                            <h3 class="mb-0">{{ user.date_joined|date:"M Y" }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-last fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Last Active</h6>
+                            <h3 class="mb-0">{{ user.last_active|timesince|default:"Just now" }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="card-title">
+                        <i class="bi bi-lightning-charge text-warning me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <a href="{% url 'accounts:profile' %}" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-person me-2"></i>View Profile
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'accounts:profile_edit' %}" class="btn btn-outline-success w-100">
+                                <i class="bi bi-pencil me-2"></i>Edit Profile
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'accounts:settings' %}" class="btn btn-outline-info w-100">
+                                <i class="bi bi-gear me-2"></i>Settings
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'accounts:password_reset' %}" class="btn btn-outline-warning w-100">
+                                <i class="bi bi-key me-2"></i>Change Password
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="card-title">
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        Account Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span><i class="bi bi-envelope me-2 text-primary"></i>Email</span>
+                            <span class="text-muted">{{ user.email|default:"Not provided" }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span><i class="bi bi-phone me-2 text-success"></i>Phone</span>
+                            <span class="text-muted">{{ user.phone_number|default:"Not provided" }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span><i class="bi bi-person me-2 text-info"></i>Full Name</span>
+                            <span class="text-muted">{{ user.full_name }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span><i class="bi bi-palette me-2 text-warning"></i>Theme</span>
+                            <span class="badge bg-light text-dark">{{ user.get_theme_display }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Section (Only for admins) -->
+    {% if user.is_admin %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="card-title text-danger">
+                        <i class="bi bi-shield-fill me-2"></i>
+                        Admin Dashboard
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-3">
+                            <div class="bg-light p-3 rounded-3 text-center">
+                                <h3 class="text-primary mb-2">{{ total_users|default:"0" }}</h3>
+                                <span class="text-muted">Total Users</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-light p-3 rounded-3 text-center">
+                                <h3 class="text-danger mb-2">{{ admins|default:"0" }}</h3>
+                                <span class="text-muted">Admins</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-light p-3 rounded-3 text-center">
+                                <h3 class="text-warning mb-2">{{ managers|default:"0" }}</h3>
+                                <span class="text-muted">Managers</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-light p-3 rounded-3 text-center">
+                                <h3 class="text-info mb-2">{{ staff|default:"0" }}</h3>
+                                <span class="text-muted">Staff</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <a href="{% url 'accounts:user_list' %}" class="btn btn-primary">
+                            <i class="bi bi-people me-2"></i>Manage Users
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

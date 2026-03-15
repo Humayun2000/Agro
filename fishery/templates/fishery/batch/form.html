@@ -1,0 +1,427 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Add New Fish Batch{% else %}Edit Batch {{ form.instance.batch_number }}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:batch_list' %}">Batches</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Add New{% else %}Edit{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:batch_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Batch Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Add New Fish Batch
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Batch: {{ form.instance.batch_number }}
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Register a new genetic batch of fish
+                        {% else %}
+                            Update batch information and certification
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="batchForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <!-- Left Column - Basic Info -->
+                        <div class="col-md-6">
+                            <!-- Basic Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-info-circle text-primary me-2"></i>
+                                    Basic Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-upc-scan me-1 text-primary"></i>
+                                        Batch Number *
+                                    </label>
+                                    {{ form.batch_number }}
+                                    <small class="text-muted">Unique identifier for this batch</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-fish me-1 text-primary"></i>
+                                        Species *
+                                    </label>
+                                    {{ form.species }}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-grid-3x3 me-1 text-primary"></i>
+                                                Source *
+                                            </label>
+                                            {{ form.source }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-tag me-1 text-primary"></i>
+                                                Grade *
+                                            </label>
+                                            {{ form.grade }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-building me-1 text-primary"></i>
+                                        Supplier
+                                    </label>
+                                    {{ form.supplier }}
+                                </div>
+                            </div>
+
+                            <!-- Genetic Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-diagram-3 text-success me-2"></i>
+                                    Genetic Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-arrow-up me-1 text-success"></i>
+                                        Generation
+                                    </label>
+                                    {{ form.generation }}
+                                    <small class="text-muted">e.g., F1, F2, etc.</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-globe me-1 text-success"></i>
+                                        Origin
+                                    </label>
+                                    {{ form.origin }}
+                                    <small class="text-muted">Original source/breeding line</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-shield me-1 text-success"></i>
+                                        Disease Resistance
+                                    </label>
+                                    {{ form.disease_resistance }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Certification -->
+                        <div class="col-md-6">
+                            <!-- Certification -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-patch-check text-warning me-2"></i>
+                                    Certification
+                                </h5>
+                                
+                                <div class="form-check mb-3">
+                                    {{ form.is_certified }}
+                                    <label class="form-check-label fw-bold" for="{{ form.is_certified.id_for_label }}">
+                                        <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                        Certified Batch
+                                    </label>
+                                </div>
+
+                                <div id="certificationFields" style="display: {% if form.instance.is_certified %}block{% else %}none{% endif %};">
+                                    <div class="fishery-form-group mb-3">
+                                        <label class="fishery-form-label">
+                                            <i class="bi bi-upc-scan me-1 text-warning"></i>
+                                            Certification Number
+                                        </label>
+                                        {{ form.certification_number }}
+                                    </div>
+
+                                    <div class="fishery-form-group mb-3">
+                                        <label class="fishery-form-label">
+                                            <i class="bi bi-calendar me-1 text-warning"></i>
+                                            Certification Date
+                                        </label>
+                                        {{ form.certification_date }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Quick Stats (Edit mode only) -->
+                            {% if action == 'edit' %}
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-bar-chart text-info me-2"></i>
+                                    Batch Usage
+                                </h5>
+                                
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <div class="bg-light p-3 rounded-3 text-center">
+                                            <small class="text-muted">Total Cycles</small>
+                                            <h4 class="mb-0">{{ cycle_count }}</h4>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-light p-3 rounded-3 text-center">
+                                            <small class="text-muted">Active Cycles</small>
+                                            <h4 class="mb-0">{{ active_cycle_count }}</h4>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="bg-light p-3 rounded-3">
+                                            <small class="text-muted">Total Production</small>
+                                            <h4 class="mb-0 text-success">{{ total_harvest|floatformat:0 }} kg</h4>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if recent_cycles %}
+                                <div class="mt-3">
+                                    <h6 class="fw-bold mb-2">Recent Cycles Using This Batch:</h6>
+                                    {% for cycle in recent_cycles %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded-3">
+                                        <div>
+                                            <span class="fw-bold">{{ cycle.pond.name }}</span>
+                                            <small class="text-muted d-block">{{ cycle.species.name }}</small>
+                                        </div>
+                                        <a href="{% url 'fishery:cycle_detail' cycle.id %}" class="btn btn-sm btn-outline-info">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Notes -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-chat-text text-secondary me-2"></i>
+                                    Notes
+                                </h5>
+                                
+                                <div class="fishery-form-group">
+                                    {{ form.notes }}
+                                    <small class="text-muted">Any additional information about this batch</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Batch Guidelines -->
+                    <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+                        <i class="bi bi-lightbulb-fill fs-4"></i>
+                        <div>
+                            <strong>Batch Management Tips:</strong>
+                            <ul class="mb-0 mt-1">
+                                <li>Use unique batch numbers for traceability</li>
+                                <li>Record genetic information for breeding programs</li>
+                                <li>Keep certification documents for premium pricing</li>
+                                <li>Track batch performance across different ponds</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:batch_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Add Batch{% else %}Update Batch{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Certification toggle
+        const certifiedCheck = document.getElementById('{{ form.is_certified.id_for_label }}');
+        const certificationFields = document.getElementById('certificationFields');
+        
+        if (certifiedCheck) {
+            certifiedCheck.addEventListener('change', function() {
+                certificationFields.style.display = this.checked ? 'block' : 'none';
+            });
+        }
+
+        // Generate batch number suggestion
+        const batchNumberInput = document.getElementById('{{ form.batch_number.id_for_label }}');
+        if (batchNumberInput && !batchNumberInput.value) {
+            const timestamp = Date.now().toString().slice(-6);
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            batchNumberInput.value = `BATCH${timestamp}${random}`;
+        }
+
+        // Form validation
+        document.getElementById('batchForm').addEventListener('submit', function(e) {
+            const batchNumber = batchNumberInput.value;
+            const species = document.getElementById('{{ form.species.id_for_label }}').value;
+            
+            if (!batchNumber.trim()) {
+                e.preventDefault();
+                alert('Please enter a batch number');
+                return;
+            }
+            
+            if (!species) {
+                e.preventDefault();
+                alert('Please select a species');
+                return;
+            }
+            
+            // Validate certification fields if checked
+            if (certifiedCheck && certifiedCheck.checked) {
+                const certNumber = document.getElementById('{{ form.certification_number.id_for_label }}').value;
+                const certDate = document.getElementById('{{ form.certification_date.id_for_label }}').value;
+                
+                if (!certNumber.trim()) {
+                    e.preventDefault();
+                    alert('Please enter certification number');
+                    return;
+                }
+                
+                if (!certDate) {
+                    e.preventDefault();
+                    alert('Please select certification date');
+                    return;
+                }
+            }
+        });
+
+        // Unsaved changes warning
+        let formChanged = false;
+        document.getElementById('batchForm').addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    });
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 20px rgba(13, 110, 253, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+        cursor: default;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        .row {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}

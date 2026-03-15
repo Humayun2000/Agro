@@ -1,0 +1,654 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Add New Customer{% else %}Edit {{ form.instance.name }}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:customer_list' %}">Customers</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Add New{% else %}Edit{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:customer_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Customer Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Add New Customer
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Customer: {{ form.instance.name }}
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Add a new customer to your sales network
+                        {% else %}
+                            Update customer information and credit settings
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="customerForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <!-- Left Column - Basic Info -->
+                        <div class="col-md-6">
+                            <!-- Basic Information Section -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-info-circle text-primary me-2"></i>
+                                    Basic Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-tag me-1 text-primary"></i>
+                                        Customer ID *
+                                    </label>
+                                    {{ form.customer_id }}
+                                    <small class="text-muted">Unique identifier for the customer</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-person me-1 text-primary"></i>
+                                        Customer Name *
+                                    </label>
+                                    {{ form.name }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-building me-1 text-primary"></i>
+                                        Business Name
+                                    </label>
+                                    {{ form.business_name }}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-grid-3x3 me-1 text-primary"></i>
+                                                Customer Type *
+                                            </label>
+                                            {{ form.customer_type }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group mb-3">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-check-circle me-1 text-primary"></i>
+                                                Status
+                                            </label>
+                                            <div class="form-check mt-2">
+                                                {{ form.is_active }}
+                                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                                    Active Customer
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contact Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-telephone text-success me-2"></i>
+                                    Contact Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-telephone me-1 text-success"></i>
+                                        Phone Number *
+                                    </label>
+                                    {{ form.phone }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-phone me-1 text-success"></i>
+                                        Alternate Phone
+                                    </label>
+                                    {{ form.alternate_phone }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-envelope me-1 text-success"></i>
+                                        Email Address
+                                    </label>
+                                    {{ form.email }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Address & Credit -->
+                        <div class="col-md-6">
+                            <!-- Address Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-geo-alt text-warning me-2"></i>
+                                    Address Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-pin-map me-1 text-warning"></i>
+                                        Address
+                                    </label>
+                                    {{ form.address }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-building me-1 text-warning"></i>
+                                        City *
+                                    </label>
+                                    {{ form.city }}
+                                </div>
+                            </div>
+
+                            <!-- Credit Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-credit-card text-info me-2"></i>
+                                    Credit Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-arrow-up me-1 text-info"></i>
+                                        Credit Limit (৳)
+                                    </label>
+                                    {{ form.credit_limit }}
+                                    <small class="text-muted">Maximum credit allowed for this customer</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-cash-stack me-1 text-info"></i>
+                                        Current Balance (৳)
+                                    </label>
+                                    {{ form.current_balance }}
+                                    <small class="text-muted">Current outstanding balance (read-only if sales exist)</small>
+                                </div>
+
+                                <!-- Credit Status Preview -->
+                                <div id="creditPreview" class="mt-3 p-3 bg-light rounded-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Credit Available:</span>
+                                        <span class="fw-bold" id="creditAvailable">৳0</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Utilization:</span>
+                                        <span class="fw-bold" id="creditUtilization">0%</span>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar" role="progressbar" 
+                                             style="width: 0%" id="creditProgress"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Credit Warning -->
+                                <div id="creditWarning" class="alert alert-warning mt-3" style="display: none;">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    <span id="creditWarningMessage"></span>
+                                </div>
+                            </div>
+
+                            <!-- Tax Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-receipt text-secondary me-2"></i>
+                                    Tax Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-upc-scan me-1 text-secondary"></i>
+                                        Tax Number / VAT
+                                    </label>
+                                    {{ form.tax_number }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preferences -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-star text-warning me-2"></i>
+                            Preferences
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-fish me-1 text-warning"></i>
+                                        Preferred Species
+                                    </label>
+                                    {{ form.preferred_species }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-credit-card me-1 text-warning"></i>
+                                        Preferred Payment
+                                    </label>
+                                    {{ form.preferred_payment }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-chat-text text-secondary me-2"></i>
+                            Notes
+                        </h5>
+                        
+                        <div class="fishery-form-group">
+                            {{ form.notes }}
+                            <small class="text-muted">Any additional information about this customer</small>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Last Updated</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.updated_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Purchase History Summary (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-cash-stack text-success me-2"></i>
+                            Purchase Summary
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Total Purchases</small>
+                                    <h4 class="mb-0">{{ purchase_count }}</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Total Spent</small>
+                                    <h4 class="mb-0 text-success">৳{{ total_spent|floatformat:0 }}</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Last Purchase</small>
+                                    <h4 class="mb-0">
+                                        {% if last_purchase %}
+                                            {{ last_purchase.sale_date|date:"M d, Y" }}
+                                        {% else %}
+                                            Never
+                                        {% endif %}
+                                    </h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:customer_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Add Customer{% else %}Update Customer{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const creditLimitInput = document.getElementById('{{ form.credit_limit.id_for_label }}');
+        const balanceInput = document.getElementById('{{ form.current_balance.id_for_label }}');
+        const creditAvailable = document.getElementById('creditAvailable');
+        const creditUtilization = document.getElementById('creditUtilization');
+        const creditProgress = document.getElementById('creditProgress');
+        const creditWarning = document.getElementById('creditWarning');
+        const creditWarningMessage = document.getElementById('creditWarningMessage');
+        const customerIdInput = document.getElementById('{{ form.customer_id.id_for_label }}');
+
+        // Generate customer ID suggestion
+        function generateCustomerId() {
+            if (customerIdInput && !customerIdInput.value) {
+                const timestamp = Date.now().toString().slice(-6);
+                const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                customerIdInput.value = `CUST${timestamp}${random}`;
+            }
+        }
+
+        // Update credit calculations
+        function updateCreditCalculations() {
+            const creditLimit = parseFloat(creditLimitInput.value) || 0;
+            const balance = parseFloat(balanceInput.value) || 0;
+            
+            // Calculate available credit
+            const available = creditLimit - balance;
+            creditAvailable.textContent = '৳' + available.toFixed(2);
+            
+            // Calculate utilization percentage
+            let utilization = 0;
+            if (creditLimit > 0) {
+                utilization = (balance / creditLimit * 100);
+                creditUtilization.textContent = utilization.toFixed(1) + '%';
+                
+                // Update progress bar
+                creditProgress.style.width = utilization + '%';
+                
+                // Color code based on utilization
+                if (utilization >= 100) {
+                    creditProgress.className = 'progress-bar bg-danger';
+                } else if (utilization >= 80) {
+                    creditProgress.className = 'progress-bar bg-warning';
+                } else {
+                    creditProgress.className = 'progress-bar bg-success';
+                }
+            } else {
+                creditUtilization.textContent = 'N/A';
+                creditProgress.style.width = '0%';
+                creditProgress.className = 'progress-bar';
+            }
+            
+            // Check for credit warnings
+            if (balance > creditLimit && creditLimit > 0) {
+                const overLimit = (balance - creditLimit).toFixed(2);
+                creditWarning.style.display = 'block';
+                creditWarningMessage.innerHTML = `⚠️ Customer exceeds credit limit by ৳${overLimit}`;
+            } else if (creditLimit === 0) {
+                creditWarning.style.display = 'block';
+                creditWarningMessage.innerHTML = 'ℹ️ No credit limit set. Customer can make cash purchases only.';
+            } else if (utilization >= 80 && utilization < 100) {
+                creditWarning.style.display = 'block';
+                creditWarningMessage.innerHTML = '⚠️ Customer is approaching credit limit (80%+ utilized)';
+            } else {
+                creditWarning.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        if (creditLimitInput) {
+            creditLimitInput.addEventListener('input', updateCreditCalculations);
+        }
+        
+        if (balanceInput) {
+            balanceInput.addEventListener('input', updateCreditCalculations);
+        }
+
+        // Generate customer ID on page load for add mode
+        {% if action == 'add' %}
+        generateCustomerId();
+        {% endif %}
+
+        // Initialize credit calculations
+        updateCreditCalculations();
+
+        // Form validation
+        document.getElementById('customerForm').addEventListener('submit', function(e) {
+            const name = document.getElementById('{{ form.name.id_for_label }}').value;
+            const phone = document.getElementById('{{ form.phone.id_for_label }}').value;
+            const city = document.getElementById('{{ form.city.id_for_label }}').value;
+            const customerId = customerIdInput.value;
+            
+            if (!name.trim()) {
+                e.preventDefault();
+                alert('Please enter customer name');
+                return;
+            }
+            
+            if (!phone.trim()) {
+                e.preventDefault();
+                alert('Please enter phone number');
+                return;
+            }
+            
+            if (!city.trim()) {
+                e.preventDefault();
+                alert('Please enter city');
+                return;
+            }
+            
+            if (!customerId.trim()) {
+                e.preventDefault();
+                alert('Customer ID is required');
+                return;
+            }
+            
+            // Validate credit values
+            const creditLimit = parseFloat(creditLimitInput.value) || 0;
+            const balance = parseFloat(balanceInput.value) || 0;
+            
+            if (creditLimit < 0) {
+                e.preventDefault();
+                alert('Credit limit cannot be negative');
+                return;
+            }
+            
+            if (balance < 0) {
+                e.preventDefault();
+                alert('Current balance cannot be negative');
+                return;
+            }
+            
+            // Check if there are existing sales and balance is being modified
+            {% if action == 'edit' and purchase_count > 0 %}
+            const originalBalance = {{ form.instance.current_balance|default:0 }};
+            if (balance !== originalBalance) {
+                if (!confirm('Warning: This customer has existing sales. Changing the balance may affect financial records. Continue?')) {
+                    e.preventDefault();
+                    return;
+                }
+            }
+            {% endif %}
+        });
+
+        // Unsaved changes warning
+        let formChanged = false;
+        document.getElementById('customerForm').addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    });
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 20px rgba(13, 110, 253, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+        cursor: default;
+    }
+    
+    /* Credit preview */
+    #creditPreview {
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    #creditPreview:hover {
+        border-color: #0d6efd;
+        background-color: #fff !important;
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    .progress-bar.bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .progress-bar.bg-warning {
+        background-color: #ffc107 !important;
+    }
+    
+    .progress-bar.bg-danger {
+        background-color: #dc3545 !important;
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Purchase summary cards */
+    .bg-light.rounded-3 {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .bg-light.rounded-3:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 15px rgba(13, 110, 253, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        .row {
+            flex-direction: column;
+        }
+        
+        #creditPreview {
+            padding: 10px !important;
+        }
+        
+        .bg-light.rounded-3 {
+            margin-bottom: 10px;
+        }
+    }
+</style>
+{% endblock %}

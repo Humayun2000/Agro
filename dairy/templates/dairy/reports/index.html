@@ -1,0 +1,407 @@
+{% extends 'dairy/base_dairy.html' %}
+{% load static %}
+
+{% block page_title %}Reports Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Reports</li>
+{% endblock %}
+
+{% block dairy_content %}
+<div class="reports-dashboard">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">📊 Reports Dashboard</h1>
+        <p class="dashboard-subtitle">Comprehensive analytics and insights for your dairy farm</p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="bi bi-droplet"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-value">{{ total_milk|floatformat:0 }}L</span>
+                <span class="stat-label">Total Milk (YTD)</span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="bi bi-heart-pulse"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-value">{{ health_cases }}</span>
+                <span class="stat-label">Health Cases (YTD)</span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <i class="bi bi-heart"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-value">{{ breedings }}</span>
+                <span class="stat-label">Breedings (YTD)</span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon orange">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-value">৳{{ revenue|floatformat:0 }}</span>
+                <span class="stat-label">Revenue (YTD)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Categories -->
+    <div class="report-categories">
+        <h2 class="category-title">📋 Production Reports</h2>
+        <div class="category-grid">
+            <a href="{% url 'dairy:milk_production_report' %}" class="report-card">
+                <div class="report-icon milk">
+                    <i class="bi bi-droplet"></i>
+                </div>
+                <h3>Milk Production Report</h3>
+                <p>Analyze daily, monthly, and yearly milk production trends, track top producers, and monitor fat percentage.</p>
+                <div class="report-meta">
+                    <span class="badge">Daily</span>
+                    <span class="badge">Weekly</span>
+                    <span class="badge">Monthly</span>
+                </div>
+                <span class="view-link">View Report →</span>
+            </a>
+
+            <a href="{% url 'dairy:health_summary_report' %}" class="report-card">
+                <div class="report-icon health">
+                    <i class="bi bi-heart-pulse"></i>
+                </div>
+                <h3>Health Summary Report</h3>
+                <p>Track disease patterns, monitor treatment effectiveness, and analyze vaccination coverage.</p>
+                <div class="report-meta">
+                    <span class="badge">Quarterly</span>
+                    <span class="badge">Yearly</span>
+                    <span class="badge">Custom</span>
+                </div>
+                <span class="view-link">View Report →</span>
+            </a>
+
+            <a href="{% url 'dairy:breeding_performance_report' %}" class="report-card">
+                <div class="report-icon breeding">
+                    <i class="bi bi-heart"></i>
+                </div>
+                <h3>Breeding Performance Report</h3>
+                <p>Monitor conception rates, sire performance, and track calving schedules.</p>
+                <div class="report-meta">
+                    <span class="badge">Monthly</span>
+                    <span class="badge">Quarterly</span>
+                    <span class="badge">Yearly</span>
+                </div>
+                <span class="view-link">View Report →</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Financial Reports -->
+    <div class="report-categories">
+        <h2 class="category-title">💰 Financial Reports</h2>
+        <div class="category-grid">
+            <a href="{% url 'dairy:monthly_report' %}" class="report-card">
+                <div class="report-icon finance">
+                    <i class="bi bi-calendar-month"></i>
+                </div>
+                <h3>Monthly Financial Report</h3>
+                <p>Detailed monthly income, expenses, and profit analysis.</p>
+                <div class="report-meta">
+                    <span class="badge">Monthly</span>
+                </div>
+                <span class="view-link">View Report →</span>
+            </a>
+
+            <a href="{% url 'dairy:yearly_report' %}" class="report-card">
+                <div class="report-icon finance">
+                    <i class="bi bi-calendar-year"></i>
+                </div>
+                <h3>Yearly Financial Report</h3>
+                <p>Annual financial summary with year-over-year comparisons.</p>
+                <div class="report-meta">
+                    <span class="badge">Yearly</span>
+                </div>
+                <span class="view-link">View Report →</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Reports -->
+    <div class="recent-reports">
+        <h2 class="category-title">📌 Recently Generated Reports</h2>
+        <div class="reports-list">
+            {% for report in recent_reports %}
+            <div class="recent-report-item">
+                <div class="report-info">
+                    <i class="bi bi-file-text"></i>
+                    <div>
+                        <strong>{{ report.title }}</strong>
+                        <p>Generated on {{ report.generated_at|date:"M d, Y H:i" }} by {{ report.generated_by }}</p>
+                    </div>
+                </div>
+                <div class="report-actions">
+                    <a href="{{ report.report_file.url }}" class="btn-download" target="_blank">
+                        <i class="bi bi-download"></i>
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-muted text-center py-4">No reports generated yet</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+.reports-dashboard {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.dashboard-header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 24px;
+    padding: 40px;
+    margin-bottom: 30px;
+    color: white;
+}
+
+.dashboard-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+
+.dashboard-subtitle {
+    font-size: 1.1rem;
+    opacity: 0.8;
+    margin: 0;
+}
+
+.quick-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
+.stat-icon.blue { background: #e9ecef; color: #4361ee; }
+.stat-icon.green { background: #d4edda; color: #28a745; }
+.stat-icon.purple { background: #e9ecef; color: #6f42c1; }
+.stat-icon.orange { background: #fff3cd; color: #fd7e14; }
+
+.stat-details {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: block;
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+.report-categories {
+    margin-bottom: 40px;
+}
+
+.category-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.report-card {
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid #f1f5f9;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.report-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    border-color: #e2e8f0;
+}
+
+.report-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin-bottom: 20px;
+}
+
+.report-icon.milk { background: #fff3cd; color: #ffc107; }
+.report-icon.health { background: #f8d7da; color: #dc3545; }
+.report-icon.breeding { background: #f8d7da; color: #e83e8c; }
+.report-icon.finance { background: #cce5ff; color: #17a2b8; }
+
+.report-card h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 10px;
+}
+
+.report-card p {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.report-meta {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.report-meta .badge {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 5px 12px;
+    border-radius: 30px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.view-link {
+    color: #667eea;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.recent-reports {
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+.reports-list {
+    margin-top: 20px;
+}
+
+.recent-report-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.recent-report-item:last-child {
+    border-bottom: none;
+}
+
+.report-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.report-info i {
+    font-size: 1.5rem;
+    color: #667eea;
+}
+
+.report-info strong {
+    color: #1e293b;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.report-info p {
+    color: #64748b;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.btn-download {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.btn-download:hover {
+    background: #667eea;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .quick-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .category-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

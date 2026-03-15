@@ -1,0 +1,614 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-basket{% endblock %}
+{% block page_title %}Feeding Records{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:feed_record_list' %}">Feeding</a></li>
+<li class="breadcrumb-item active" aria-current="page">All Records</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportFeedingRecords()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:feed_record_add' %}" class="btn btn-success">
+        <i class="bi bi-plus-circle me-1"></i> Add Feeding Record
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-basket"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_records }}</div>
+            <div class="fishery-stat-label">Total Feedings</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-cake"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_feed|floatformat:0 }} kg</div>
+            <div class="fishery-stat-label">Total Feed Used</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ total_cost|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Total Cost</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon info">
+                <i class="bi bi-calendar-day"></i>
+            </div>
+            <div class="fishery-stat-value">{{ today_count }}</div>
+            <div class="fishery-stat-label">Today's Feedings</div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-check-circle fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">All Consumed</h6>
+                            <h3 class="mb-0">{{ all_consumed_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-exclamation-triangle fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Partial/Little</h6>
+                            <h3 class="mb-0">{{ partial_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-thermometer-half fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Avg Temp</h6>
+                            <h3 class="mb-0">{{ avg_temp|default:"—" }}°C</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-clock fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Last Feeding</h6>
+                            <h3 class="mb-0">
+                                {% if last_feeding %}
+                                    {{ last_feeding.feed_time|time:"H:i" }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Feeding Records
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Pond</label>
+                        <select name="pond" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Ponds</option>
+                            {% for pond in ponds %}
+                            <option value="{{ pond.id }}" {% if current_pond == pond.id|stringformat:"s" %}selected{% endif %}>
+                                {{ pond.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Feed Type</label>
+                        <select name="feed_type" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Feed Types</option>
+                            {% for feed in feed_types %}
+                            <option value="{{ feed.id }}" {% if current_feed == feed.id|stringformat:"s" %}selected{% endif %}>
+                                {{ feed.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">From Date</label>
+                        <input type="date" name="date_from" class="fishery-form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">To Date</label>
+                        <input type="date" name="date_to" class="fishery-form-control" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="fishery-btn-add w-100">
+                                <i class="bi bi-search me-1"></i> Apply
+                            </button>
+                            <a href="{% url 'fishery:feed_record_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Feeding Records Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Feeding Records
+                <span class="badge bg-success ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeleteRecords()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Date & Time</th>
+                        <th>Pond</th>
+                        <th>Cycle</th>
+                        <th>Feed Type</th>
+                        <th>Quantity (kg)</th>
+                        <th>Cost (৳)</th>
+                        <th>Consumption</th>
+                        <th>Water Temp</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr class="record-row" data-id="{{ record.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input record-checkbox" value="{{ record.id }}">
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ record.date|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ record.get_feed_time_display|default:record.feed_time }}</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="pond-avatar bg-success bg-opacity-10 rounded p-2">
+                                    <i class="bi bi-water text-success"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ record.cycle.pond.name }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="{% url 'fishery:cycle_detail' record.cycle.id %}" class="text-decoration-none">
+                                {{ record.cycle.cycle_id|slice:":8" }}
+                            </a>
+                        </td>
+                        <td>{{ record.feed_type.name }}</td>
+                        <td class="fw-bold">{{ record.quantity_kg }} kg</td>
+                        <td class="text-success">৳{{ record.cost|floatformat:2 }}</td>
+                        <td>
+                            {% if record.feed_consumption_rate == 'ALL' %}
+                                <span class="fishery-badge fishery-badge-success">All</span>
+                            {% elif record.feed_consumption_rate == 'MOST' %}
+                                <span class="fishery-badge fishery-badge-info">Most</span>
+                            {% elif record.feed_consumption_rate == 'PARTIAL' %}
+                                <span class="fishery-badge fishery-badge-warning">Partial</span>
+                            {% elif record.feed_consumption_rate == 'LITTLE' %}
+                                <span class="fishery-badge fishery-badge-danger">Little</span>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-secondary">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.water_temp %}
+                                <span class="{% if record.water_temp < 25 or record.water_temp > 32 %}text-warning{% endif %}">
+                                    {{ record.water_temp }}°C
+                                </span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:feed_record_edit' record.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteRecord({{ record.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-5">
+                            <i class="bi bi-basket fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No feeding records found</h5>
+                            <p class="text-muted mb-3">Start recording your feeding activities</p>
+                            <a href="{% url 'fishery:feed_record_add' %}" class="btn btn-success">
+                                <i class="bi bi-plus-circle me-2"></i>Add Feeding Record
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-success border-success">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Feeding Analytics -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    Feed Usage by Pond
+                </h5>
+                {% for item in feed_by_pond %}
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                        <span class="fw-bold">{{ item.pond__name }}</span>
+                        <small class="text-muted d-block">{{ item.count }} feedings</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-muted">{{ item.total_quantity|floatformat:0 }} kg</span>
+                        <span class="fw-bold text-success">৳{{ item.total_cost|floatformat:0 }}</span>
+                    </div>
+                </div>
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar bg-primary" role="progressbar" 
+                         style="width: {% widthratio item.total_quantity total_feed 100 %}%"></div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center py-3">No feeding data available</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-bar-chart text-info"></i>
+                    Consumption Analysis
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="consumptionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteRecordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this feeding record?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will affect the feed consumption statistics for this cycle.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteRecordBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Store delete URL template
+    const DELETE_RECORD_URL = "{% url 'fishery:feed_record_delete' 0 %}";
+    
+    // Initialize consumption chart
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('consumptionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['All Consumed', 'Mostly', 'Partial', 'Little'],
+                datasets: [{
+                    data: [
+                        {{ all_consumed_count }},
+                        {{ mostly_count|default:0 }},
+                        {{ partial_count|default:0 }},
+                        {{ little_count|default:0 }}
+                    ],
+                    backgroundColor: [
+                        '#28a745',
+                        '#17a2b8',
+                        '#ffc107',
+                        '#dc3545'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.record-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.record-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeleteRecord(recordId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteRecordModal'));
+        document.getElementById('confirmDeleteRecordBtn').href = DELETE_RECORD_URL.replace('0', recordId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeleteRecords() {
+        const selected = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} feeding records?`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/feed-records/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportFeedingRecords() {
+        window.location.href = "{% url 'fishery:export_feed' %}";
+    }
+
+    // Row click to edit
+    document.querySelectorAll('.record-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:feed_record_edit' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .pond-avatar {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .record-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .record-row td {
+        vertical-align: middle;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+    }
+    
+    .fishery-badge-success {
+        background-color: #d4edda;
+        color: #28a745;
+    }
+    
+    .fishery-badge-info {
+        background-color: #d1ecf1;
+        color: #17a2b8;
+    }
+    
+    .fishery-badge-warning {
+        background-color: #fff3cd;
+        color: #ffc107;
+    }
+    
+    .fishery-badge-danger {
+        background-color: #f8d7da;
+        color: #dc3545;
+    }
+    
+    /* Progress bars */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Quick stats cards */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.9rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .pond-avatar {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .fishery-badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+        }
+    }
+</style>
+{% endblock %}

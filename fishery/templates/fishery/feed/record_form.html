@@ -1,0 +1,596 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Add Feeding Record{% else %}Edit Feeding Record{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:feed_record_list' %}">Feeding Records</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Add New{% else %}Edit{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:feed_record_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Feeding Record Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #20c997 0%, #198754 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Record Feeding Activity
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Feeding Record
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Record daily feeding activity for your fish
+                        {% else %}
+                            Update feeding record details
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="feedRecordForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Production Cycle Selection -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-arrow-repeat text-success me-2"></i>
+                            Production Cycle
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-water me-1 text-success"></i>
+                                        Production Cycle *
+                                    </label>
+                                    {{ form.cycle }}
+                                    <small class="text-muted">Select the active production cycle for feeding</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cycle Info Preview -->
+                        <div id="cyclePreview" class="mt-3 p-3 bg-light rounded-3" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">Pond:</span>
+                                        <span class="fw-bold" id="cyclePond">—</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">Species:</span>
+                                        <span class="fw-bold" id="cycleSpecies">—</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">Days Active:</span>
+                                        <span class="fw-bold" id="cycleDays">—</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Feeding Details -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-clock text-primary me-2"></i>
+                            Feeding Details
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar me-1 text-primary"></i>
+                                        Feeding Date *
+                                    </label>
+                                    {{ form.date }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-clock me-1 text-primary"></i>
+                                        Feeding Time
+                                    </label>
+                                    {{ form.feed_time }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-sun me-1 text-primary"></i>
+                                        Time of Day
+                                    </label>
+                                    <select id="quickTimeSelect" class="fishery-form-control">
+                                        <option value="">Quick Select</option>
+                                        <option value="06:00">Morning (6:00 AM)</option>
+                                        <option value="09:00">Late Morning (9:00 AM)</option>
+                                        <option value="12:00">Afternoon (12:00 PM)</option>
+                                        <option value="16:00">Evening (4:00 PM)</option>
+                                        <option value="20:00">Night (8:00 PM)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-box me-1 text-primary"></i>
+                                        Feed Type *
+                                    </label>
+                                    {{ form.feed_type }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-cake me-1 text-primary"></i>
+                                        Quantity (kg) *
+                                    </label>
+                                    {{ form.quantity_kg }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stock Availability Alert -->
+                        <div id="stockAlert" class="alert alert-warning mt-3" style="display: none;">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <span id="stockMessage"></span>
+                        </div>
+                    </div>
+
+                    <!-- Feeding Observations -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-clipboard-data text-info me-2"></i>
+                            Feeding Observations
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-check-circle me-1 text-info"></i>
+                                        Consumption Rate
+                                    </label>
+                                    {{ form.feed_consumption_rate }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-thermometer-half me-1 text-info"></i>
+                                        Water Temperature (°C)
+                                    </label>
+                                    {{ form.water_temp }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-12">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-chat-text me-1 text-info"></i>
+                                        Notes
+                                    </label>
+                                    {{ form.notes }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Feeding Tips -->
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="bi bi-lightbulb-fill me-2"></i>
+                            <strong>Feeding Tips:</strong>
+                            <ul class="mb-0 mt-1">
+                                <li>Feed at the same time daily for better growth</li>
+                                <li>Monitor consumption rate to adjust quantity</li>
+                                <li>Optimal water temperature for feeding: 25-32°C</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Cost Summary -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-calculator text-warning me-2"></i>
+                            Cost Summary
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-currency-dollar me-1 text-warning"></i>
+                                        Cost per kg (৳)
+                                    </label>
+                                    <input type="text" id="costPerKg" class="fishery-form-control" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-cash-stack me-1 text-warning"></i>
+                                        Total Cost (৳)
+                                    </label>
+                                    <input type="text" id="totalCost" class="fishery-form-control" readonly>
+                                    <small class="text-muted">Auto-calculated</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-pie-chart me-1 text-warning"></i>
+                                        Stock After Feeding
+                                    </label>
+                                    <input type="text" id="stockAfter" class="fishery-form-control" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Recorded By</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.recorded_by.get_full_name|default:form.instance.recorded_by.username|default:'Unknown' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Recorded At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:feed_record_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Save Feeding Record{% else %}Update Record{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const cycleSelect = document.getElementById('{{ form.cycle.id_for_label }}');
+        const feedTypeSelect = document.getElementById('{{ form.feed_type.id_for_label }}');
+        const quantityInput = document.getElementById('{{ form.quantity_kg.id_for_label }}');
+        const dateInput = document.getElementById('{{ form.date.id_for_label }}');
+        const timeInput = document.getElementById('{{ form.feed_time.id_for_label }}');
+        const quickTimeSelect = document.getElementById('quickTimeSelect');
+        const costPerKgInput = document.getElementById('costPerKg');
+        const totalCostInput = document.getElementById('totalCost');
+        const stockAfterInput = document.getElementById('stockAfter');
+        const cyclePreview = document.getElementById('cyclePreview');
+        const cyclePond = document.getElementById('cyclePond');
+        const cycleSpecies = document.getElementById('cycleSpecies');
+        const cycleDays = document.getElementById('cycleDays');
+        const stockAlert = document.getElementById('stockAlert');
+        const stockMessage = document.getElementById('stockMessage');
+
+        // Feed price data (populated from Django)
+        const feedPrices = {
+            {% for feed in feed_types %}
+                {{ feed.id }}: {{ feed.current_price }},
+            {% endfor %}
+        };
+
+        // Feed stock data
+        const feedStocks = {
+            {% for feed in feed_types %}
+                {{ feed.id }}: {{ feed.current_stock }},
+            {% endfor %}
+        };
+
+        // Cycle data
+        const cycleData = {
+            {% for cycle in cycles %}
+                {{ cycle.id }}: {
+                    pond: "{{ cycle.pond.name }}",
+                    species: "{{ cycle.species.name }}",
+                    days: {{ cycle.days_in_production }}
+                },
+            {% endfor %}
+        };
+
+        // Set default date to today
+        if (dateInput && !dateInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+        }
+
+        // Quick time select
+        if (quickTimeSelect) {
+            quickTimeSelect.addEventListener('change', function() {
+                if (this.value) {
+                    timeInput.value = this.value;
+                }
+            });
+        }
+
+        // Update cycle preview
+        function updateCyclePreview() {
+            const cycleId = parseInt(cycleSelect.value);
+            if (cycleId && cycleData[cycleId]) {
+                cyclePreview.style.display = 'block';
+                cyclePond.textContent = cycleData[cycleId].pond;
+                cycleSpecies.textContent = cycleData[cycleId].species;
+                cycleDays.textContent = cycleData[cycleId].days + ' days';
+            } else {
+                cyclePreview.style.display = 'none';
+            }
+        }
+
+        // Update cost calculations
+        function updateCost() {
+            const feedId = parseInt(feedTypeSelect.value);
+            const quantity = parseFloat(quantityInput.value) || 0;
+            
+            if (feedId && feedPrices[feedId]) {
+                const pricePerKg = feedPrices[feedId];
+                const total = quantity * pricePerKg;
+                
+                costPerKgInput.value = '৳' + pricePerKg.toFixed(2);
+                totalCostInput.value = '৳' + total.toFixed(2);
+                
+                // Check stock availability
+                if (feedStocks[feedId] !== undefined) {
+                    const remainingStock = feedStocks[feedId] - quantity;
+                    stockAfterInput.value = remainingStock.toFixed(2) + ' kg';
+                    
+                    if (remainingStock < 0) {
+                        stockAlert.style.display = 'block';
+                        stockMessage.textContent = 'Warning: Insufficient stock! Available: ' + feedStocks[feedId] + ' kg';
+                        stockAlert.className = 'alert alert-danger mt-3';
+                    } else if (remainingStock < 100) {
+                        stockAlert.style.display = 'block';
+                        stockMessage.textContent = 'Low stock warning: Only ' + remainingStock.toFixed(2) + ' kg remaining after this feeding';
+                        stockAlert.className = 'alert alert-warning mt-3';
+                    } else {
+                        stockAlert.style.display = 'none';
+                    }
+                }
+            } else {
+                costPerKgInput.value = '—';
+                totalCostInput.value = '—';
+                stockAfterInput.value = '—';
+                stockAlert.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        if (cycleSelect) {
+            cycleSelect.addEventListener('change', updateCyclePreview);
+        }
+        
+        if (feedTypeSelect) {
+            feedTypeSelect.addEventListener('change', updateCost);
+        }
+        
+        if (quantityInput) {
+            quantityInput.addEventListener('input', updateCost);
+        }
+
+        // Initial updates
+        updateCyclePreview();
+        updateCost();
+
+        // Set min/max for water temperature
+        const tempInput = document.getElementById('{{ form.water_temp.id_for_label }}');
+        if (tempInput) {
+            tempInput.min = 0;
+            tempInput.max = 40;
+            tempInput.step = 0.1;
+        }
+
+        // Form validation
+        document.getElementById('feedRecordForm').addEventListener('submit', function(e) {
+            const cycle = cycleSelect.value;
+            const feedType = feedTypeSelect.value;
+            const quantity = quantityInput.value;
+            const feedId = parseInt(feedType);
+            
+            if (!cycle) {
+                e.preventDefault();
+                alert('Please select a production cycle');
+                return;
+            }
+            
+            if (!feedType) {
+                e.preventDefault();
+                alert('Please select a feed type');
+                return;
+            }
+            
+            if (!quantity || parseFloat(quantity) <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid quantity');
+                return;
+            }
+            
+            // Check stock availability
+            if (feedId && feedStocks[feedId] !== undefined) {
+                const qty = parseFloat(quantity);
+                if (qty > feedStocks[feedId]) {
+                    if (!confirm('Warning: Insufficient stock! Only ' + feedStocks[feedId] + ' kg available. Continue anyway?')) {
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            }
+        });
+
+        // Unsaved changes warning
+        let formChanged = false;
+        document.getElementById('feedRecordForm').addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    });
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #20c997;
+        box-shadow: 0 5px 20px rgba(32, 201, 151, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+        cursor: default;
+    }
+    
+    /* Alert styling */
+    .alert {
+        border-left: 4px solid;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-warning {
+        border-left-color: #ffc107;
+    }
+    
+    .alert-danger {
+        border-left-color: #dc3545;
+    }
+    
+    .alert-info {
+        border-left-color: #0dcaf0;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Cycle preview styling */
+    #cyclePreview {
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    #cyclePreview:hover {
+        border-color: #20c997;
+        background-color: #fff !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        #cyclePreview .row > div {
+            margin-bottom: 10px;
+        }
+        
+        #cyclePreview .row > div:last-child {
+            margin-bottom: 0;
+        }
+    }
+</style>
+{% endblock %}

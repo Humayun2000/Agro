@@ -1,0 +1,716 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Add Water Quality Reading{% else %}Edit Water Quality Reading{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:water_list' %}">Water Quality</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Add Reading{% else %}Edit Reading{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:water_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Water Quality Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #0dcaf0 0%, #0b5ed7 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Record Water Quality Reading
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Water Quality Reading
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Monitor and record pond water parameters
+                        {% else %}
+                            Update water quality reading details
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="waterForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Pond Selection -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-water text-info me-2"></i>
+                            Pond Information
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-water me-1 text-info"></i>
+                                        Pond *
+                                    </label>
+                                    {{ form.pond }}
+                                    <small class="text-muted">Select the pond to test</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar me-1 text-info"></i>
+                                        Reading Date & Time *
+                                    </label>
+                                    {{ form.reading_date }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pond Thresholds Preview -->
+                        <div id="pondThresholds" class="mt-3 p-3 bg-light rounded-3" style="display: none;">
+                            <h6 class="mb-2">Optimal Ranges for this Pond:</h6>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Temperature:</small>
+                                    <span class="fw-bold" id="pondTempRange">—</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">pH:</small>
+                                    <span class="fw-bold" id="pondPHRange">—</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Dissolved Oxygen:</small>
+                                    <span class="fw-bold" id="pondDORange">—</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Max Ammonia:</small>
+                                    <span class="fw-bold" id="pondAmmonia">—</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Physical Parameters -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-thermometer-half text-primary me-2"></i>
+                            Physical Parameters
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-thermometer me-1 text-primary"></i>
+                                        Temperature (°C) *
+                                    </label>
+                                    {{ form.temperature }}
+                                    <div id="tempIndicator" class="mt-1"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-droplet me-1 text-primary"></i>
+                                        Dissolved Oxygen (mg/L) *
+                                    </label>
+                                    {{ form.dissolved_oxygen }}
+                                    <div id="doIndicator" class="mt-1"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-eyedropper me-1 text-primary"></i>
+                                        pH Level *
+                                    </label>
+                                    {{ form.ph_level }}
+                                    <div id="phIndicator" class="mt-1"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chemical Parameters -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-flask text-warning me-2"></i>
+                            Chemical Parameters
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-exclamation-triangle me-1 text-warning"></i>
+                                        Ammonia (mg/L)
+                                    </label>
+                                    {{ form.ammonia }}
+                                    <div id="ammoniaIndicator" class="mt-1"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-flask me-1 text-warning"></i>
+                                        Nitrite (mg/L)
+                                    </label>
+                                    {{ form.nitrite }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-flask me-1 text-warning"></i>
+                                        Nitrate (mg/L)
+                                    </label>
+                                    {{ form.nitrate }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-flask me-1 text-warning"></i>
+                                        Alkalinity (mg/L)
+                                    </label>
+                                    {{ form.alkalinity }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-flask me-1 text-warning"></i>
+                                        Hardness (mg/L)
+                                    </label>
+                                    {{ form.hardness }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-palette me-1 text-warning"></i>
+                                        Water Color
+                                    </label>
+                                    {{ form.water_color }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-rulers me-1 text-warning"></i>
+                                        Transparency (cm)
+                                    </label>
+                                    {{ form.transparency }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parameter Summary & Alerts -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                            Parameter Summary
+                        </h5>
+                        
+                        <div id="parameterSummary" class="p-3 bg-light rounded-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">Current Status:</h6>
+                                    <div id="overallStatus" class="mb-3">
+                                        <span class="badge bg-success">All parameters normal</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">Alerts:</h6>
+                                    <div id="alertList" class="text-danger">
+                                        <p class="mb-0 text-muted fst-italic">No alerts</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Alert Preview -->
+                        <div id="alertPreview" class="alert alert-warning mt-3" style="display: none;">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <span id="alertMessage"></span>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-chat-text text-secondary me-2"></i>
+                            Additional Notes
+                        </h5>
+                        
+                        <div class="fishery-form-group">
+                            {{ form.notes }}
+                            <small class="text-muted">Any observations about water condition, weather, or recent activities</small>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Recorded By</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.recorded_by.get_full_name|default:form.instance.recorded_by.username|default:'Unknown' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Recorded At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.reading_date|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Water Quality Tips -->
+                    <div class="alert alert-info mt-3 mb-4">
+                        <i class="bi bi-lightbulb-fill me-2"></i>
+                        <strong>Water Quality Tips:</strong>
+                        <ul class="mb-0 mt-1">
+                            <li>Test water at the same time each day for consistency</li>
+                            <li>Take readings from multiple spots in the pond</li>
+                            <li>Record weather conditions and recent feeding activities</li>
+                            <li>Immediate action needed if parameters are outside optimal ranges</li>
+                        </ul>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:water_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-info px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Save Reading{% else %}Update Reading{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const pondSelect = document.getElementById('{{ form.pond.id_for_label }}');
+        const tempInput = document.getElementById('{{ form.temperature.id_for_label }}');
+        const phInput = document.getElementById('{{ form.ph_level.id_for_label }}');
+        const doInput = document.getElementById('{{ form.dissolved_oxygen.id_for_label }}');
+        const ammoniaInput = document.getElementById('{{ form.ammonia.id_for_label }}');
+        
+        // Indicator elements
+        const tempIndicator = document.getElementById('tempIndicator');
+        const phIndicator = document.getElementById('phIndicator');
+        const doIndicator = document.getElementById('doIndicator');
+        const ammoniaIndicator = document.getElementById('ammoniaIndicator');
+        
+        // Summary elements
+        const overallStatus = document.getElementById('overallStatus');
+        const alertList = document.getElementById('alertList');
+        const alertPreview = document.getElementById('alertPreview');
+        const alertMessage = document.getElementById('alertMessage');
+        
+        // Pond thresholds display
+        const pondThresholds = document.getElementById('pondThresholds');
+        const pondTempRange = document.getElementById('pondTempRange');
+        const pondPHRange = document.getElementById('pondPHRange');
+        const pondDORange = document.getElementById('pondDORange');
+        const pondAmmonia = document.getElementById('pondAmmonia');
+
+        // Pond data (populated from Django)
+        const pondData = {
+            {% for pond in ponds %}
+                {{ pond.id }}: {
+                    minTemp: {{ pond.optimal_temp_min|default:25 }},
+                    maxTemp: {{ pond.optimal_temp_max|default:32 }},
+                    minPh: {{ pond.min_ph|default:6.5 }},
+                    maxPh: {{ pond.max_ph|default:9 }},
+                    minDo: {{ pond.min_oxygen|default:4 }},
+                    maxAmmonia: {{ pond.max_ammonia|default:0.5 }}
+                },
+            {% endfor %}
+        };
+
+        // Update pond thresholds display
+        function updatePondThresholds() {
+            const pondId = parseInt(pondSelect.value);
+            if (pondId && pondData[pondId]) {
+                const data = pondData[pondId];
+                pondThresholds.style.display = 'block';
+                pondTempRange.textContent = `${data.minTemp}°C - ${data.maxTemp}°C`;
+                pondPHRange.textContent = `${data.minPh} - ${data.maxPh}`;
+                pondDORange.textContent = `> ${data.minDo} mg/L`;
+                pondAmmonia.textContent = `< ${data.maxAmmonia} mg/L`;
+            } else {
+                pondThresholds.style.display = 'none';
+            }
+        }
+
+        // Check individual parameter
+        function checkParameter(value, min, max, unit, indicator, isInverse = false) {
+            const numValue = parseFloat(value);
+            if (!value || isNaN(numValue)) {
+                indicator.innerHTML = '';
+                return null;
+            }
+            
+            let status = 'normal';
+            let message = '';
+            
+            if (isInverse) {
+                // For parameters where lower is better (like ammonia)
+                if (numValue > max) {
+                    status = 'danger';
+                    message = `⚠️ High (max ${max}${unit})`;
+                } else {
+                    status = 'success';
+                    message = `✅ Good (< ${max}${unit})`;
+                }
+            } else {
+                if (numValue < min) {
+                    status = 'danger';
+                    message = `🔴 Low (min ${min}${unit})`;
+                } else if (numValue > max) {
+                    status = 'danger';
+                    message = `🔴 High (max ${max}${unit})`;
+                } else {
+                    status = 'success';
+                    message = `✅ Good (${min}-${max}${unit})`;
+                }
+            }
+            
+            const badgeClass = status === 'success' ? 'bg-success' : 'bg-danger';
+            indicator.innerHTML = `<span class="badge ${badgeClass}">${message}</span>`;
+            
+            return status;
+        }
+
+        // Update all parameters and summary
+        function updateAllParameters() {
+            const pondId = parseInt(pondSelect.value);
+            if (!pondId || !pondData[pondId]) {
+                // Clear all indicators
+                tempIndicator.innerHTML = '';
+                phIndicator.innerHTML = '';
+                doIndicator.innerHTML = '';
+                ammoniaIndicator.innerHTML = '';
+                overallStatus.innerHTML = '<span class="badge bg-secondary">Select a pond first</span>';
+                alertList.innerHTML = '<p class="mb-0 text-muted fst-italic">Select a pond to see alerts</p>';
+                alertPreview.style.display = 'none';
+                return;
+            }
+
+            const data = pondData[pondId];
+            const alerts = [];
+            
+            // Check temperature
+            const tempStatus = checkParameter(
+                tempInput.value, data.minTemp, data.maxTemp, '°C', tempIndicator
+            );
+            if (tempStatus === 'danger') alerts.push('Temperature out of range');
+            
+            // Check pH
+            const phStatus = checkParameter(
+                phInput.value, data.minPh, data.maxPh, '', phIndicator
+            );
+            if (phStatus === 'danger') alerts.push('pH out of range');
+            
+            // Check DO
+            const doStatus = checkParameter(
+                doInput.value, data.minDo, 100, ' mg/L', doIndicator
+            );
+            if (doStatus === 'danger') alerts.push('Low dissolved oxygen');
+            
+            // Check Ammonia (inverse - lower is better)
+            const ammoniaStatus = checkParameter(
+                ammoniaInput.value, 0, data.maxAmmonia, ' mg/L', ammoniaIndicator, true
+            );
+            if (ammoniaStatus === 'danger') alerts.push('High ammonia levels');
+
+            // Update overall status
+            if (alerts.length === 0) {
+                overallStatus.innerHTML = '<span class="badge bg-success">✅ All parameters normal</span>';
+                alertList.innerHTML = '<p class="mb-0 text-success">✓ No alerts</p>';
+                alertPreview.style.display = 'none';
+            } else {
+                overallStatus.innerHTML = '<span class="badge bg-warning">⚠️ Some parameters need attention</span>';
+                
+                let alertHtml = '<ul class="mb-0">';
+                alerts.forEach(alert => {
+                    alertHtml += `<li class="text-danger">⚠️ ${alert}</li>`;
+                });
+                alertHtml += '</ul>';
+                alertList.innerHTML = alertHtml;
+                
+                // Show preview alert
+                alertPreview.style.display = 'block';
+                alertMessage.textContent = alerts.length + ' parameter(s) outside optimal range. Review readings.';
+            }
+        }
+
+        // Event listeners
+        if (pondSelect) {
+            pondSelect.addEventListener('change', function() {
+                updatePondThresholds();
+                updateAllParameters();
+            });
+        }
+        
+        [tempInput, phInput, doInput, ammoniaInput].forEach(input => {
+            if (input) {
+                input.addEventListener('input', updateAllParameters);
+            }
+        });
+
+        // Initialize
+        updatePondThresholds();
+        updateAllParameters();
+
+        // Set min/max for inputs
+        if (tempInput) {
+            tempInput.min = 0;
+            tempInput.max = 40;
+            tempInput.step = 0.1;
+        }
+        
+        if (phInput) {
+            phInput.min = 0;
+            phInput.max = 14;
+            phInput.step = 0.1;
+        }
+        
+        if (doInput) {
+            doInput.min = 0;
+            doInput.max = 20;
+            doInput.step = 0.1;
+        }
+        
+        if (ammoniaInput) {
+            ammoniaInput.min = 0;
+            ammoniaInput.max = 5;
+            ammoniaInput.step = 0.01;
+        }
+
+        // Form validation
+        document.getElementById('waterForm').addEventListener('submit', function(e) {
+            const pond = pondSelect.value;
+            const temp = tempInput.value;
+            const ph = phInput.value;
+            const doVal = doInput.value;
+            
+            if (!pond) {
+                e.preventDefault();
+                alert('Please select a pond');
+                return;
+            }
+            
+            if (!temp || parseFloat(temp) < 0 || parseFloat(temp) > 40) {
+                e.preventDefault();
+                alert('Please enter a valid temperature (0-40°C)');
+                return;
+            }
+            
+            if (!ph || parseFloat(ph) < 0 || parseFloat(ph) > 14) {
+                e.preventDefault();
+                alert('Please enter a valid pH value (0-14)');
+                return;
+            }
+            
+            if (!doVal || parseFloat(doVal) < 0 || parseFloat(doVal) > 20) {
+                e.preventDefault();
+                alert('Please enter a valid dissolved oxygen value (0-20 mg/L)');
+                return;
+            }
+            
+            // Check if there are active alerts
+            const hasAlerts = alertList.querySelector('.text-danger');
+            if (hasAlerts) {
+                if (!confirm('Warning: Some parameters are outside optimal range. Continue anyway?')) {
+                    e.preventDefault();
+                }
+            }
+        });
+
+        // Unsaved changes warning
+        let formChanged = false;
+        document.getElementById('waterForm').addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    });
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #0dcaf0;
+        box-shadow: 0 5px 20px rgba(13, 202, 240, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+        cursor: default;
+    }
+    
+    /* Parameter indicators */
+    .badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        margin-top: 5px;
+    }
+    
+    .bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .bg-danger {
+        background-color: #dc3545 !important;
+    }
+    
+    .bg-warning {
+        background-color: #ffc107 !important;
+        color: #000 !important;
+    }
+    
+    /* Alert styling */
+    .alert {
+        border-left: 4px solid;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-warning {
+        border-left-color: #ffc107;
+    }
+    
+    .alert-info {
+        border-left-color: #0dcaf0;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Parameter summary */
+    #parameterSummary {
+        border: 1px solid #dee2e6;
+    }
+    
+    #alertList ul {
+        padding-left: 20px;
+    }
+    
+    #alertList li {
+        margin-bottom: 5px;
+    }
+    
+    /* Pond thresholds */
+    #pondThresholds {
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    #pondThresholds:hover {
+        border-color: #0dcaf0;
+        background-color: #fff !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        #pondThresholds .row > div {
+            margin-bottom: 10px;
+        }
+        
+        #pondThresholds .row > div:last-child {
+            margin-bottom: 0;
+        }
+    }
+</style>
+{% endblock %}

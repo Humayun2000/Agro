@@ -1,0 +1,421 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-water{% endblock %}
+{% block page_title %}Pond Management{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:pond_list' %}">Ponds</a></li>
+<li class="breadcrumb-item active" aria-current="page">All Ponds</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportPonds()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:pond_add' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Add New Pond
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-water"></i>
+            </div>
+            <div class="fishery-stat-value" id="totalPonds">{{ total_count }}</div>
+            <div class="fishery-stat-label">Total Ponds</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="fishery-stat-value" id="activePonds">{{ active_count }}</div>
+            <div class="fishery-stat-label">Active Ponds</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon success">
+                <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <div class="fishery-stat-value" id="stockedPonds">{{ stocked_count }}</div>
+            <div class="fishery-stat-label">Stocked Ponds</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="fishery-stat-value" id="preparingPonds">{{ preparing_ponds|default:"0" }}</div>
+            <div class="fishery-stat-label">Preparing Ponds</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Ponds
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Farm</label>
+                        <select name="farm" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Farms</option>
+                            {% for farm in farms %}
+                            <option value="{{ farm.id }}" {% if current_farm == farm.id|stringformat:"s" %}selected{% endif %}>
+                                {{ farm.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">Status</label>
+                        <select name="status" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Status</option>
+                            <option value="PREPARING" {% if current_status == 'PREPARING' %}selected{% endif %}>Preparing</option>
+                            <option value="FILLING" {% if current_status == 'FILLING' %}selected{% endif %}>Filling</option>
+                            <option value="STOCKED" {% if current_status == 'STOCKED' %}selected{% endif %}>Stocked</option>
+                            <option value="HARVESTING" {% if current_status == 'HARVESTING' %}selected{% endif %}>Harvesting</option>
+                            <option value="DRYING" {% if current_status == 'DRYING' %}selected{% endif %}>Drying</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">Pond Type</label>
+                        <select name="type" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            <option value="NURSERY" {% if current_type == 'NURSERY' %}selected{% endif %}>Nursery</option>
+                            <option value="GROWOUT" {% if current_type == 'GROWOUT' %}selected{% endif %}>Grow-out</option>
+                            <option value="BROODSTOCK" {% if current_type == 'BROODSTOCK' %}selected{% endif %}>Broodstock</option>
+                            <option value="QUARANTINE" {% if current_type == 'QUARANTINE' %}selected{% endif %}>Quarantine</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Search</label>
+                        <input type="text" name="search" class="fishery-form-control" 
+                               placeholder="Name, ID, location..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="fishery-btn-add w-100">
+                                <i class="bi bi-search me-1"></i> Apply
+                            </button>
+                            <a href="{% url 'fishery:pond_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ponds Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Ponds List
+                <span class="badge bg-primary ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeletePonds()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Pond ID</th>
+                        <th>Name</th>
+                        <th>Farm</th>
+                        <th>Type</th>
+                        <th>Size (acres)</th>
+                        <th>Status</th>
+                        <th>Current Cycle</th>
+                        <th>Water Quality</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pond in ponds %}
+                    <tr class="pond-row" data-id="{{ pond.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input pond-checkbox" value="{{ pond.id }}">
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ pond.pond_id }}</span>
+                        </td>
+                        <td>{{ pond.name }}</td>
+                        <td>{{ pond.farm.name|default:"-" }}</td>
+                        <td>
+                            <span class="fishery-badge fishery-badge-primary">
+                                {{ pond.get_pond_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ pond.size_in_acres }}</td>
+                        <td>
+                            {% if pond.status == 'STOCKED' %}
+                                <span class="fishery-badge fishery-badge-success">Stocked</span>
+                            {% elif pond.status == 'PREPARING' %}
+                                <span class="fishery-badge fishery-badge-warning">Preparing</span>
+                            {% elif pond.status == 'HARVESTING' %}
+                                <span class="fishery-badge fishery-badge-info">Harvesting</span>
+                            {% elif pond.status == 'DRYING' %}
+                                <span class="fishery-badge fishery-badge-secondary">Drying</span>
+                            {% elif pond.status == 'FILLING' %}
+                                <span class="fishery-badge fishery-badge-primary">Filling</span>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-secondary">{{ pond.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% with cycle=pond.current_cycle %}
+                                {% if cycle %}
+                                    <a href="{% url 'fishery:cycle_detail' cycle.id %}" class="text-decoration-none">
+                                        {{ cycle.species.name }} ({{ cycle.days_in_production }}d)
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            {% with quality=pond.latest_water_quality %}
+                                {% if quality %}
+                                    {% if quality.alert_generated %}
+                                        <span class="fishery-badge fishery-badge-danger" title="{{ quality.alert_message }}">
+                                            <i class="bi bi-exclamation-triangle"></i> Alert
+                                        </span>
+                                    {% else %}
+                                        <span class="fishery-badge fishery-badge-success">
+                                            <i class="bi bi-check-circle"></i> Good
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="fishery-badge fishery-badge-secondary">No data</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:pond_detail' pond.id %}" class="btn btn-sm btn-outline-info" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'fishery:pond_edit' pond.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeletePond({{ pond.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                <a href="{% url 'fishery:water_add' %}?pond={{ pond.id }}" class="btn btn-sm btn-outline-info" title="Add Water Reading">
+                                    <i class="bi bi-droplet"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-5">
+                            <i class="bi bi-water fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No ponds found</h5>
+                            <p class="text-muted mb-3">Try adjusting your filters or add a new pond</p>
+                            <a href="{% url 'fishery:pond_add' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Add First Pond
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-primary border-primary">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deletePondModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this pond?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will also delete all associated cycles, feed records, and harvests.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeletePondBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Store delete URL template
+    const DELETE_POND_URL = "{% url 'fishery:pond_delete' 0 %}";
+    
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.pond-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.pond-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.pond-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeletePond(pondId) {
+        const modal = new bootstrap.Modal(document.getElementById('deletePondModal'));
+        document.getElementById('confirmDeletePondBtn').href = DELETE_POND_URL.replace('0', pondId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeletePonds() {
+        const selected = Array.from(document.querySelectorAll('.pond-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} ponds? This cannot be undone.`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/ponds/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportPonds() {
+        window.location.href = "{% url 'fishery:export_ponds' %}";
+    }
+
+    // Row click to view details
+    document.querySelectorAll('.pond-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:pond_detail' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .pond-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .pond-row td {
+        vertical-align: middle;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .btn-sm i {
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}

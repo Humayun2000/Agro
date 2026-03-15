@@ -1,0 +1,438 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-exclamation-triangle{% endblock %}
+{% block page_title %}Delete Feeding Record{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:feed_record_list' %}">Feeding Records</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete Record</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:feed_record_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Feeding Record
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon & Message -->
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-basket fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove this feeding record?</h4>
+            <p class="text-muted">
+                You are about to delete a feeding record from 
+                <strong>{{ object.date|date:"F d, Y" }} at {{ object.get_feed_time_display|default:object.feed_time }}</strong>
+            </p>
+        </div>
+
+        <!-- Feeding Record Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="feed-avatar bg-danger text-white rounded-3 p-3">
+                        <i class="bi bi-basket fs-2"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ object.cycle.pond.name }} - {{ object.cycle.species.name }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-clock me-1"></i> {{ object.date|date:"M d, Y" }} {{ object.get_feed_time_display|default:object.feed_time }}
+                            <span class="mx-2">|</span>
+                            <i class="bi bi-box me-1"></i> {{ object.feed_type.name }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Quantity</small>
+                            <span class="fw-bold fs-5">{{ object.quantity_kg }} kg</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Cost</small>
+                            <span class="fw-bold text-success">৳{{ object.cost|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Consumption</small>
+                            <span class="fw-bold {% if object.feed_consumption_rate == 'ALL' %}text-success{% elif object.feed_consumption_rate == 'MOST' %}text-info{% elif object.feed_consumption_rate == 'PARTIAL' %}text-warning{% else %}text-danger{% endif %}">
+                                {{ object.get_feed_consumption_rate_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>⚠️ Stock Impact Warning:</strong>
+                <p class="mb-0 mt-1">
+                    Deleting this feeding record will <span class="fw-bold text-success">increase</span> the current stock of 
+                    <strong>{{ object.feed_type.name }}</strong> by 
+                    <span class="fw-bold text-success">{{ object.quantity_kg }} kg</span>.
+                </p>
+            </div>
+        </div>
+
+        <!-- Current Stock Status -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-box-seam text-info me-2"></i>
+                            Current Stock
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Before deletion:</span>
+                            <span class="fw-bold fs-5" id="currentStock">{{ object.feed_type.current_stock|floatformat:1 }} kg</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-box-seam text-success me-2"></i>
+                            Stock After Deletion
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">After deletion:</span>
+                            <span class="fw-bold fs-5 text-success" id="newStock">
+                                {{ object.feed_type.current_stock|add:object.quantity_kg|floatformat:1 }} kg
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cycle Impact -->
+        <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-info-circle-fill fs-4"></i>
+            <div>
+                <strong>Production Cycle Impact:</strong>
+                <p class="mb-0 mt-1">
+                    This will affect the FCR calculation for cycle 
+                    <strong>{{ object.cycle.cycle_id|slice:":8" }}</strong> 
+                    ({{ object.cycle.pond.name }} - {{ object.cycle.species.name }})
+                </p>
+            </div>
+        </div>
+
+        <!-- Additional Impact if Partial Consumption -->
+        {% if object.feed_consumption_rate != 'ALL' %}
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div>
+                <strong>Note:</strong> This feeding had <span class="fw-bold">{{ object.get_feed_consumption_rate_display }}</span> consumption. 
+                Deleting it will affect consumption statistics.
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                I understand that deleting this feeding record will increase stock by 
+                <strong>{{ object.quantity_kg }} kg</strong> and affect cycle statistics
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'fishery:feed_record_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger px-5 py-3" id="deleteBtn" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Permanently
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal Script -->
+<script>
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = !checkbox.checked;
+    }
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const confirmDelete = document.getElementById('confirmDelete');
+        if (!confirmDelete.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand the stock impact of deleting this feeding record.');
+        }
+    });
+
+    // Countdown timer for safety
+    let countdown = 5;
+    let countdownInterval = null;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const confirmCheck = document.getElementById('confirmDelete');
+
+    confirmCheck.addEventListener('change', function() {
+        if (this.checked && !countdownInterval) {
+            // Store original text
+            const originalText = deleteBtn.innerHTML;
+            
+            // Start countdown
+            deleteBtn.disabled = true;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                deleteBtn.innerHTML = `Wait ${countdown} seconds... <i class="bi bi-hourglass-split ms-2"></i>`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                    countdown = 5;
+                }
+            }, 1000);
+        } else if (!this.checked && countdownInterval) {
+            // Cancel countdown
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3-fill me-2"></i>Delete Permanently';
+            countdown = 5;
+        }
+    });
+
+    // Keyboard shortcut warning
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const deleteBtn = document.getElementById('deleteBtn');
+            const confirmCheck = document.getElementById('confirmDelete');
+            
+            if (!deleteBtn.disabled && confirmCheck.checked) {
+                if (!confirm('Are you absolutely sure? This will permanently delete this feeding record and affect stock.')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // Add animation class on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.warning-icon').classList.add('pulse-animation');
+        
+        // Animate stock numbers
+        const currentStock = document.getElementById('currentStock');
+        const newStock = document.getElementById('newStock');
+        
+        if (currentStock && newStock) {
+            currentStock.classList.add('fade-in');
+            newStock.classList.add('fade-in');
+        }
+    });
+</script>
+
+<style>
+    .warning-icon {
+        width: 120px;
+        height: 120px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px 15px rgba(220, 53, 69, 0.2);
+        }
+    }
+    
+    .feed-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Form check styling */
+    .form-check-input:checked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+        color: #dc3545;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+    
+    /* Disabled button style */
+    #deleteBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* Countdown timer text */
+    #deleteBtn i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Fade in animation for stock numbers */
+    .fade-in {
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    /* Consumption rate colors */
+    .text-success { color: #28a745 !important; }
+    .text-info { color: #17a2b8 !important; }
+    .text-warning { color: #ffc107 !important; }
+    .text-danger { color: #dc3545 !important; }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .warning-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .warning-icon i {
+            font-size: 3rem !important;
+        }
+        
+        .feed-avatar {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .feed-avatar i {
+            font-size: 1.5rem !important;
+        }
+        
+        .btn {
+            padding: 12px 15px !important;
+            font-size: 0.9rem;
+        }
+        
+        h4 {
+            font-size: 1.2rem;
+        }
+        
+        .detail-box {
+            padding: 10px !important;
+        }
+    }
+
+    /* Print styles */
+    @media print {
+        .btn, .form-check, .alert-info, #deleteBtn {
+            display: none;
+        }
+        
+        .warning-icon {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .bg-danger {
+            background-color: #dc3545 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}

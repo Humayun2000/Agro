@@ -1,0 +1,500 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-check-circle{% endblock %}
+{% block page_title %}Complete Cycle - {{ cycle.cycle_id|slice:":8" }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:cycle_list' %}">Cycles</a></li>
+<li class="breadcrumb-item"><a href="{% url 'fishery:cycle_detail' cycle.id %}">{{ cycle.cycle_id|slice:":8" }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Complete</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:cycle_detail' cycle.id %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to Cycle
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 800px;">
+    <!-- Complete Cycle Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header" style="background: linear-gradient(135deg, #198754 0%, #157347 100%);">
+            <h3 class="mb-2">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                Complete Production Cycle
+            </h3>
+            <p class="mb-0 opacity-75">Mark this cycle as completed and record final harvest details</p>
+        </div>
+
+        <!-- Cycle Summary -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="cycle-avatar bg-success text-white rounded-3 p-3">
+                        <i class="bi bi-arrow-repeat fs-2"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ cycle.pond.name }} - {{ cycle.species.name }}</h5>
+                        <p class="text-muted mb-0">
+                            Cycle ID: {{ cycle.cycle_id|slice:":8" }} | 
+                            Started: {{ cycle.stocking_date|date:"M d, Y" }} | 
+                            Duration: {{ cycle.days_in_production }} days
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Initial Stock</small>
+                            <span class="fw-bold fs-5">{{ cycle.initial_quantity }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Current Population</small>
+                            <span class="fw-bold fs-5">{{ cycle.current_population|floatformat:0 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Mortality</small>
+                            <span class="fw-bold fs-5 text-danger">{{ cycle.total_mortality }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Summary -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-egg text-success me-2"></i>
+                            Survival Rate
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Current:</span>
+                            <span class="fw-bold fs-4 {% if cycle.survival_rate >= cycle.target_survival %}text-success{% else %}text-warning{% endif %}">
+                                {{ cycle.survival_rate|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="text-muted">Target:</span>
+                            <span class="fw-bold">{{ cycle.target_survival }}%</span>
+                        </div>
+                        <div class="progress mt-3" style="height: 10px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {% widthratio cycle.survival_rate cycle.target_survival 100 %}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-calculator text-info me-2"></i>
+                            Feed Conversion Ratio (FCR)
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Current:</span>
+                            <span class="fw-bold fs-4 {% if cycle.fcr <= cycle.target_fcr %}text-success{% else %}text-danger{% endif %}">
+                                {{ cycle.fcr|floatformat:2 }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="text-muted">Target:</span>
+                            <span class="fw-bold">{{ cycle.target_fcr }}</span>
+                        </div>
+                        <div class="progress mt-3" style="height: 10px;">
+                            <div class="progress-bar {% if cycle.fcr <= cycle.target_fcr %}bg-success{% else %}bg-danger{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {% widthratio cycle.target_fcr cycle.fcr 100 %}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completion Form -->
+        <form method="post" id="completeForm">
+            {% csrf_token %}
+            
+            <!-- Error Summary -->
+            {% if form.errors %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Please correct the following errors:</strong>
+                <ul class="mb-0 mt-2">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <li>{{ field|title }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+
+            <!-- Harvest Details Section -->
+            <div class="section-card mb-4">
+                <h5 class="section-title">
+                    <i class="bi bi-scissors text-success me-2"></i>
+                    Final Harvest Details
+                </h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-calendar me-1 text-success"></i>
+                                Harvest Date *
+                            </label>
+                            <input type="date" name="actual_harvest_date" class="fishery-form-control" 
+                                   value="{% now 'Y-m-d' %}" required id="harvestDate">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-clock me-1 text-success"></i>
+                                Harvest Time
+                            </label>
+                            <input type="time" name="harvest_time" class="fishery-form-control" 
+                                   value="{% now 'H:i' %}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Harvest Entry -->
+                <div class="alert alert-info mt-3">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    <strong>Quick Harvest Entry:</strong> You can record detailed harvest information here or add multiple harvests later.
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-4">
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-cake me-1 text-success"></i>
+                                Total Harvest (kg)
+                            </label>
+                            <input type="number" name="total_harvest" class="fishery-form-control" 
+                                   step="0.1" min="0" id="totalHarvest">
+                            <small class="text-muted">Total weight harvested</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-123 me-1 text-success"></i>
+                                Piece Count
+                            </label>
+                            <input type="number" name="piece_count" class="fishery-form-control" 
+                                   min="0" id="pieceCount">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-scissors me-1 text-success"></i>
+                                Avg Weight (g)
+                            </label>
+                            <input type="number" name="avg_weight" class="fishery-form-control" 
+                                   step="1" min="0" id="avgWeight" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-tag me-1 text-success"></i>
+                                Grade
+                            </label>
+                            <select name="grade" class="fishery-form-control">
+                                <option value="A">Grade A - Premium</option>
+                                <option value="B" selected>Grade B - Standard</option>
+                                <option value="C">Grade C - Economy</option>
+                                <option value="REJECT">Reject</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-people me-1 text-success"></i>
+                                Workers Count
+                            </label>
+                            <input type="number" name="workers_count" class="fishery-form-control" 
+                                   min="0" value="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-clock-history me-1 text-success"></i>
+                                Duration (hours)
+                            </label>
+                            <input type="number" name="duration_hours" class="fishery-form-control" 
+                                   step="0.5" min="0">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-snow me-1 text-success"></i>
+                                Ice Used (kg)
+                            </label>
+                            <input type="number" name="ice_used_kg" class="fishery-form-control" 
+                                   step="0.1" min="0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Final Observations -->
+            <div class="section-card mb-4">
+                <h5 class="section-title">
+                    <i class="bi bi-chat-text text-primary me-2"></i>
+                    Final Observations
+                </h5>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-pencil me-1 text-primary"></i>
+                                Notes
+                            </label>
+                            <textarea name="notes" class="fishery-form-control" rows="4" 
+                                      placeholder="Any observations about this cycle..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body text-center">
+                            <i class="bi bi-egg fs-2 text-success d-block mb-2"></i>
+                            <h6>Survival Rate</h6>
+                            <h3 class="{% if cycle.survival_rate >= cycle.target_survival %}text-success{% else %}text-warning{% endif %}">
+                                {{ cycle.survival_rate|floatformat:1 }}%
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body text-center">
+                            <i class="bi bi-calculator fs-2 text-info d-block mb-2"></i>
+                            <h6>FCR</h6>
+                            <h3 class="{% if cycle.fcr <= cycle.target_fcr %}text-success{% else %}text-danger{% endif %}">
+                                {{ cycle.fcr|floatformat:2 }}
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body text-center">
+                            <i class="bi bi-basket fs-2 text-primary d-block mb-2"></i>
+                            <h6>Total Feed</h6>
+                            <h3>{{ cycle.total_feed|floatformat:1 }} kg</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confirmation Checkbox -->
+            <div class="form-check mb-4 p-3 bg-light rounded-3">
+                <input class="form-check-input" type="checkbox" id="confirmComplete" onchange="toggleCompleteButton()">
+                <label class="form-check-label fw-bold" for="confirmComplete">
+                    <i class="bi bi-check-circle me-2 text-success"></i>
+                    I confirm that this cycle has been fully harvested and is ready to be marked as completed
+                </label>
+            </div>
+
+            <!-- Warning Alert -->
+            <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+                <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                <div>
+                    <strong>Once completed:</strong>
+                    <ul class="mb-0 mt-1">
+                        <li>No more feeding records or mortality can be added</li>
+                        <li>The pond status will be updated to "Drying"</li>
+                        <li>Financial calculations will be finalized</li>
+                        <li>This action can be reversed by editing the cycle status</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex gap-3 justify-content-center">
+                <a href="{% url 'fishery:cycle_detail' cycle.id %}" class="btn btn-outline-secondary px-5 py-3">
+                    <i class="bi bi-x-lg me-2"></i>
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-success px-5 py-3" id="completeBtn" disabled>
+                    <i class="bi bi-check-circle me-2"></i>
+                    Complete Cycle
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Auto-calculate average weight script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const totalHarvest = document.getElementById('totalHarvest');
+        const pieceCount = document.getElementById('pieceCount');
+        const avgWeight = document.getElementById('avgWeight');
+        
+        function calculateAvgWeight() {
+            const harvest = parseFloat(totalHarvest.value) || 0;
+            const pieces = parseFloat(pieceCount.value) || 0;
+            
+            if (harvest > 0 && pieces > 0) {
+                const avg = (harvest * 1000 / pieces).toFixed(0);
+                avgWeight.value = avg;
+            } else {
+                avgWeight.value = '';
+            }
+        }
+        
+        if (totalHarvest && pieceCount && avgWeight) {
+            totalHarvest.addEventListener('input', calculateAvgWeight);
+            pieceCount.addEventListener('input', calculateAvgWeight);
+        }
+    });
+
+    function toggleCompleteButton() {
+        const checkbox = document.getElementById('confirmComplete');
+        const completeBtn = document.getElementById('completeBtn');
+        completeBtn.disabled = !checkbox.checked;
+    }
+
+    // Form validation
+    document.getElementById('completeForm').addEventListener('submit', function(e) {
+        const harvestDate = document.getElementById('harvestDate').value;
+        
+        if (!harvestDate) {
+            e.preventDefault();
+            alert('Please select a harvest date');
+            return;
+        }
+        
+        const checkbox = document.getElementById('confirmComplete');
+        if (!checkbox.checked) {
+            e.preventDefault();
+            alert('Please confirm that you want to complete this cycle');
+        }
+    });
+
+    // Keyboard shortcut (Ctrl + Enter)
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const completeBtn = document.getElementById('completeBtn');
+            const confirmCheck = document.getElementById('confirmComplete');
+            
+            if (!completeBtn.disabled && confirmCheck.checked) {
+                e.preventDefault();
+                document.getElementById('completeForm').submit();
+            }
+        }
+    });
+
+    // Preview summary
+    function updateSummary() {
+        const harvest = document.getElementById('totalHarvest').value;
+        const pieces = document.getElementById('pieceCount').value;
+        
+        // You could update a preview section here if desired
+    }
+</script>
+
+<style>
+    .cycle-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+    
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #198754;
+        box-shadow: 0 5px 20px rgba(25, 135, 84, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #198754;
+        background-color: #fff !important;
+    }
+    
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 5px;
+    }
+    
+    .progress-bar {
+        border-radius: 5px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .btn {
+            padding: 12px 20px !important;
+        }
+        
+        .cycle-avatar {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+        
+        .section-card {
+            padding: 15px;
+        }
+    }
+</style>
+{% endblock %}

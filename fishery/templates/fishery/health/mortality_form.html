@@ -1,0 +1,665 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Record Mortality{% else %}Edit Mortality Record{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:mortality_list' %}">Mortality</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Record Mortality{% else %}Edit Record{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:mortality_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Mortality Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Record Fish Mortality
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Mortality Record
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Track fish deaths to monitor health and survival rates
+                        {% else %}
+                            Update mortality record details
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="mortalityForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Production Cycle Selection -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-arrow-repeat text-danger me-2"></i>
+                            Production Cycle
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-water me-1 text-danger"></i>
+                                        Production Cycle *
+                                    </label>
+                                    {{ form.cycle }}
+                                    <small class="text-muted">Select the affected production cycle</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar me-1 text-danger"></i>
+                                        Date *
+                                    </label>
+                                    {{ form.date }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cycle Info Preview -->
+                        <div id="cyclePreview" class="mt-3 p-3 bg-light rounded-3" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <small class="text-muted d-block">Pond:</small>
+                                    <span class="fw-bold" id="cyclePond">—</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted d-block">Species:</small>
+                                    <span class="fw-bold" id="cycleSpecies">—</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted d-block">Current Population:</small>
+                                    <span class="fw-bold" id="cyclePopulation">—</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mortality Details -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                            Mortality Details
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-123 me-1 text-warning"></i>
+                                        Number of Deaths *
+                                    </label>
+                                    {{ form.quantity_dead }}
+                                    <div id="mortalityIndicator" class="mt-1"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-tag me-1 text-warning"></i>
+                                        Reason *
+                                    </label>
+                                    {{ form.reason }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Disease Association (shown only if reason is disease) -->
+                        <div id="diseaseField" class="row g-3 mt-2" style="display: none;">
+                            <div class="col-md-12">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-bug me-1 text-warning"></i>
+                                        Related Disease
+                                    </label>
+                                    {{ form.disease }}
+                                    <small class="text-muted">Select the associated disease if applicable</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Reason Selector -->
+                        <div class="mt-3">
+                            <label class="fishery-form-label">Quick Select Reason:</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="selectReason('DISEASE')">Disease</button>
+                                <button type="button" class="btn btn-sm btn-outline-warning" onclick="selectReason('PREDATOR')">Predator</button>
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="selectReason('OXYGEN')">Low Oxygen</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectReason('WATER_QUALITY')">Water Quality</button>
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="selectReason('STRESS')">Stress</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectReason('CANNIBALISM')">Cannibalism</button>
+                                <button type="button" class="btn btn-sm btn-outline-dark" onclick="selectReason('UNKNOWN')">Unknown</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Impact Analysis -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-graph-up text-info me-2"></i>
+                            Impact Analysis
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="impact-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted d-block">Before Mortality</small>
+                                    <span class="fw-bold fs-5" id="beforePopulation">—</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="impact-box bg-danger bg-opacity-10 p-3 rounded-3 text-center">
+                                    <small class="text-muted d-block">Loss</small>
+                                    <span class="fw-bold fs-5 text-danger" id="lossCount">0</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="impact-box bg-success bg-opacity-10 p-3 rounded-3 text-center">
+                                    <small class="text-muted d-block">Remaining</small>
+                                    <span class="fw-bold fs-5 text-success" id="afterPopulation">—</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: 100%" id="survivalBar">
+                                    <span id="survivalText">100% Survival</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Symptoms and Notes -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-chat-text text-secondary me-2"></i>
+                            Symptoms & Observations
+                        </h5>
+                        
+                        <div class="fishery-form-group mb-3">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-eye me-1 text-secondary"></i>
+                                Symptoms Observed
+                            </label>
+                            {{ form.symptoms_observed }}
+                            <small class="text-muted">Describe any visible symptoms or unusual behavior</small>
+                        </div>
+
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-pencil me-1 text-secondary"></i>
+                                Additional Notes
+                            </label>
+                            {{ form.notes }}
+                        </div>
+                    </div>
+
+                    <!-- Disposal Information -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-trash text-secondary me-2"></i>
+                            Disposal Information
+                        </h5>
+                        
+                        <div class="fishery-form-group">
+                            <label class="fishery-form-label">
+                                <i class="bi bi-box me-1 text-secondary"></i>
+                                Disposal Method
+                            </label>
+                            {{ form.disposal_method }}
+                            <small class="text-muted">How were the dead fish disposed of?</small>
+                        </div>
+                    </div>
+
+                    <!-- Emergency Guidelines -->
+                    <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+                        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                        <div>
+                            <strong>Mortality Response Guidelines:</strong>
+                            <ul class="mb-0 mt-1">
+                                <li>Remove dead fish immediately to prevent disease spread</li>
+                                <li>Record accurate counts for survival rate calculation</li>
+                                <li>Investigate sudden increases in mortality</li>
+                                <li>Check water quality if mortality is unexplained</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Recorded By</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.recorded_by.get_full_name|default:form.instance.recorded_by.username|default:'Unknown' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Recorded At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:mortality_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Record Mortality{% else %}Update Record{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const cycleSelect = document.getElementById('{{ form.cycle.id_for_label }}');
+        const quantityInput = document.getElementById('{{ form.quantity_dead.id_for_label }}');
+        const reasonSelect = document.getElementById('{{ form.reason.id_for_label }}');
+        const diseaseField = document.getElementById('diseaseField');
+        const mortalityIndicator = document.getElementById('mortalityIndicator');
+        
+        // Preview elements
+        const cyclePreview = document.getElementById('cyclePreview');
+        const cyclePond = document.getElementById('cyclePond');
+        const cycleSpecies = document.getElementById('cycleSpecies');
+        const cyclePopulation = document.getElementById('cyclePopulation');
+        
+        // Impact elements
+        const beforePopulation = document.getElementById('beforePopulation');
+        const lossCount = document.getElementById('lossCount');
+        const afterPopulation = document.getElementById('afterPopulation');
+        const survivalBar = document.getElementById('survivalBar');
+        const survivalText = document.getElementById('survivalText');
+
+        // Cycle data (populated from Django)
+        const cycleData = {
+            {% for cycle in cycles %}
+                {{ cycle.id }}: {
+                    pond: "{{ cycle.pond.name }}",
+                    species: "{{ cycle.species.name }}",
+                    population: {{ cycle.current_population }}
+                },
+            {% endfor %}
+        };
+
+        // Update cycle preview
+        function updateCyclePreview() {
+            const cycleId = parseInt(cycleSelect.value);
+            if (cycleId && cycleData[cycleId]) {
+                cyclePreview.style.display = 'block';
+                cyclePond.textContent = cycleData[cycleId].pond;
+                cycleSpecies.textContent = cycleData[cycleId].species;
+                cyclePopulation.textContent = cycleData[cycleId].population.toLocaleString();
+                
+                // Update impact analysis
+                updateImpactAnalysis();
+            } else {
+                cyclePreview.style.display = 'none';
+            }
+        }
+
+        // Update impact analysis
+        function updateImpactAnalysis() {
+            const cycleId = parseInt(cycleSelect.value);
+            const quantity = parseInt(quantityInput.value) || 0;
+            
+            if (cycleId && cycleData[cycleId]) {
+                const population = cycleData[cycleId].population;
+                const remaining = Math.max(0, population - quantity);
+                
+                beforePopulation.textContent = population.toLocaleString();
+                lossCount.textContent = quantity.toLocaleString();
+                afterPopulation.textContent = remaining.toLocaleString();
+                
+                // Update survival bar
+                const survivalPercent = (remaining / population * 100).toFixed(1);
+                survivalBar.style.width = survivalPercent + '%';
+                survivalBar.className = 'progress-bar ' + (survivalPercent < 50 ? 'bg-danger' : (survivalPercent < 75 ? 'bg-warning' : 'bg-success'));
+                survivalText.textContent = survivalPercent + '% Survival';
+                
+                // Validate quantity
+                if (quantity > population) {
+                    quantityInput.setCustomValidity('Mortality cannot exceed current population');
+                    quantityInput.classList.add('is-invalid');
+                    mortalityIndicator.innerHTML = '<span class="badge bg-danger">⚠️ Exceeds population!</span>';
+                } else {
+                    quantityInput.setCustomValidity('');
+                    quantityInput.classList.remove('is-invalid');
+                    
+                    // Show percentage
+                    const percentLoss = (quantity / population * 100).toFixed(1);
+                    mortalityIndicator.innerHTML = `<span class="badge bg-info">${percentLoss}% of population</span>`;
+                }
+            }
+        }
+
+        // Toggle disease field based on reason
+        function toggleDiseaseField() {
+            const reason = reasonSelect.value;
+            if (reason === 'DISEASE') {
+                diseaseField.style.display = 'flex';
+            } else {
+                diseaseField.style.display = 'none';
+            }
+        }
+
+        // Quick reason selector
+        window.selectReason = function(reason) {
+            reasonSelect.value = reason;
+            toggleDiseaseField();
+        }
+
+        // Event listeners
+        if (cycleSelect) {
+            cycleSelect.addEventListener('change', function() {
+                updateCyclePreview();
+                updateImpactAnalysis();
+            });
+        }
+        
+        if (quantityInput) {
+            quantityInput.addEventListener('input', updateImpactAnalysis);
+        }
+        
+        if (reasonSelect) {
+            reasonSelect.addEventListener('change', toggleDiseaseField);
+        }
+
+        // Initialize
+        updateCyclePreview();
+        toggleDiseaseField();
+
+        // Set default date to today
+        const dateInput = document.getElementById('{{ form.date.id_for_label }}');
+        if (dateInput && !dateInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+        }
+
+        // Form validation
+        document.getElementById('mortalityForm').addEventListener('submit', function(e) {
+            const cycle = cycleSelect.value;
+            const quantity = quantityInput.value;
+            
+            if (!cycle) {
+                e.preventDefault();
+                alert('Please select a production cycle');
+                return;
+            }
+            
+            if (!quantity || parseInt(quantity) <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid number of deaths');
+                return;
+            }
+            
+            // Validate against population
+            const cycleId = parseInt(cycle);
+            if (cycleId && cycleData[cycleId]) {
+                const population = cycleData[cycleId].population;
+                if (parseInt(quantity) > population) {
+                    e.preventDefault();
+                    alert('Mortality cannot exceed current population');
+                    return;
+                }
+            }
+            
+            // Check if reason is disease but no disease selected
+            const reason = reasonSelect.value;
+            const disease = document.getElementById('{{ form.disease.id_for_label }}');
+            if (reason === 'DISEASE' && (!disease || !disease.value)) {
+                if (!confirm('No disease selected. Continue anyway?')) {
+                    e.preventDefault();
+                    return;
+                }
+            }
+        });
+
+        // Unsaved changes warning
+        let formChanged = false;
+        document.getElementById('mortalityForm').addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    });
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #dc3545;
+        box-shadow: 0 5px 20px rgba(220, 53, 69, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+        cursor: default;
+    }
+    
+    .is-invalid {
+        border-color: #dc3545;
+    }
+    
+    .is-invalid:focus {
+        box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
+    }
+    
+    /* Impact boxes */
+    .impact-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .impact-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    /* Quick reason buttons */
+    .btn-outline-danger, .btn-outline-warning, .btn-outline-info, 
+    .btn-outline-primary, .btn-outline-success, .btn-outline-secondary, .btn-outline-dark {
+        transition: all 0.3s ease;
+        margin: 2px;
+    }
+    
+    .btn-outline-danger:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .btn-outline-warning:hover {
+        background-color: #ffc107;
+        color: black;
+    }
+    
+    .btn-outline-info:hover {
+        background-color: #0dcaf0;
+        color: black;
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: #0d6efd;
+        color: white;
+    }
+    
+    .btn-outline-success:hover {
+        background-color: #198754;
+        color: white;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn-outline-dark:hover {
+        background-color: #212529;
+        color: white;
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .progress-bar {
+        transition: width 0.3s ease;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    /* Cycle preview */
+    #cyclePreview {
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    #cyclePreview:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Badge indicator */
+    .badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        #cyclePreview .row > div {
+            margin-bottom: 10px;
+        }
+        
+        #cyclePreview .row > div:last-child {
+            margin-bottom: 0;
+        }
+        
+        .d-flex.flex-wrap.gap-2 {
+            justify-content: center;
+        }
+        
+        .btn-outline-danger, .btn-outline-warning, .btn-outline-info,
+        .btn-outline-primary, .btn-outline-success, .btn-outline-secondary, .btn-outline-dark {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .impact-box {
+            margin-bottom: 10px;
+        }
+    }
+</style>
+{% endblock %}

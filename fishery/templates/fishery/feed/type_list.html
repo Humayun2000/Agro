@@ -1,0 +1,495 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-box{% endblock %}
+{% block page_title %}Feed Types{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:feed_type_list' %}">Feed Types</a></li>
+<li class="breadcrumb-item active" aria-current="page">All Feed Types</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'fishery:feed_purchase_add' %}" class="btn btn-outline-success">
+        <i class="bi bi-cart-plus me-1"></i> Record Purchase
+    </a>
+    <a href="{% url 'fishery:feed_type_add' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Add Feed Type
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-box"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_types }}</div>
+            <div class="fishery-stat-label">Total Feed Types</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-cake"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_stock|floatformat:0 }} kg</div>
+            <div class="fishery-stat-label">Total Stock</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="fishery-stat-value">{{ low_stock_count }}</div>
+            <div class="fishery-stat-label">Low Stock Items</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon info">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ avg_price|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Avg Price/kg</div>
+        </div>
+    </div>
+
+    <!-- Quick Stock Status -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h5 class="fishery-table-title mb-0">
+                        <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                        Low Stock Alerts
+                    </h5>
+                    <span class="badge bg-warning">{{ low_stock_count }} items</span>
+                </div>
+                {% for feed in feed_types %}
+                    {% if feed.current_stock <= feed.reorder_level %}
+                    <div class="alert alert-warning d-flex align-items-center justify-content-between mb-2 py-2">
+                        <div>
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <strong>{{ feed.name }}</strong>
+                            <small class="text-muted ms-2">{{ feed.brand }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="fw-bold text-danger">{{ feed.current_stock }} kg</span>
+                            <small class="text-muted d-block">Reorder at {{ feed.reorder_level }} kg</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% empty %}
+                    <p class="text-muted text-center py-3">No low stock items</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h5 class="fishery-table-title mb-0">
+                        <i class="bi bi-cart-check-fill text-success"></i>
+                        Recent Purchases
+                    </h5>
+                    <a href="{% url 'fishery:feed_purchase_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                {% for purchase in recent_purchases %}
+                <div class="d-flex align-items-center justify-content-between mb-2 p-2 bg-light rounded-3">
+                    <div>
+                        <span class="fw-bold">{{ purchase.feed_type.name }}</span>
+                        <small class="text-muted d-block">{{ purchase.purchase_date|date:"M d, Y" }}</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="fw-bold">{{ purchase.quantity_kg }} kg</span>
+                        <small class="text-muted d-block">৳{{ purchase.total_cost|floatformat:0 }}</small>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center py-3">No recent purchases</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Feed Types Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Feed Types Inventory
+                <span class="badge bg-primary ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeleteFeedTypes()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Feed Type</th>
+                        <th>Brand</th>
+                        <th>Category</th>
+                        <th>Protein %</th>
+                        <th>Pellet Size</th>
+                        <th>Stock</th>
+                        <th>Price/kg</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for feed in feed_types %}
+                    <tr class="feed-row {% if feed.current_stock <= feed.reorder_level %}table-warning{% endif %}" data-id="{{ feed.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input feed-checkbox" value="{{ feed.id }}">
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="feed-avatar bg-primary bg-opacity-10 rounded p-2">
+                                    <i class="bi bi-box text-primary"></i>
+                                </div>
+                                <span class="fw-bold">{{ feed.name }}</span>
+                            </div>
+                        </td>
+                        <td>{{ feed.brand }}</td>
+                        <td>
+                            <span class="fishery-badge fishery-badge-info">
+                                {{ feed.get_category_display }}
+                            </span>
+                        </td>
+                        <td>{{ feed.protein_percentage }}%</td>
+                        <td>{{ feed.pellet_size_mm }} mm</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-bold {% if feed.current_stock <= feed.reorder_level %}text-danger{% endif %}">
+                                    {{ feed.current_stock }} kg
+                                </span>
+                                {% if feed.current_stock <= feed.reorder_level %}
+                                <i class="bi bi-exclamation-triangle-fill text-danger" title="Low Stock"></i>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>৳{{ feed.current_price|floatformat:2 }}</td>
+                        <td>
+                            {% if feed.current_stock <= 0 %}
+                                <span class="fishery-badge fishery-badge-danger">Out of Stock</span>
+                            {% elif feed.current_stock <= feed.reorder_level %}
+                                <span class="fishery-badge fishery-badge-warning">Low Stock</span>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-success">In Stock</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:feed_type_edit' feed.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'fishery:feed_purchase_add' %}?feed_type={{ feed.id }}" class="btn btn-sm btn-outline-success" title="Add Purchase">
+                                    <i class="bi bi-cart-plus"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteFeedType({{ feed.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-5">
+                            <i class="bi bi-box fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No feed types found</h5>
+                            <p class="text-muted mb-3">Add your first feed type to start tracking inventory</p>
+                            <a href="{% url 'fishery:feed_type_add' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Add Feed Type
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-primary border-primary">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Stock Summary by Category -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    Stock by Category
+                </h5>
+                {% for category in stock_by_category %}
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                        <span class="fw-bold">{{ category.category }}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-muted">{{ category.count }} types</span>
+                        <span class="fw-bold">{{ category.total_stock|floatformat:0 }} kg</span>
+                    </div>
+                </div>
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar bg-primary" role="progressbar" 
+                         style="width: {% widthratio category.total_stock total_stock 100 %}%"></div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center py-3">No data available</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-truck text-success"></i>
+                    Reorder Recommendations
+                </h5>
+                {% for feed in feed_types %}
+                    {% if feed.current_stock <= feed.reorder_level %}
+                    <div class="d-flex align-items-center justify-content-between mb-2 p-2 border-start border-3 border-warning bg-light">
+                        <div>
+                            <span class="fw-bold">{{ feed.name }}</span>
+                            <small class="text-muted d-block">{{ feed.brand }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-danger">{{ feed.current_stock }} kg left</span>
+                            <small class="text-muted d-block">Reorder: {{ feed.reorder_quantity }} kg</small>
+                            <a href="{% url 'fishery:feed_purchase_add' %}?feed_type={{ feed.id }}" class="btn btn-sm btn-warning mt-1">
+                                <i class="bi bi-cart-plus"></i> Order Now
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% empty %}
+                <p class="text-muted text-center py-3">All items are adequately stocked</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteFeedTypeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this feed type?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will affect all feed records and purchases using this feed type.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteFeedTypeBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Store delete URL template
+    const DELETE_FEED_TYPE_URL = "{% url 'fishery:feed_type_delete' 0 %}";
+    
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.feed-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.feed-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.feed-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeleteFeedType(feedId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteFeedTypeModal'));
+        document.getElementById('confirmDeleteFeedTypeBtn').href = DELETE_FEED_TYPE_URL.replace('0', feedId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeleteFeedTypes() {
+        const selected = Array.from(document.querySelectorAll('.feed-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} feed types? This will affect all related records.`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/feed-types/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Row click to edit
+    document.querySelectorAll('.feed-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:feed_type_edit' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .feed-avatar {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .feed-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .feed-row td {
+        vertical-align: middle;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+    }
+    
+    .table-warning {
+        background-color: #fff3cd !important;
+    }
+    
+    .table-warning:hover {
+        background-color: #ffe69c !important;
+    }
+    
+    .border-warning {
+        border-color: #ffc107 !important;
+    }
+    
+    /* Progress bars */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        transition: all 0.3s ease;
+    }
+    
+    .alert-warning:hover {
+        transform: translateX(5px);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.9rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .feed-avatar {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+        }
+    }
+</style>
+{% endblock %}

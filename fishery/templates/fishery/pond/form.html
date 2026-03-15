@@ -1,0 +1,498 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Add New Pond{% else %}Edit {{ pond.name }}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:pond_list' %}">Ponds</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Add New{% else %}Edit{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:pond_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Pond Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Add New Pond
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Pond: {{ form.instance.name }}
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Create a new pond for your fishery farm
+                        {% else %}
+                            Update pond information and settings
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="pondForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Basic Information Section -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-info-circle text-primary me-2"></i>
+                            Basic Information
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-building me-1 text-primary"></i>
+                                        Farm *
+                                    </label>
+                                    {{ form.farm }}
+                                    {% if form.farm.help_text %}
+                                        <small class="text-muted">{{ form.farm.help_text }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-upc-scan me-1 text-primary"></i>
+                                        Pond ID *
+                                    </label>
+                                    {{ form.pond_id }}
+                                    <small class="text-muted">Unique identifier for the pond (e.g., P-001)</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-tag me-1 text-primary"></i>
+                                        Pond Name *
+                                    </label>
+                                    {{ form.name }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-grid-3x3 me-1 text-primary"></i>
+                                        Pond Type *
+                                    </label>
+                                    {{ form.pond_type }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Physical Characteristics Section -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-rulers text-success me-2"></i>
+                            Physical Characteristics
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-arrows-angle-expand me-1 text-success"></i>
+                                        Size (acres) *
+                                    </label>
+                                    {{ form.size_in_acres }}
+                                    <small class="text-muted">Area in acres</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-arrow-left-right me-1 text-success"></i>
+                                        Length (m)
+                                    </label>
+                                    {{ form.length }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-arrow-up-down me-1 text-success"></i>
+                                        Width (m)
+                                    </label>
+                                    {{ form.width }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-arrow-down me-1 text-success"></i>
+                                        Avg Depth (ft)
+                                    </label>
+                                    {{ form.average_depth }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-arrow-down-circle me-1 text-success"></i>
+                                        Max Depth (ft)
+                                    </label>
+                                    {{ form.max_depth }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-cube me-1 text-success"></i>
+                                        Volume (m³)
+                                    </label>
+                                    {{ form.volume }}
+                                    <small class="text-muted">Calculated automatically if dimensions provided</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-layers me-1 text-success"></i>
+                                        Bottom Type
+                                    </label>
+                                    {{ form.bottom_type }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-droplet me-1 text-success"></i>
+                                        Water Source *
+                                    </label>
+                                    {{ form.water_source }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Location Section -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-geo-alt text-warning me-2"></i>
+                            Location & GPS
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-pin-map me-1 text-warning"></i>
+                                        Location
+                                    </label>
+                                    {{ form.location }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-geo-alt-fill me-1 text-warning"></i>
+                                        Latitude
+                                    </label>
+                                    {{ form.latitude }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-geo-alt-fill me-1 text-warning"></i>
+                                        Longitude
+                                    </label>
+                                    {{ form.longitude }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            You can get GPS coordinates from Google Maps by right-clicking on your pond location.
+                        </div>
+                    </div>
+
+                    <!-- Operational Status Section -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-toggle-on text-info me-2"></i>
+                            Operational Status
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-activity me-1 text-info"></i>
+                                        Current Status
+                                    </label>
+                                    {{ form.status }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <div class="form-check mt-4">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label fw-bold" for="{{ form.is_active.id_for_label }}">
+                                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                            Active Pond
+                                        </label>
+                                        <small class="d-block text-muted">Inactive ponds are hidden from most views</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Water Quality Thresholds Section -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-droplet-half text-danger me-2"></i>
+                            Water Quality Thresholds
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-wind me-1 text-danger"></i>
+                                        Min Oxygen (mg/L)
+                                    </label>
+                                    {{ form.min_oxygen }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-exclamation-triangle me-1 text-danger"></i>
+                                        Max Ammonia (mg/L)
+                                    </label>
+                                    {{ form.max_ammonia }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-droplet me-1 text-danger"></i>
+                                        Min pH
+                                    </label>
+                                    {{ form.min_ph }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-droplet me-1 text-danger"></i>
+                                        Max pH
+                                    </label>
+                                    {{ form.max_ph }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-thermometer-half me-1 text-danger"></i>
+                                        Optimal Temp Min (°C)
+                                    </label>
+                                    {{ form.optimal_temp_min }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-thermometer-high me-1 text-danger"></i>
+                                        Optimal Temp Max (°C)
+                                    </label>
+                                    {{ form.optimal_temp_max }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            Water quality readings outside these thresholds will trigger alerts in the system.
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Hidden by default) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created By</label>
+                                        <input type="text" class="fishery-form-control" value="{{ form.instance.created_by.get_full_name|default:form.instance.created_by.username|default:'Unknown' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created At</label>
+                                        <input type="text" class="fishery-form-control" value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Last Updated</label>
+                                        <input type="text" class="fishery-form-control" value="{{ form.instance.updated_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:pond_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Add Pond{% else %}Update Pond{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Auto-calculate volume script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const lengthInput = document.getElementById('{{ form.length.id_for_label }}');
+        const widthInput = document.getElementById('{{ form.width.id_for_label }}');
+        const avgDepthInput = document.getElementById('{{ form.average_depth.id_for_label }}');
+        const volumeInput = document.getElementById('{{ form.volume.id_for_label }}');
+        
+        function calculateVolume() {
+            const length = parseFloat(lengthInput.value) || 0;
+            const width = parseFloat(widthInput.value) || 0;
+            const depth = parseFloat(avgDepthInput.value) || 0;
+            
+            if (length > 0 && width > 0 && depth > 0) {
+                // Convert depth from feet to meters (1 ft = 0.3048 m)
+                const depthMeters = depth * 0.3048;
+                const volume = length * width * depthMeters;
+                volumeInput.value = volume.toFixed(2);
+            }
+        }
+        
+        if (lengthInput && widthInput && avgDepthInput) {
+            lengthInput.addEventListener('input', calculateVolume);
+            widthInput.addEventListener('input', calculateVolume);
+            avgDepthInput.addEventListener('input', calculateVolume);
+        }
+    });
+
+    // Form validation
+    document.getElementById('pondForm').addEventListener('submit', function(e) {
+        const pondId = document.getElementById('{{ form.pond_id.id_for_label }}').value;
+        const pondName = document.getElementById('{{ form.name.id_for_label }}').value;
+        const size = document.getElementById('{{ form.size_in_acres.id_for_label }}').value;
+        
+        if (!pondId.trim()) {
+            e.preventDefault();
+            alert('Please enter a Pond ID');
+            return;
+        }
+        
+        if (!pondName.trim()) {
+            e.preventDefault();
+            alert('Please enter a Pond Name');
+            return;
+        }
+        
+        if (!size || parseFloat(size) <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid size (greater than 0)');
+            return;
+        }
+    });
+
+    // Confirm before leaving with unsaved changes
+    let formChanged = false;
+    document.getElementById('pondForm').addEventListener('input', function() {
+        formChanged = true;
+    });
+    
+    window.addEventListener('beforeunload', function(e) {
+        if (formChanged) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 20px rgba(13, 110, 253, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+    }
+</style>
+{% endblock %}

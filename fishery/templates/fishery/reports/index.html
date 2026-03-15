@@ -1,0 +1,912 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-file-text{% endblock %}
+{% block page_title %}Reports Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Reports</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="refreshReports()">
+        <i class="bi bi-arrow-repeat me-1"></i> Refresh
+    </button>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Welcome Banner -->
+    <div class="alert alert-primary d-flex align-items-center justify-content-between mb-4 fishery-animate-slide" 
+         style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%); color: white; border: none; border-radius: 15px;">
+        <div>
+            <h4 class="mb-2 fw-bold">
+                <i class="bi bi-file-text me-2"></i>
+                Fishery Reports Dashboard
+            </h4>
+            <p class="mb-0 opacity-75">
+                <i class="bi bi-clock me-2"></i>
+                <span id="live-clock"></span>
+                <span class="mx-3">|</span>
+                <i class="bi bi-calendar3 me-2"></i>
+                {% now "l, F j, Y" %}
+            </p>
+        </div>
+        <div>
+            <span class="badge bg-white text-dark p-3">
+                <i class="bi bi-fish me-2"></i> {{ total_cycles }} Active Cycles
+            </span>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_cycles }}</div>
+            <div class="fishery-stat-label">Production Cycles</div>
+            <div class="fishery-stat-trend trend-up">
+                <i class="bi bi-arrow-up"></i> +{{ active_cycles }} active
+            </div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-scissors"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_harvest|floatformat:0 }} kg</div>
+            <div class="fishery-stat-label">Total Harvest</div>
+            <div class="fishery-stat-trend trend-up">
+                <i class="bi bi-calendar"></i> YTD
+            </div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ total_revenue|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Total Revenue</div>
+            <div class="fishery-stat-trend trend-up">
+                <i class="bi bi-arrow-up"></i> YTD
+            </div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon info">
+                <i class="bi bi-pie-chart"></i>
+            </div>
+            <div class="fishery-stat-value">{{ report_count }}</div>
+            <div class="fishery-stat-label">Reports Generated</div>
+            <div class="fishery-stat-trend">
+                <i class="bi bi-clock"></i> This year
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Categories -->
+    <div class="row g-4 mb-4">
+        <!-- Production Reports -->
+        <div class="col-md-4">
+            <div class="report-category-card">
+                <div class="report-category-header" style="background: linear-gradient(135deg, #28a745 0%, #218838 100%);">
+                    <i class="bi bi-graph-up"></i>
+                    <h5 class="mb-0">Production Reports</h5>
+                </div>
+                <div class="report-category-body">
+                    <a href="{% url 'fishery:production_report' %}?year={{ current_year }}" class="report-link">
+                        <i class="bi bi-calendar-week text-success"></i>
+                        <span>Monthly Production Report</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="{% url 'fishery:production_report' %}?year={{ current_year }}&period=quarterly" class="report-link">
+                        <i class="bi bi-calendar3 text-success"></i>
+                        <span>Quarterly Production Summary</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="{% url 'fishery:production_report' %}?year={{ current_year }}" class="report-link">
+                        <i class="bi bi-calendar-year text-success"></i>
+                        <span>Annual Production Report</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="#" onclick="showHarvestReport()" class="report-link">
+                        <i class="bi bi-scissors text-success"></i>
+                        <span>Harvest Analysis Report</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="#" onclick="showFCRReport()" class="report-link">
+                        <i class="bi bi-calculator text-success"></i>
+                        <span>FCR Performance Report</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Reports -->
+        <div class="col-md-4">
+            <div class="report-category-card">
+                <div class="report-category-header" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);">
+                    <i class="bi bi-cash-stack"></i>
+                    <h5 class="mb-0">Financial Reports</h5>
+                </div>
+                <div class="report-category-body">
+                    <a href="{% url 'fishery:financial_report' %}?year={{ current_year }}" class="report-link">
+                        <i class="bi bi-calendar-week text-warning"></i>
+                        <span>Monthly Financial Report</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="{% url 'fishery:financial_report' %}?year={{ current_year }}&quarter=1" class="report-link">
+                        <i class="bi bi-calendar3 text-warning"></i>
+                        <span>Quarterly Financial Summary</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="{% url 'fishery:financial_report' %}?year={{ current_year }}" class="report-link">
+                        <i class="bi bi-calendar-year text-warning"></i>
+                        <span>Annual Financial Report</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="#" onclick="showProfitLossReport()" class="report-link">
+                        <i class="bi bi-bar-chart text-warning"></i>
+                        <span>Profit & Loss Statement</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="#" onclick="showCashFlowReport()" class="report-link">
+                        <i class="bi bi-cash-coin text-warning"></i>
+                        <span>Cash Flow Analysis</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Health Reports -->
+        <div class="col-md-4">
+            <div class="report-category-card">
+                <div class="report-category-header" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
+                    <i class="bi bi-heart-pulse"></i>
+                    <h5 class="mb-0">Health Reports</h5>
+                </div>
+                <div class="report-category-body">
+                    <a href="#" onclick="showDiseaseReport()" class="report-link">
+                        <i class="bi bi-bug text-danger"></i>
+                        <span>Disease Outbreak Report</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="#" onclick="showMortalityReport()" class="report-link">
+                        <i class="bi bi-exclamation-triangle text-danger"></i>
+                        <span>Mortality Analysis Report</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="#" onclick="showTreatmentReport()" class="report-link">
+                        <i class="bi bi-capsule text-danger"></i>
+                        <span>Treatment Effectiveness Report</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                    <a href="#" onclick="showWaterQualityReport()" class="report-link">
+                        <i class="bi bi-droplet text-danger"></i>
+                        <span>Water Quality Report</span>
+                        <i class="bi bi-chevron-right ms-auto"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Yearly Overview Charts -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-8">
+            <div class="fishery-table-container">
+                <div class="fishery-table-header">
+                    <h5 class="fishery-table-title">
+                        <i class="bi bi-graph-up text-primary"></i>
+                        Yearly Performance Overview - {{ current_year }}
+                    </h5>
+                    <select class="form-select form-select-sm w-auto" id="yearSelector" onchange="changeYear()">
+                        {% for y in years %}
+                        <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <canvas id="yearlyChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-info"></i>
+                    Revenue Distribution
+                </h5>
+                <canvas id="revenuePieChart" style="height: 250px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="summary-stat-card">
+                <div class="summary-icon bg-primary">
+                    <i class="bi bi-fish"></i>
+                </div>
+                <div class="summary-details">
+                    <h3>{{ total_fish_sold|floatformat:0 }} kg</h3>
+                    <p>Total Fish Sold (YTD)</p>
+                    <small class="text-success">↑ {{ sales_growth|floatformat:1 }}% vs last year</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-stat-card">
+                <div class="summary-icon bg-success">
+                    <i class="bi bi-egg"></i>
+                </div>
+                <div class="summary-details">
+                    <h3>{{ avg_survival_rate|floatformat:1 }}%</h3>
+                    <p>Average Survival Rate</p>
+                    <small class="text-info">Target: 85%</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-stat-card">
+                <div class="summary-icon bg-warning">
+                    <i class="bi bi-calculator"></i>
+                </div>
+                <div class="summary-details">
+                    <h3>{{ avg_fcr|floatformat:2 }}</h3>
+                    <p>Average FCR</p>
+                    <small class="text-warning">Target: 1.8</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-stat-card">
+                <div class="summary-icon bg-info">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="summary-details">
+                    <h3>৳{{ avg_price|floatformat:2 }}</h3>
+                    <p>Average Price/kg</p>
+                    <small class="text-success">↑ {{ price_growth|floatformat:1 }}%</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Reports -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-clock-history text-info"></i>
+                Recently Generated Reports
+            </h5>
+            <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Report Name</th>
+                        <th>Type</th>
+                        <th>Period</th>
+                        <th>Generated On</th>
+                        <th>Generated By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in recent_reports %}
+                    <tr>
+                        <td>{{ report.title }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if report.report_type == 'PRODUCTION' %}bg-success
+                                {% elif report.report_type == 'FINANCIAL' %}bg-warning
+                                {% elif report.report_type == 'HEALTH' %}bg-danger
+                                {% else %}bg-info{% endif %}">
+                                {{ report.report_type }}
+                            </span>
+                        </td>
+                        <td>{{ report.period }}</td>
+                        <td>{{ report.generated_at|date:"M d, Y H:i" }}</td>
+                        <td>{{ report.generated_by.get_full_name|default:report.generated_by.username }}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{{ report.report_file.url }}" class="btn btn-sm btn-outline-primary" title="Download">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                <a href="#" class="btn btn-sm btn-outline-info" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="bi bi-file-text fs-2 d-block mb-2"></i>
+                            No reports generated yet
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Report Generation -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-lightning-charge text-warning"></i>
+                    Quick Reports
+                </h5>
+                <div class="quick-report-grid">
+                    <button class="quick-report-btn" onclick="generateQuickReport('today')">
+                        <i class="bi bi-calendar-day"></i>
+                        <span>Today's Summary</span>
+                    </button>
+                    <button class="quick-report-btn" onclick="generateQuickReport('week')">
+                        <i class="bi bi-calendar-week"></i>
+                        <span>This Week</span>
+                    </button>
+                    <button class="quick-report-btn" onclick="generateQuickReport('month')">
+                        <i class="bi bi-calendar-month"></i>
+                        <span>This Month</span>
+                    </button>
+                    <button class="quick-report-btn" onclick="generateQuickReport('quarter')">
+                        <i class="bi bi-calendar3"></i>
+                        <span>This Quarter</span>
+                    </button>
+                    <button class="quick-report-btn" onclick="generateQuickReport('year')">
+                        <i class="bi bi-calendar-year"></i>
+                        <span>This Year</span>
+                    </button>
+                    <button class="quick-report-btn" onclick="generateQuickReport('custom')">
+                        <i class="bi bi-sliders2"></i>
+                        <span>Custom Range</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-file-pdf text-danger"></i>
+                    Export Options
+                </h5>
+                <div class="export-options">
+                    <div class="export-option">
+                        <i class="bi bi-file-pdf text-danger fs-4"></i>
+                        <div>
+                            <h6>PDF Report</h6>
+                            <small>Printable document with charts</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger ms-auto" onclick="exportPDF()">
+                            Export PDF
+                        </button>
+                    </div>
+                    <div class="export-option">
+                        <i class="bi bi-file-excel text-success fs-4"></i>
+                        <div>
+                            <h6>Excel Report</h6>
+                            <small>Spreadsheet with raw data</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-success ms-auto" onclick="exportExcel()">
+                            Export Excel
+                        </button>
+                    </div>
+                    <div class="export-option">
+                        <i class="bi bi-file-csv text-info fs-4"></i>
+                        <div>
+                            <h6>CSV Data</h6>
+                            <small>Comma-separated values</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-info ms-auto" onclick="exportCSV()">
+                            Export CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Report Modal -->
+<div class="modal fade" id="customReportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-sliders2 me-2"></i>
+                    Custom Report Range
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="customReportForm">
+                    <div class="mb-3">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="startDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="endDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Report Type</label>
+                        <select class="form-select" id="reportType">
+                            <option value="production">Production Report</option>
+                            <option value="financial">Financial Report</option>
+                            <option value="health">Health Report</option>
+                            <option value="comprehensive">Comprehensive Report</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Format</label>
+                        <select class="form-select" id="reportFormat">
+                            <option value="pdf">PDF</option>
+                            <option value="excel">Excel</option>
+                            <option value="csv">CSV</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="generateCustomReport()">Generate Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let yearlyChart = null;
+    let revenuePieChart = null;
+
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function() {
+        loadYearlyChart({{ current_year }});
+        loadRevenuePieChart({{ current_year }});
+    });
+
+    // Load yearly performance chart
+    function loadYearlyChart(year) {
+        fetch(`/fishery/api/reports/yearly-performance/?year=${year}`)
+            .then(response => response.json())
+            .then(data => {
+                if (yearlyChart) {
+                    yearlyChart.destroy();
+                }
+                
+                const ctx = document.getElementById('yearlyChart').getContext('2d');
+                yearlyChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                        datasets: [
+                            {
+                                label: 'Harvest (kg)',
+                                data: data.harvest || [],
+                                borderColor: '#28a745',
+                                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                                borderWidth: 3,
+                                tension: 0.4,
+                                yAxisID: 'y',
+                                fill: true
+                            },
+                            {
+                                label: 'Revenue (৳)',
+                                data: data.revenue || [],
+                                borderColor: '#ffc107',
+                                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                                borderWidth: 3,
+                                tension: 0.4,
+                                yAxisID: 'y1',
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Harvest (kg)'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Revenue (৳)'
+                                },
+                                grid: {
+                                    drawOnChartArea: false,
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('Error loading yearly chart:', error));
+    }
+
+    // Load revenue distribution pie chart
+    function loadRevenuePieChart(year) {
+        fetch(`/fishery/api/reports/revenue-distribution/?year=${year}`)
+            .then(response => response.json())
+            .then(data => {
+                if (revenuePieChart) {
+                    revenuePieChart.destroy();
+                }
+                
+                const ctx = document.getElementById('revenuePieChart').getContext('2d');
+                revenuePieChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.labels || ['Species A', 'Species B', 'Species C', 'Other'],
+                        datasets: [{
+                            data: data.values || [0, 0, 0, 0],
+                            backgroundColor: [
+                                '#0d6efd',
+                                '#28a745',
+                                '#ffc107',
+                                '#6c757d'
+                            ],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('Error loading revenue chart:', error));
+    }
+
+    // Change year
+    function changeYear() {
+        const year = document.getElementById('yearSelector').value;
+        loadYearlyChart(year);
+        loadRevenuePieChart(year);
+    }
+
+    // Refresh reports
+    function refreshReports() {
+        showFisheryLoading();
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+    }
+
+    // Generate quick report
+    function generateQuickReport(period) {
+        showFisheryLoading();
+        if (period === 'custom') {
+            hideFisheryLoading();
+            new bootstrap.Modal(document.getElementById('customReportModal')).show();
+        } else {
+            window.location.href = `/fishery/reports/quick/?period=${period}`;
+        }
+    }
+
+    // Generate custom report
+    function generateCustomReport() {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        const reportType = document.getElementById('reportType').value;
+        const reportFormat = document.getElementById('reportFormat').value;
+        
+        if (!startDate || !endDate) {
+            alert('Please select both start and end dates');
+            return;
+        }
+        
+        showFisheryLoading();
+        window.location.href = `/fishery/reports/custom/?start=${startDate}&end=${endDate}&type=${reportType}&format=${reportFormat}`;
+    }
+
+    // Report functions
+    function showHarvestReport() {
+        window.location.href = "{% url 'fishery:production_report' %}?type=harvest&year={{ current_year }}";
+    }
+
+    function showFCRReport() {
+        window.location.href = "{% url 'fishery:production_report' %}?type=fcr&year={{ current_year }}";
+    }
+
+    function showProfitLossReport() {
+        window.location.href = "{% url 'fishery:financial_report' %}?type=pl&year={{ current_year }}";
+    }
+
+    function showCashFlowReport() {
+        window.location.href = "{% url 'fishery:financial_report' %}?type=cashflow&year={{ current_year }}";
+    }
+
+    function showDiseaseReport() {
+        window.location.href = "{% url 'fishery:health_summary_report' %}?type=disease&year={{ current_year }}";
+    }
+
+    function showMortalityReport() {
+        window.location.href = "{% url 'fishery:health_summary_report' %}?type=mortality&year={{ current_year }}";
+    }
+
+    function showTreatmentReport() {
+        window.location.href = "{% url 'fishery:health_summary_report' %}?type=treatment&year={{ current_year }}";
+    }
+
+    function showWaterQualityReport() {
+        window.location.href = "{% url 'fishery:health_summary_report' %}?type=water&year={{ current_year }}";
+    }
+
+    // Export functions
+    function exportPDF() {
+        window.location.href = "{% url 'fishery:export_reports_pdf' %}?year={{ current_year }}";
+    }
+
+    function exportExcel() {
+        window.location.href = "{% url 'fishery:export_reports_excel' %}?year={{ current_year }}";
+    }
+
+    function exportCSV() {
+        window.location.href = "{% url 'fishery:export_reports_csv' %}?year={{ current_year }}";
+    }
+
+    // Live clock
+    function updateClock() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        const clockElement = document.getElementById('live-clock');
+        if (clockElement) {
+            clockElement.textContent = timeString;
+        }
+    }
+    setInterval(updateClock, 1000);
+</script>
+
+<style>
+    /* Report Category Cards */
+    .report-category-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .report-category-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    }
+    
+    .report-category-header {
+        padding: 20px;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .report-category-header i {
+        font-size: 1.5rem;
+    }
+    
+    .report-category-body {
+        padding: 20px;
+        flex: 1;
+    }
+    
+    .report-link {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        color: #495057;
+        text-decoration: none;
+        border-bottom: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .report-link:last-child {
+        border-bottom: none;
+    }
+    
+    .report-link:hover {
+        padding-left: 10px;
+        color: #0d6efd;
+    }
+    
+    .report-link i:first-child {
+        font-size: 1.2rem;
+        width: 24px;
+    }
+    
+    .report-link span {
+        flex: 1;
+    }
+    
+    /* Summary Stat Cards */
+    .summary-stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        transition: all 0.3s ease;
+    }
+    
+    .summary-stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    }
+    
+    .summary-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        color: white;
+    }
+    
+    .summary-icon.bg-primary { background: linear-gradient(135deg, #0d6efd, #0b5ed7); }
+    .summary-icon.bg-success { background: linear-gradient(135deg, #28a745, #218838); }
+    .summary-icon.bg-warning { background: linear-gradient(135deg, #ffc107, #e0a800); }
+    .summary-icon.bg-info { background: linear-gradient(135deg, #0dcaf0, #0b9fc7); }
+    
+    .summary-details {
+        flex: 1;
+    }
+    
+    .summary-details h3 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 5px;
+    }
+    
+    .summary-details p {
+        color: #64748b;
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+    }
+    
+    .summary-details small {
+        font-size: 0.8rem;
+    }
+    
+    /* Quick Report Grid */
+    .quick-report-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .quick-report-btn {
+        background: #f8fafc;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 20px 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        color: #495057;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .quick-report-btn:hover {
+        background: white;
+        border-color: #0d6efd;
+        color: #0d6efd;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    }
+    
+    .quick-report-btn i {
+        font-size: 2rem;
+    }
+    
+    .quick-report-btn span {
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-align: center;
+    }
+    
+    /* Export Options */
+    .export-options {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .export-option {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .export-option:hover {
+        background: white;
+        border-color: #0d6efd;
+        transform: translateX(5px);
+    }
+    
+    .export-option h6 {
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    .export-option small {
+        color: #64748b;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .quick-report-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .summary-stat-card {
+            padding: 15px;
+        }
+        
+        .summary-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+        
+        .summary-details h3 {
+            font-size: 1.4rem;
+        }
+    }
+</style>
+{% endblock %}

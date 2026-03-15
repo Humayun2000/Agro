@@ -1,0 +1,706 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-diagram-3{% endblock %}
+{% block page_title %}Fish Batches{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:batch_list' %}">Batches</a></li>
+<li class="breadcrumb-item active" aria-current="page">All Batches</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportBatches()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:batch_add' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Add New Batch
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-diagram-3"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_batches }}</div>
+            <div class="fishery-stat-label">Total Batches</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-fish"></i>
+            </div>
+            <div class="fishery-stat-value">{{ unique_species }}</div>
+            <div class="fishery-stat-label">Species</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-trophy"></i>
+            </div>
+            <div class="fishery-stat-value">{{ certified_batches }}</div>
+            <div class="fishery-stat-label">Certified</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon info">
+                <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <div class="fishery-stat-value">{{ active_in_cycles }}</div>
+            <div class="fishery-stat-label">In Use</div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-award fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Grade A</h6>
+                            <h3 class="mb-0">{{ grade_a_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-award fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Grade B</h6>
+                            <h3 class="mb-0">{{ grade_b_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-secondary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-award fs-3 text-secondary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Grade C</h6>
+                            <h3 class="mb-0">{{ grade_c_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-globe fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Imported</h6>
+                            <h3 class="mb-0">{{ imported_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Batches
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Species</label>
+                        <select name="species" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Species</option>
+                            {% for species in species_list %}
+                            <option value="{{ species.id }}" {% if current_species == species.id|stringformat:"s" %}selected{% endif %}>
+                                {{ species.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Grade</label>
+                        <select name="grade" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Grades</option>
+                            {% for value, label in grade_choices %}
+                            <option value="{{ value }}" {% if current_grade == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Source</label>
+                        <select name="source" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Sources</option>
+                            {% for value, label in source_choices %}
+                            <option value="{{ value }}" {% if current_source == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Certification</label>
+                        <select name="certified" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option value="yes" {% if certified == 'yes' %}selected{% endif %}>Certified Only</option>
+                            <option value="no" {% if certified == 'no' %}selected{% endif %}>Not Certified</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <label class="fishery-form-label">Search</label>
+                        <input type="text" name="search" class="fishery-form-control" 
+                               placeholder="Batch number, supplier..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-8 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100 justify-content-end">
+                            <button type="submit" class="fishery-btn-add">
+                                <i class="bi bi-search me-1"></i> Apply Filters
+                            </button>
+                            <a href="{% url 'fishery:batch_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i> Clear
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Batches Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Fish Batches
+                <span class="badge bg-primary ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeleteBatches()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Batch #</th>
+                        <th>Species</th>
+                        <th>Source</th>
+                        <th>Supplier</th>
+                        <th>Grade</th>
+                        <th>Generation</th>
+                        <th>Origin</th>
+                        <th>Certification</th>
+                        <th>Usage</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for batch in batches %}
+                    <tr class="batch-row {% if batch.is_certified %}table-success{% endif %}" data-id="{{ batch.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input batch-checkbox" value="{{ batch.id }}">
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ batch.batch_number }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="batch-avatar bg-primary bg-opacity-10 rounded p-2">
+                                    <i class="bi bi-fish text-primary"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ batch.species.name }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="fishery-badge 
+                                {% if batch.source == 'HATCHERY' %}fishery-badge-success
+                                {% elif batch.source == 'IMPORTED' %}fishery-badge-info
+                                {% else %}fishery-badge-primary{% endif %}">
+                                {{ batch.get_source_display }}
+                            </span>
+                        </td>
+                        <td>{{ batch.supplier|default:"—" }}</td>
+                        <td>
+                            {% if batch.grade == 'A' %}
+                                <span class="fishery-badge fishery-badge-success">Grade A</span>
+                            {% elif batch.grade == 'B' %}
+                                <span class="fishery-badge fishery-badge-info">Grade B</span>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-secondary">Grade C</span>
+                            {% endif %}
+                        </td>
+                        <td>F{{ batch.generation }}</td>
+                        <td>{{ batch.origin|truncatechars:20|default:"—" }}</td>
+                        <td>
+                            {% if batch.is_certified %}
+                                <span class="fishery-badge fishery-badge-success" 
+                                      title="Certified: {{ batch.certification_number }}">
+                                    <i class="bi bi-patch-check-fill me-1"></i> Certified
+                                </span>
+                                {% if batch.certification_date %}
+                                <small class="d-block text-muted">{{ batch.certification_date|date:"M Y" }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-secondary">Not Certified</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ batch.cycle_count }} cycles</span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:batch_edit' batch.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'fishery:cycle_add' %}?batch={{ batch.id }}" class="btn btn-sm btn-outline-success" title="Start Cycle">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteBatch({{ batch.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center py-5">
+                            <i class="bi bi-diagram-3 fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No fish batches found</h5>
+                            <p class="text-muted mb-3">Add your first fish batch</p>
+                            <a href="{% url 'fishery:batch_add' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Add Batch
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-primary border-primary">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Batch Analytics -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    Batches by Grade
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="gradeChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-globe text-info"></i>
+                    Batches by Source
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="sourceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recently Added Batches -->
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-clock-history text-warning"></i>
+                    Recently Added Batches
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Batch #</th>
+                                <th>Species</th>
+                                <th>Grade</th>
+                                <th>Source</th>
+                                <th>Added</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for batch in recent_batches %}
+                            <tr>
+                                <td class="fw-bold">{{ batch.batch_number }}</td>
+                                <td>{{ batch.species.name }}</td>
+                                <td>
+                                    {% if batch.grade == 'A' %}
+                                        <span class="badge bg-success">A</span>
+                                    {% elif batch.grade == 'B' %}
+                                        <span class="badge bg-info">B</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">C</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ batch.get_source_display }}</td>
+                                <td>{{ batch.created_at|timesince }} ago</td>
+                                <td>
+                                    {% if batch.is_certified %}
+                                        <span class="badge bg-success">Certified</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Not Certified</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-3 text-muted">
+                                    No recent batches
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteBatchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this fish batch?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will affect all production cycles using this batch.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteBatchBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Store delete URL template
+    const DELETE_BATCH_URL = "{% url 'fishery:batch_delete' 0 %}";
+    
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function() {
+        // Grade distribution chart
+        const gradeCtx = document.getElementById('gradeChart').getContext('2d');
+        new Chart(gradeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Grade A', 'Grade B', 'Grade C'],
+                datasets: [{
+                    data: [
+                        {{ grade_a_count|default:0 }},
+                        {{ grade_b_count|default:0 }},
+                        {{ grade_c_count|default:0 }}
+                    ],
+                    backgroundColor: ['#28a745', '#17a2b8', '#6c757d'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Source distribution chart
+        const sourceCtx = document.getElementById('sourceChart').getContext('2d');
+        new Chart(sourceCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Hatchery', 'Imported', 'Local'],
+                datasets: [{
+                    data: [
+                        {{ hatchery_count|default:0 }},
+                        {{ imported_count|default:0 }},
+                        {{ local_count|default:0 }}
+                    ],
+                    backgroundColor: ['#28a745', '#17a2b8', '#ffc107'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.batch-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.batch-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.batch-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeleteBatch(batchId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteBatchModal'));
+        document.getElementById('confirmDeleteBatchBtn').href = DELETE_BATCH_URL.replace('0', batchId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeleteBatches() {
+        const selected = Array.from(document.querySelectorAll('.batch-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} batches? This will affect related cycles.`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/batches/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportBatches() {
+        window.location.href = "{% url 'fishery:export_batches' %}";
+    }
+
+    // Row click to edit
+    document.querySelectorAll('.batch-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:batch_edit' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .batch-avatar {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .batch-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .batch-row td {
+        vertical-align: middle;
+    }
+    
+    .table-success {
+        background-color: #d4edda !important;
+    }
+    
+    .table-success:hover {
+        background-color: #c3e6cb !important;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        white-space: nowrap;
+    }
+    
+    .fishery-badge-success {
+        background-color: #d4edda;
+        color: #28a745;
+    }
+    
+    .fishery-badge-info {
+        background-color: #d1ecf1;
+        color: #17a2b8;
+    }
+    
+    .fishery-badge-primary {
+        background-color: #cfe2ff;
+        color: #0d6efd;
+    }
+    
+    .fishery-badge-secondary {
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 5px 8px;
+    }
+    
+    .badge.bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .badge.bg-info {
+        background-color: #17a2b8 !important;
+    }
+    
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #000;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.85rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .batch-avatar {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .fishery-badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+        }
+    }
+</style>
+{% endblock %}

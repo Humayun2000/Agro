@@ -1,0 +1,598 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-exclamation-triangle{% endblock %}
+{% block page_title %}Delete Customer - {{ customer.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:customer_list' %}">Customers</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete {{ customer.name }}</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:customer_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Customer
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon & Message -->
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                {% if customer.business_name %}
+                    <i class="bi bi-building fs-1 text-danger"></i>
+                {% else %}
+                    <i class="bi bi-person fs-1 text-danger"></i>
+                {% endif %}
+            </div>
+            <h4 class="fw-bold mb-2">Remove {{ customer.name }}?</h4>
+            <p class="text-muted">
+                You are about to delete the customer 
+                <strong>{{ customer.name }}</strong>
+                {% if customer.business_name %}
+                <br><span class="text-muted">{{ customer.business_name }}</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Customer Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="customer-avatar bg-danger text-white rounded-3 p-3">
+                        <span class="fs-2 fw-bold">{{ customer.name|first|upper }}</span>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ customer.name }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-tag me-1"></i> {{ customer.customer_id }}
+                            <span class="mx-2">|</span>
+                            <i class="bi bi-telephone me-1"></i> {{ customer.phone }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Customer Type</small>
+                            <span class="fw-bold 
+                                {% if customer.customer_type == 'WHOLESALER' %}text-primary
+                                {% elif customer.customer_type == 'RETAILER' %}text-success
+                                {% elif customer.customer_type == 'RESTAURANT' %}text-warning
+                                {% elif customer.customer_type == 'HOTEL' %}text-info
+                                {% elif customer.customer_type == 'EXPORTER' %}text-danger
+                                {% else %}text-secondary{% endif %}">
+                                {{ customer.get_customer_type_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Location</small>
+                            <span class="fw-bold">{{ customer.city }}</span>
+                            {% if customer.address %}
+                            <small class="text-muted d-block">{{ customer.address|truncatechars:30 }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Credit Limit</small>
+                            <span class="fw-bold">৳{{ customer.credit_limit|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Current Balance</small>
+                            <span class="fw-bold {% if customer.current_balance > 0 %}text-warning{% else %}text-success{% endif %}">
+                                ৳{{ customer.current_balance|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if customer.email %}
+                <div class="mt-3 p-2 bg-white rounded-3">
+                    <i class="bi bi-envelope me-2 text-muted"></i>
+                    {{ customer.email }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sales Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>⚠️ This will affect sales records:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>
+                        <span class="badge bg-primary me-2">{{ sales_count }}</span>
+                        Sale Records will be orphaned
+                    </li>
+                    <li>
+                        <span class="badge bg-success me-2">৳{{ total_sales|floatformat:2 }}</span>
+                        Total Sales Value affected
+                    </li>
+                    <li>
+                        <span class="badge bg-info me-2">{{ unique_products }}</span>
+                        Different products purchased
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Sales List -->
+        {% if recent_sales %}
+        <div class="card border-0 bg-light mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-cash-stack text-success me-2"></i>
+                    Recent Sales by this Customer
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in recent_sales %}
+                            <tr>
+                                <td>{{ sale.sale_date|date:"M d, Y" }}</td>
+                                <td>{{ sale.harvest.cycle.species.name|default:"Fish" }}</td>
+                                <td>{{ sale.quantity_kg }} kg</td>
+                                <td class="fw-bold text-success">৳{{ sale.total_amount|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if sales_count > 5 %}
+                <div class="text-center mt-2">
+                    <small class="text-muted">And {{ sales_count|add:"-5" }} more sales...</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Outstanding Balance Warning -->
+        {% if customer.current_balance > 0 %}
+        <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div>
+                <strong>Outstanding Balance!</strong>
+                <p class="mb-0 mt-1">
+                    This customer has an outstanding balance of 
+                    <strong>৳{{ customer.current_balance|floatformat:2 }}</strong>.
+                    Consider collecting payment before deleting.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Credit Limit Warning -->
+        {% if customer.current_balance > customer.credit_limit %}
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div>
+                <strong>Over Credit Limit!</strong>
+                <p class="mb-0 mt-1">
+                    Customer exceeds credit limit by 
+                    <strong>৳{{ customer.current_balance|add:customer.credit_limit|floatformat:2 }}</strong>
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Financial Impact -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-cash-stack text-success me-2"></i>
+                            Revenue Impact
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Sales:</span>
+                            <span class="fw-bold text-success">৳{{ total_sales|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="text-muted">Average per Sale:</span>
+                            <span class="fw-bold">৳{{ avg_sale|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-calendar-week text-info me-2"></i>
+                            Customer Lifetime
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">First Purchase:</span>
+                            <span class="fw-bold">
+                                {% if first_purchase %}
+                                    {{ first_purchase.sale_date|date:"M d, Y" }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="text-muted">Last Purchase:</span>
+                            <span class="fw-bold">
+                                {% if last_purchase %}
+                                    {{ last_purchase.sale_date|date:"M d, Y" }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                I understand that deleting this customer will orphan 
+                <strong>{{ sales_count }}</strong> sale records worth 
+                <strong>৳{{ total_sales|floatformat:2 }}</strong>
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'fishery:customer_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger px-5 py-3" id="deleteBtn" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Permanently
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal Script -->
+<script>
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = !checkbox.checked;
+    }
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const confirmDelete = document.getElementById('confirmDelete');
+        if (!confirmDelete.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand the impact of deleting this customer.');
+        }
+    });
+
+    // Countdown timer for safety
+    let countdown = 5;
+    let countdownInterval = null;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const confirmCheck = document.getElementById('confirmDelete');
+
+    confirmCheck.addEventListener('change', function() {
+        if (this.checked && !countdownInterval) {
+            // Store original text
+            const originalText = deleteBtn.innerHTML;
+            
+            // Start countdown
+            deleteBtn.disabled = true;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                deleteBtn.innerHTML = `Wait ${countdown} seconds... <i class="bi bi-hourglass-split ms-2"></i>`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                    countdown = 5;
+                }
+            }, 1000);
+        } else if (!this.checked && countdownInterval) {
+            // Cancel countdown
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3-fill me-2"></i>Delete Permanently';
+            countdown = 5;
+        }
+    });
+
+    // Keyboard shortcut warning
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const deleteBtn = document.getElementById('deleteBtn');
+            const confirmCheck = document.getElementById('confirmDelete');
+            
+            if (!deleteBtn.disabled && confirmCheck.checked) {
+                if (!confirm('Are you absolutely sure? This will permanently delete this customer and orphan all associated sales.')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // Add animation class on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.warning-icon').classList.add('pulse-animation');
+        
+        // Animate detail boxes
+        document.querySelectorAll('.detail-box').forEach(el => {
+            el.classList.add('fade-in');
+        });
+    });
+</script>
+
+<style>
+    .warning-icon {
+        width: 120px;
+        height: 120px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px 15px rgba(220, 53, 69, 0.2);
+        }
+    }
+    
+    .customer-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Customer type colors */
+    .text-primary { color: #0d6efd !important; }
+    .text-success { color: #198754 !important; }
+    .text-warning { color: #ffc107 !important; }
+    .text-info { color: #0dcaf0 !important; }
+    .text-danger { color: #dc3545 !important; }
+    .text-secondary { color: #6c757d !important; }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+        margin-right: 5px;
+    }
+    
+    .badge.bg-primary {
+        background-color: #0d6efd !important;
+    }
+    
+    .badge.bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .badge.bg-info {
+        background-color: #0dcaf0 !important;
+        color: #000;
+    }
+    
+    /* Table styling */
+    .table-sm td, .table-sm th {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .table-sm tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* Form check styling */
+    .form-check-input:checked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+        color: #dc3545;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+    
+    /* Disabled button style */
+    #deleteBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* Countdown timer text */
+    #deleteBtn i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Fade in animation */
+    .fade-in {
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Balance colors */
+    .text-warning {
+        color: #ffc107 !important;
+    }
+    
+    .text-success {
+        color: #28a745 !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .warning-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .warning-icon i {
+            font-size: 3rem !important;
+        }
+        
+        .customer-avatar {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+        
+        .btn {
+            padding: 12px 15px !important;
+            font-size: 0.9rem;
+        }
+        
+        h4 {
+            font-size: 1.2rem;
+        }
+        
+        .detail-box {
+            padding: 10px !important;
+        }
+        
+        .badge {
+            font-size: 0.8rem;
+            padding: 3px 6px;
+        }
+        
+        .row.g-3 {
+            --bs-gutter-y: 0.5rem;
+        }
+        
+        .table-sm {
+            font-size: 0.8rem;
+        }
+    }
+
+    /* Print styles */
+    @media print {
+        .btn, .form-check, .alert-info, #deleteBtn, .table-responsive {
+            display: none;
+        }
+        
+        .warning-icon {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .bg-danger {
+            background-color: #dc3545 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .alert-warning, .alert-danger {
+            border: 1px solid #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}

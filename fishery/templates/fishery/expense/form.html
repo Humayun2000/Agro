@@ -1,0 +1,683 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Add New Expense{% else %}Edit Expense{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:expense_list' %}">Expenses</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Add Expense{% else %}Edit Expense{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:expense_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Expense Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Add New Expense
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Expense
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Record a new farm expense
+                        {% else %}
+                            Update expense information
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="expenseForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <!-- Left Column - Basic Info -->
+                        <div class="col-md-6">
+                            <!-- Basic Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-info-circle text-danger me-2"></i>
+                                    Basic Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-tag me-1 text-danger"></i>
+                                        Expense Type *
+                                    </label>
+                                    {{ form.expense_type }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-pencil me-1 text-danger"></i>
+                                        Description *
+                                    </label>
+                                    {{ form.description }}
+                                    <small class="text-muted">Brief description of the expense</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-currency-dollar me-1 text-danger"></i>
+                                        Amount (৳) *
+                                    </label>
+                                    {{ form.amount }}
+                                    <div id="amountIndicator" class="mt-1"></div>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar me-1 text-danger"></i>
+                                        Expense Date *
+                                    </label>
+                                    {{ form.expense_date }}
+                                </div>
+                            </div>
+
+                            <!-- Payment Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-credit-card text-warning me-2"></i>
+                                    Payment Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-cash me-1 text-warning"></i>
+                                        Payment Method
+                                    </label>
+                                    {{ form.payment_method }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-person me-1 text-warning"></i>
+                                        Paid To
+                                    </label>
+                                    {{ form.paid_to }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-receipt me-1 text-warning"></i>
+                                        Receipt Number
+                                    </label>
+                                    {{ form.receipt_number }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Allocation & Notes -->
+                        <div class="col-md-6">
+                            <!-- Cycle Allocation -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-diagram-3 text-success me-2"></i>
+                                    Allocate to Cycle
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-arrow-repeat me-1 text-success"></i>
+                                        Production Cycle
+                                    </label>
+                                    {{ form.cycle }}
+                                    <small class="text-muted">Assign expense to a specific production cycle</small>
+                                </div>
+
+                                <!-- Cycle Preview -->
+                                <div id="cyclePreview" class="mt-3 p-3 bg-light rounded-3" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Pond:</small>
+                                            <span class="fw-bold" id="cyclePond">—</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Species:</small>
+                                            <span class="fw-bold" id="cycleSpecies">—</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Current Expenses:</small>
+                                            <span class="fw-bold" id="cycleExpenses">—</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">New Total:</small>
+                                            <span class="fw-bold text-danger" id="cycleNewTotal">—</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Feed Purchase Link -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-basket text-info me-2"></i>
+                                    Feed Purchase Link
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-cart me-1 text-info"></i>
+                                        Related Feed Purchase
+                                    </label>
+                                    {{ form.feed_purchase }}
+                                    <small class="text-muted">If this expense is for feed, link to the purchase</small>
+                                </div>
+
+                                <div id="feedPreview" class="mt-3 p-3 bg-light rounded-3" style="display: none;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="fw-bold" id="feedType">—</span>
+                                            <small class="text-muted d-block" id="feedDetails">—</small>
+                                        </div>
+                                        <span class="badge bg-success" id="feedAmount">—</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-chat-text text-secondary me-2"></i>
+                                    Additional Notes
+                                </h5>
+                                
+                                <div class="fishery-form-group">
+                                    {{ form.notes }}
+                                    <small class="text-muted">Any additional details about this expense</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expense Summary -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-calculator text-secondary me-2"></i>
+                            Expense Summary
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="summary-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Amount</small>
+                                    <h4 class="mb-0 text-danger" id="summaryAmount">৳0.00</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="summary-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">VAT (if applicable)</small>
+                                    <h4 class="mb-0" id="summaryVAT">৳0.00</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="summary-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Total with VAT</small>
+                                    <h4 class="mb-0 text-danger" id="summaryTotal">৳0.00</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="summary-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Monthly Total</small>
+                                    <h4 class="mb-0" id="monthlyTotal">৳0.00</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget Alert -->
+                    <div id="budgetAlert" class="alert alert-warning mt-3" style="display: none;">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <span id="budgetMessage"></span>
+                    </div>
+
+                    <!-- VAT Calculation (Optional) -->
+                    <div class="row mt-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="applyVAT">
+                                <label class="form-check-label" for="applyVAT">Apply VAT (15%)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="includeInBudget">
+                                <label class="form-check-label" for="includeInBudget">Include in budget tracking</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created By</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_by.get_full_name|default:form.instance.created_by.username|default:'System' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Expense Tips -->
+                    <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+                        <i class="bi bi-lightbulb-fill fs-4"></i>
+                        <div>
+                            <strong>Expense Recording Tips:</strong>
+                            <ul class="mb-0 mt-1">
+                                <li>Always keep receipts for documentation</li>
+                                <li>Assign expenses to specific cycles for better tracking</li>
+                                <li>Link feed purchases to expense records automatically</li>
+                                <li>Use notes to record payment terms or special conditions</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:expense_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Add Expense{% else %}Update Expense{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const expenseTypeSelect = document.getElementById('{{ form.expense_type.id_for_label }}');
+        const amountInput = document.getElementById('{{ form.amount.id_for_label }}');
+        const cycleSelect = document.getElementById('{{ form.cycle.id_for_label }}');
+        const feedPurchaseSelect = document.getElementById('{{ form.feed_purchase.id_for_label }}');
+        const applyVATCheck = document.getElementById('applyVAT');
+        
+        // Summary elements
+        const summaryAmount = document.getElementById('summaryAmount');
+        const summaryVAT = document.getElementById('summaryVAT');
+        const summaryTotal = document.getElementById('summaryTotal');
+        const monthlyTotal = document.getElementById('monthlyTotal');
+        const amountIndicator = document.getElementById('amountIndicator');
+        
+        // Preview elements
+        const cyclePreview = document.getElementById('cyclePreview');
+        const cyclePond = document.getElementById('cyclePond');
+        const cycleSpecies = document.getElementById('cycleSpecies');
+        const cycleExpenses = document.getElementById('cycleExpenses');
+        const cycleNewTotal = document.getElementById('cycleNewTotal');
+        
+        const feedPreview = document.getElementById('feedPreview');
+        const feedType = document.getElementById('feedType');
+        const feedDetails = document.getElementById('feedDetails');
+        const feedAmount = document.getElementById('feedAmount');
+        
+        // Budget alert
+        const budgetAlert = document.getElementById('budgetAlert');
+        const budgetMessage = document.getElementById('budgetMessage');
+
+        // Cycle data (populated from Django)
+        const cycleData = {
+            {% for cycle in cycles %}
+                {{ cycle.id }}: {
+                    pond: "{{ cycle.pond.name }}",
+                    species: "{{ cycle.species.name }}",
+                    currentExpenses: {{ cycle.total_expense|default:0 }},
+                    budget: {{ cycle.budget|default:0 }}
+                },
+            {% endfor %}
+        };
+
+        // Feed purchase data
+        const feedData = {
+            {% for purchase in feed_purchases %}
+                {{ purchase.id }}: {
+                    type: "{{ purchase.feed_type.name }}",
+                    quantity: {{ purchase.quantity_kg }},
+                    cost: {{ purchase.total_cost }},
+                    date: "{{ purchase.purchase_date|date:'M d, Y' }}"
+                },
+            {% endfor %}
+        };
+
+        // Monthly total (from server)
+        const currentMonthlyTotal = {{ monthly_total|default:0 }};
+
+        // Update amount summary
+        function updateAmountSummary() {
+            const amount = parseFloat(amountInput.value) || 0;
+            
+            // Format amount
+            summaryAmount.textContent = '৳' + amount.toFixed(2);
+            
+            // Calculate VAT if checked
+            let vat = 0;
+            if (applyVATCheck && applyVATCheck.checked) {
+                vat = amount * 0.15;
+                summaryVAT.textContent = '৳' + vat.toFixed(2);
+            } else {
+                summaryVAT.textContent = '৳0.00';
+            }
+            
+            const total = amount + vat;
+            summaryTotal.textContent = '৳' + total.toFixed(2);
+            
+            // Update monthly total
+            const newMonthlyTotal = currentMonthlyTotal + total;
+            monthlyTotal.textContent = '৳' + newMonthlyTotal.toFixed(2);
+            
+            // Amount indicator
+            if (amount > 50000) {
+                amountIndicator.innerHTML = '<span class="badge bg-danger">⚠️ High Value Expense</span>';
+            } else if (amount > 10000) {
+                amountIndicator.innerHTML = '<span class="badge bg-warning">📊 Medium Value Expense</span>';
+            } else {
+                amountIndicator.innerHTML = '<span class="badge bg-success">✅ Normal Expense</span>';
+            }
+        }
+
+        // Update cycle preview
+        function updateCyclePreview() {
+            const cycleId = parseInt(cycleSelect.value);
+            const amount = parseFloat(amountInput.value) || 0;
+            
+            if (cycleId && cycleData[cycleId]) {
+                const data = cycleData[cycleId];
+                cyclePreview.style.display = 'block';
+                cyclePond.textContent = data.pond;
+                cycleSpecies.textContent = data.species;
+                cycleExpenses.textContent = '৳' + data.currentExpenses.toFixed(2);
+                
+                const newTotal = data.currentExpenses + amount;
+                cycleNewTotal.textContent = '৳' + newTotal.toFixed(2);
+                
+                // Check budget
+                if (data.budget > 0 && newTotal > data.budget) {
+                    budgetAlert.style.display = 'block';
+                    budgetMessage.innerHTML = `⚠️ This expense will exceed the budget for this cycle by ৳${(newTotal - data.budget).toFixed(2)}`;
+                } else if (data.budget > 0) {
+                    budgetAlert.style.display = 'none';
+                }
+            } else {
+                cyclePreview.style.display = 'none';
+                budgetAlert.style.display = 'none';
+            }
+        }
+
+        // Update feed preview
+        function updateFeedPreview() {
+            const feedId = parseInt(feedPurchaseSelect.value);
+            if (feedId && feedData[feedId]) {
+                const data = feedData[feedId];
+                feedPreview.style.display = 'block';
+                feedType.textContent = data.type;
+                feedDetails.textContent = `${data.quantity} kg on ${data.date}`;
+                feedAmount.textContent = '৳' + data.cost.toFixed(2);
+                
+                // Auto-fill amount if empty
+                if (!amountInput.value) {
+                    amountInput.value = data.cost;
+                    updateAmountSummary();
+                }
+            } else {
+                feedPreview.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        if (amountInput) {
+            amountInput.addEventListener('input', function() {
+                updateAmountSummary();
+                updateCyclePreview();
+            });
+        }
+        
+        if (cycleSelect) {
+            cycleSelect.addEventListener('change', updateCyclePreview);
+        }
+        
+        if (feedPurchaseSelect) {
+            feedPurchaseSelect.addEventListener('change', updateFeedPreview);
+        }
+        
+        if (applyVATCheck) {
+            applyVATCheck.addEventListener('change', updateAmountSummary);
+        }
+
+        // Initialize
+        updateAmountSummary();
+        
+        // Set default date to today
+        const dateInput = document.getElementById('{{ form.expense_date.id_for_label }}');
+        if (dateInput && !dateInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+        }
+
+        // Form validation
+        document.getElementById('expenseForm').addEventListener('submit', function(e) {
+            const expenseType = expenseTypeSelect.value;
+            const description = document.getElementById('{{ form.description.id_for_label }}').value;
+            const amount = amountInput.value;
+            
+            if (!expenseType) {
+                e.preventDefault();
+                alert('Please select an expense type');
+                return;
+            }
+            
+            if (!description.trim()) {
+                e.preventDefault();
+                alert('Please enter a description');
+                return;
+            }
+            
+            if (!amount || parseFloat(amount) <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            // Check budget warning
+            if (budgetAlert.style.display === 'block') {
+                if (!confirm('Warning: This expense will exceed the cycle budget. Continue anyway?')) {
+                    e.preventDefault();
+                    return;
+                }
+            }
+        });
+
+        // Unsaved changes warning
+        let formChanged = false;
+        document.getElementById('expenseForm').addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    });
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #dc3545;
+        box-shadow: 0 5px 20px rgba(220, 53, 69, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+        cursor: default;
+    }
+    
+    /* Summary boxes */
+    .summary-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .summary-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    /* Preview boxes */
+    #cyclePreview, #feedPreview {
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    #cyclePreview:hover, #feedPreview:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Amount indicator badges */
+    .badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+    }
+    
+    .badge.bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #000;
+    }
+    
+    .badge.bg-danger {
+        background-color: #dc3545 !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        .row {
+            flex-direction: column;
+        }
+        
+        #cyclePreview, #feedPreview {
+            padding: 10px !important;
+        }
+        
+        .summary-box {
+            margin-bottom: 10px;
+        }
+        
+        .summary-box h4 {
+            font-size: 1.2rem;
+        }
+    }
+</style>
+{% endblock %}

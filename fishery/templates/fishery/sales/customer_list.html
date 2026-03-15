@@ -1,0 +1,773 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-people{% endblock %}
+{% block page_title %}Customer Management{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:customer_list' %}">Customers</a></li>
+<li class="breadcrumb-item active" aria-current="page">All Customers</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportCustomers()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:customer_add' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Add Customer
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-people"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_customers }}</div>
+            <div class="fishery-stat-label">Total Customers</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-person-check"></i>
+            </div>
+            <div class="fishery-stat-value">{{ active_customers }}</div>
+            <div class="fishery-stat-label">Active Customers</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ total_revenue|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Total Revenue</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon info">
+                <i class="bi bi-trophy"></i>
+            </div>
+            <div class="fishery-stat-value">{{ top_customer_count }}</div>
+            <div class="fishery-stat-label">Top Customers</div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-building fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Wholesalers</h6>
+                            <h3 class="mb-0">{{ wholesaler_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-shop fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Retailers</h6>
+                            <h3 class="mb-0">{{ retailer_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-cup-straw fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Restaurants</h6>
+                            <h3 class="mb-0">{{ restaurant_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-person fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Individuals</h6>
+                            <h3 class="mb-0">{{ individual_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Customers
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Customer Type</label>
+                        <select name="type" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            {% for value, label in customer_types %}
+                            <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">City</label>
+                        <select name="city" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Cities</option>
+                            {% for city in cities %}
+                            <option value="{{ city }}" {% if current_city == city %}selected{% endif %}>
+                                {{ city }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="fishery-form-label">Search</label>
+                        <input type="text" name="search" class="fishery-form-control" 
+                               placeholder="Name, phone, email..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="fishery-btn-add w-100">
+                                <i class="bi bi-search me-1"></i> Apply
+                            </button>
+                            <a href="{% url 'fishery:customer_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Credit Alert -->
+    {% if credit_customers > 0 %}
+    <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+        <div class="flex-grow-1">
+            <strong>{{ credit_customers }} Customers Have Outstanding Credit</strong>
+            <p class="mb-0 mt-1">Total outstanding balance: ৳{{ total_credit|floatformat:2 }}</p>
+        </div>
+        <button class="btn btn-sm btn-outline-warning" onclick="scrollToCredit()">
+            View Credit Customers
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Customers Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Customer List
+                <span class="badge bg-primary ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeleteCustomers()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Customer ID</th>
+                        <th>Customer</th>
+                        <th>Type</th>
+                        <th>Contact</th>
+                        <th>Location</th>
+                        <th>Credit Limit</th>
+                        <th>Balance</th>
+                        <th>Last Purchase</th>
+                        <th>Total Purchases</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr class="customer-row {% if customer.current_balance > customer.credit_limit %}table-danger{% elif customer.current_balance > 0 %}table-warning{% endif %}" data-id="{{ customer.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input customer-checkbox" value="{{ customer.id }}">
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ customer.customer_id }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="customer-avatar bg-primary bg-opacity-10 rounded p-2">
+                                    <span class="fw-bold text-primary">{{ customer.name|first|upper }}</span>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ customer.name }}</div>
+                                    <small class="text-muted">{{ customer.business_name|default:"" }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="fishery-badge 
+                                {% if customer.customer_type == 'WHOLESALER' %}fishery-badge-primary
+                                {% elif customer.customer_type == 'RETAILER' %}fishery-badge-success
+                                {% elif customer.customer_type == 'RESTAURANT' %}fishery-badge-warning
+                                {% elif customer.customer_type == 'HOTEL' %}fishery-badge-info
+                                {% elif customer.customer_type == 'EXPORTER' %}fishery-badge-danger
+                                {% else %}fishery-badge-secondary{% endif %}">
+                                {{ customer.get_customer_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div><i class="bi bi-telephone me-1"></i> {{ customer.phone }}</div>
+                            {% if customer.email %}
+                            <small class="text-muted"><i class="bi bi-envelope me-1"></i> {{ customer.email }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ customer.city }}
+                            {% if customer.address %}
+                            <small class="text-muted d-block">{{ customer.address|truncatechars:30 }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">৳{{ customer.credit_limit|floatformat:2 }}</td>
+                        <td class="text-end">
+                            <span class="fw-bold {% if customer.current_balance > 0 %}text-warning{% else %}text-success{% endif %}">
+                                ৳{{ customer.current_balance|floatformat:2 }}
+                            </span>
+                        </td>
+                        <td>
+                            {% with last_purchase=customer.fishsale_set.last %}
+                                {% if last_purchase %}
+                                    {{ last_purchase.sale_date|date:"M d, Y" }}
+                                {% else %}
+                                    <span class="text-muted">No purchases</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-end">
+                            <span class="fw-bold">{{ customer.fishsale_set.count }}</span>
+                            <small class="text-muted d-block">৳{{ customer.total_purchases|floatformat:0 }}</small>
+                        </td>
+                        <td>
+                            {% if customer.is_active %}
+                                <span class="fishery-badge fishery-badge-success">Active</span>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:customer_edit' customer.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'fishery:sale_list' %}?customer={{ customer.id }}" class="btn btn-sm btn-outline-info" title="View Purchases">
+                                    <i class="bi bi-cash"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteCustomer({{ customer.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="12" class="text-center py-5">
+                            <i class="bi bi-people fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No customers found</h5>
+                            <p class="text-muted mb-3">Add your first customer</p>
+                            <a href="{% url 'fishery:customer_add' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Add Customer
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-primary border-primary">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Customer Analytics -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    Customer Distribution
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="customerChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-trophy-fill text-warning"></i>
+                    Top Customers by Revenue
+                </h5>
+                <div style="max-height: 250px; overflow-y: auto;">
+                    {% for customer in top_customers %}
+                    <div class="d-flex align-items-center justify-content-between mb-2 p-2 bg-light rounded-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="badge bg-warning rounded-circle p-2">{{ forloop.counter }}</span>
+                            <div>
+                                <span class="fw-bold">{{ customer.name }}</span>
+                                <small class="text-muted d-block">{{ customer.customer_type }}</small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="fw-bold text-success">৳{{ customer.total|floatformat:0 }}</span>
+                            <small class="text-muted d-block">{{ customer.count }} purchases</small>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-3">No customer data available</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Credit Summary -->
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-credit-card text-warning"></i>
+                    Credit Summary
+                </h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <h6 class="fw-bold mb-3">Credit Utilization</h6>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Total Credit Limit:</span>
+                                    <span class="fw-bold">৳{{ total_credit_limit|floatformat:0 }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Outstanding Balance:</span>
+                                    <span class="fw-bold text-warning">৳{{ total_credit|floatformat:0 }}</span>
+                                </div>
+                                <div class="progress mt-3" style="height: 10px;">
+                                    {% widthratio total_credit total_credit_limit 100 as credit_percentage %}
+                                    <div class="progress-bar bg-warning" role="progressbar" 
+                                         style="width: {{ credit_percentage }}%"></div>
+                                </div>
+                                <small class="text-muted">{{ credit_percentage }}% of credit utilized</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <h6 class="fw-bold mb-3">Over Limit Customers</h6>
+                                <div class="text-center">
+                                    <span class="fs-1 fw-bold text-danger">{{ over_limit_count }}</span>
+                                    <p class="text-muted">Customers exceeding credit limit</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <h6 class="fw-bold mb-3">Credit at Risk</h6>
+                                <div class="text-center">
+                                    <span class="fs-1 fw-bold text-warning">৳{{ credit_at_risk|floatformat:0 }}</span>
+                                    <p class="text-muted">Amount over credit limits</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteCustomerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this customer?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will affect all sales records associated with this customer.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteCustomerBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Store delete URL template
+    const DELETE_CUSTOMER_URL = "{% url 'fishery:customer_delete' 0 %}";
+    
+    // Initialize customer chart
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('customerChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ type_labels|safe }},
+                datasets: [{
+                    data: {{ type_data|safe }},
+                    backgroundColor: [
+                        '#0d6efd',
+                        '#198754',
+                        '#ffc107',
+                        '#0dcaf0',
+                        '#dc3545',
+                        '#6c757d'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.customer-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.customer-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.customer-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeleteCustomer(customerId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteCustomerModal'));
+        document.getElementById('confirmDeleteCustomerBtn').href = DELETE_CUSTOMER_URL.replace('0', customerId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeleteCustomers() {
+        const selected = Array.from(document.querySelectorAll('.customer-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} customers? This will affect all associated sales.`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/customers/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportCustomers() {
+        window.location.href = "{% url 'fishery:export_customers' %}";
+    }
+
+    // Scroll to credit customers
+    function scrollToCredit() {
+        const creditRows = document.querySelector('.table-warning, .table-danger');
+        if (creditRows) {
+            creditRows.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    // Row click to edit
+    document.querySelectorAll('.customer-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:customer_edit' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .customer-avatar {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    
+    .customer-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .customer-row td {
+        vertical-align: middle;
+    }
+    
+    .table-warning {
+        background-color: #fff3cd !important;
+    }
+    
+    .table-warning:hover {
+        background-color: #ffe69c !important;
+    }
+    
+    .table-danger {
+        background-color: #f8d7da !important;
+    }
+    
+    .table-danger:hover {
+        background-color: #f5c6cb !important;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        white-space: nowrap;
+    }
+    
+    .fishery-badge-primary {
+        background-color: #cfe2ff;
+        color: #0d6efd;
+    }
+    
+    .fishery-badge-success {
+        background-color: #d4edda;
+        color: #198754;
+    }
+    
+    .fishery-badge-warning {
+        background-color: #fff3cd;
+        color: #ffc107;
+    }
+    
+    .fishery-badge-info {
+        background-color: #d1ecf1;
+        color: #0dcaf0;
+    }
+    
+    .fishery-badge-danger {
+        background-color: #f8d7da;
+        color: #dc3545;
+    }
+    
+    .fishery-badge-secondary {
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 5px 8px;
+    }
+    
+    .badge.bg-warning {
+        color: #000;
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Quick stats cards */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Credit summary scrollbar */
+    #topCustomers {
+        max-height: 250px;
+        overflow-y: auto;
+    }
+    
+    #topCustomers::-webkit-scrollbar {
+        width: 5px;
+    }
+    
+    #topCustomers::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 10px;
+    }
+    
+    #topCustomers::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+    
+    #topCustomers::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.85rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .customer-avatar {
+            width: 30px;
+            height: 30px;
+            font-size: 1rem;
+        }
+        
+        .fishery-badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 5px;
+        }
+    }
+</style>
+{% endblock %}

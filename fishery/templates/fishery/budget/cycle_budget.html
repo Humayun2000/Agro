@@ -1,0 +1,1863 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-pie-chart{% endblock %}
+{% block page_title %}Budget Details - {{ cycle.pond.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:budget_list' %}">Budgets</a></li>
+<li class="breadcrumb-item"><a href="{% url 'fishery:cycle_detail' cycle.id %}">{{ cycle.cycle_id|slice:":8" }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Budget Details</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportBudgetPDF()">
+        <i class="bi bi-file-pdf me-1"></i> Export PDF
+    </button>
+    <a href="{% url 'fishery:budget_edit' budget.id %}" class="btn btn-warning">
+        <i class="bi bi-pencil me-1"></i> Edit Budget
+    </a>
+    <button class="btn btn-danger" onclick="confirmDeleteBudget({{ budget.id }})">
+        <i class="bi bi-trash me-1"></i> Delete
+    </button>
+    <a href="{% url 'fishery:cycle_detail' cycle.id %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to Cycle
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Budget Overview Banner -->
+    <div class="budget-banner mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="banner-title">
+                    <i class="bi bi-pie-chart-fill me-2"></i>
+                    Budget Plan: {{ cycle.pond.name }} - {{ cycle.species.name }}
+                </h2>
+                <p class="banner-subtitle">
+                    <i class="bi bi-calendar me-2"></i> Cycle: {{ cycle.cycle_id|slice:":8" }} | 
+                    Stocked: {{ cycle.stocking_date|date:"F d, Y" }} |
+                    Status: <span class="badge {% if cycle.status == 'RUNNING' %}bg-success{% elif cycle.status == 'COMPLETED' %}bg-primary{% else %}bg-secondary{% endif %}">
+                        {{ cycle.get_status_display }}
+                    </span>
+                </p>
+            </div>
+            <div class="col-md-4">
+                <div class="budget-status-card">
+                    <div class="status-indicator {% if budget_status == 'on_track' %}bg-success{% elif budget_status == 'at_risk' %}bg-warning{% else %}bg-danger{% endif %}"></div>
+                    <div>
+                        <h5 class="mb-1">Budget Status</h5>
+                        <p class="mb-0">
+                            {% if budget_status == 'on_track' %}
+                                <span class="text-success">On Track</span>
+                            {% elif budget_status == 'at_risk' %}
+                                <span class="text-warning">At Risk</span>
+                            {% else %}
+                                <span class="text-danger">Exceeded</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budget Summary Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-icon bg-primary">
+                    <i class="bi bi-calculator"></i>
+                </div>
+                <div class="summary-content">
+                    <span class="summary-label">Total Budget</span>
+                    <span class="summary-value">৳{{ total_budget|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-icon bg-success">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+                <div class="summary-content">
+                    <span class="summary-label">Actual Expenses</span>
+                    <span class="summary-value">৳{{ total_actual|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-icon {% if variance >= 0 %}bg-warning{% else %}bg-info{% endif %}">
+                    <i class="bi bi-arrow-left-right"></i>
+                </div>
+                <div class="summary-content">
+                    <span class="summary-label">Variance</span>
+                    <span class="summary-value {% if variance >= 0 %}text-danger{% else %}text-success{% endif %}">
+                        {% if variance >= 0 %}+{% endif %}৳{{ variance|floatformat:2 }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-icon {% if utilization_percentage > 100 %}bg-danger{% elif utilization_percentage > 80 %}bg-warning{% else %}bg-success{% endif %}">
+                    <i class="bi bi-pie-chart"></i>
+                </div>
+                <div class="summary-content">
+                    <span class="summary-label">Utilization</span>
+                    <span class="summary-value">{{ utilization_percentage|floatformat:1 }}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budget vs Actual Progress -->
+    <div class="fishery-table-container mb-4">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-bar-chart text-primary"></i>
+                Budget vs Actual Progress
+            </h5>
+            <div class="budget-legend">
+                <span class="legend-item">
+                    <span class="legend-color bg-primary"></span> Budget
+                </span>
+                <span class="legend-item">
+                    <span class="legend-color bg-success"></span> Actual
+                </span>
+            </div>
+        </div>
+        
+        <div class="progress-stack">
+            <!-- Fingerlings -->
+            <div class="progress-item">
+                <div class="progress-label">
+                    <i class="bi bi-fish text-primary"></i>
+                    <span>Fingerlings</span>
+                </div>
+                <div class="progress-bars">
+                    <div class="progress budget-progress" style="height: 25px;" title="Budget: ৳{{ fingerling_budget|floatformat:2 }}">
+                        <div class="progress-bar bg-primary" role="progressbar" 
+                             style="width: {{ fingerling_budget_percent }}%">
+                            ৳{{ fingerling_budget|floatformat:0 }}
+                        </div>
+                    </div>
+                    <div class="progress actual-progress" style="height: 25px;" title="Actual: ৳{{ fingerling_actual|floatformat:2 }}">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ fingerling_actual_percent }}%">
+                            ৳{{ fingerling_actual|floatformat:0 }}
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-value {% if fingerling_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {% if fingerling_variance > 0 %}+{% endif %}{{ fingerling_variance|floatformat:0 }}
+                </div>
+            </div>
+
+            <!-- Feed -->
+            <div class="progress-item">
+                <div class="progress-label">
+                    <i class="bi bi-basket text-success"></i>
+                    <span>Feed</span>
+                </div>
+                <div class="progress-bars">
+                    <div class="progress budget-progress" style="height: 25px;">
+                        <div class="progress-bar bg-primary" role="progressbar" 
+                             style="width: {{ feed_budget_percent }}%">
+                            ৳{{ feed_budget|floatformat:0 }}
+                        </div>
+                    </div>
+                    <div class="progress actual-progress" style="height: 25px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ feed_actual_percent }}%">
+                            ৳{{ feed_actual|floatformat:0 }}
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-value {% if feed_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {% if feed_variance > 0 %}+{% endif %}{{ feed_variance|floatformat:0 }}
+                </div>
+            </div>
+
+            <!-- Medicine -->
+            <div class="progress-item">
+                <div class="progress-label">
+                    <i class="bi bi-droplet text-info"></i>
+                    <span>Medicine</span>
+                </div>
+                <div class="progress-bars">
+                    <div class="progress budget-progress" style="height: 25px;">
+                        <div class="progress-bar bg-primary" role="progressbar" 
+                             style="width: {{ medicine_budget_percent }}%">
+                            ৳{{ medicine_budget|floatformat:0 }}
+                        </div>
+                    </div>
+                    <div class="progress actual-progress" style="height: 25px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ medicine_actual_percent }}%">
+                            ৳{{ medicine_actual|floatformat:0 }}
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-value {% if medicine_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {% if medicine_variance > 0 %}+{% endif %}{{ medicine_variance|floatformat:0 }}
+                </div>
+            </div>
+
+            <!-- Labor -->
+            <div class="progress-item">
+                <div class="progress-label">
+                    <i class="bi bi-people text-warning"></i>
+                    <span>Labor</span>
+                </div>
+                <div class="progress-bars">
+                    <div class="progress budget-progress" style="height: 25px;">
+                        <div class="progress-bar bg-primary" role="progressbar" 
+                             style="width: {{ labor_budget_percent }}%">
+                            ৳{{ labor_budget|floatformat:0 }}
+                        </div>
+                    </div>
+                    <div class="progress actual-progress" style="height: 25px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ labor_actual_percent }}%">
+                            ৳{{ labor_actual|floatformat:0 }}
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-value {% if labor_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {% if labor_variance > 0 %}+{% endif %}{{ labor_variance|floatformat:0 }}
+                </div>
+            </div>
+
+            <!-- Other -->
+            <div class="progress-item">
+                <div class="progress-label">
+                    <i class="bi bi-tools text-secondary"></i>
+                    <span>Other</span>
+                </div>
+                <div class="progress-bars">
+                    <div class="progress budget-progress" style="height: 25px;">
+                        <div class="progress-bar bg-primary" role="progressbar" 
+                             style="width: {{ other_budget_percent }}%">
+                            ৳{{ other_budget|floatformat:0 }}
+                        </div>
+                    </div>
+                    <div class="progress actual-progress" style="height: 25px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ other_actual_percent }}%">
+                            ৳{{ other_actual|floatformat:0 }}
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-value {% if other_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {% if other_variance > 0 %}+{% endif %}{{ other_variance|floatformat:0 }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Budget Table -->
+    <div class="fishery-table-container mb-4">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-table"></i>
+                Detailed Budget Breakdown
+            </h5>
+            <div class="table-actions">
+                <button class="btn btn-sm btn-outline-primary" onclick="toggleActualVsBudget()">
+                    <i class="bi bi-graph-up"></i> Toggle View
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table" id="budgetTable">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th class="text-end">Budget (৳)</th>
+                        <th class="text-end">Actual (৳)</th>
+                        <th class="text-end">Variance (৳)</th>
+                        <th class="text-end">Variance %</th>
+                        <th class="text-end">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <i class="bi bi-fish text-primary me-2"></i>
+                            Fingerlings
+                        </td>
+                        <td class="text-end">{{ fingerling_budget|floatformat:2 }}</td>
+                        <td class="text-end">{{ fingerling_actual|floatformat:2 }}</td>
+                        <td class="text-end {% if fingerling_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if fingerling_variance > 0 %}+{% endif %}{{ fingerling_variance|floatformat:2 }}
+                        </td>
+                        <td class="text-end {% if fingerling_variance_percent > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if fingerling_variance_percent > 0 %}+{% endif %}{{ fingerling_variance_percent|floatformat:1 }}%
+                        </td>
+                        <td class="text-end">
+                            {% if fingerling_variance > 0 %}
+                                <span class="badge bg-danger">Over Budget</span>
+                            {% else %}
+                                <span class="badge bg-success">Under Budget</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <i class="bi bi-basket text-success me-2"></i>
+                            Feed
+                        </td>
+                        <td class="text-end">{{ feed_budget|floatformat:2 }}</td>
+                        <td class="text-end">{{ feed_actual|floatformat:2 }}</td>
+                        <td class="text-end {% if feed_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if feed_variance > 0 %}+{% endif %}{{ feed_variance|floatformat:2 }}
+                        </td>
+                        <td class="text-end {% if feed_variance_percent > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if feed_variance_percent > 0 %}+{% endif %}{{ feed_variance_percent|floatformat:1 }}%
+                        </td>
+                        <td class="text-end">
+                            {% if feed_variance > 0 %}
+                                <span class="badge bg-danger">Over Budget</span>
+                            {% else %}
+                                <span class="badge bg-success">Under Budget</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <i class="bi bi-droplet text-info me-2"></i>
+                            Medicine
+                        </td>
+                        <td class="text-end">{{ medicine_budget|floatformat:2 }}</td>
+                        <td class="text-end">{{ medicine_actual|floatformat:2 }}</td>
+                        <td class="text-end {% if medicine_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if medicine_variance > 0 %}+{% endif %}{{ medicine_variance|floatformat:2 }}
+                        </td>
+                        <td class="text-end {% if medicine_variance_percent > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if medicine_variance_percent > 0 %}+{% endif %}{{ medicine_variance_percent|floatformat:1 }}%
+                        </td>
+                        <td class="text-end">
+                            {% if medicine_variance > 0 %}
+                                <span class="badge bg-danger">Over Budget</span>
+                            {% else %}
+                                <span class="badge bg-success">Under Budget</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <i class="bi bi-people text-warning me-2"></i>
+                            Labor
+                        </td>
+                        <td class="text-end">{{ labor_budget|floatformat:2 }}</td>
+                        <td class="text-end">{{ labor_actual|floatformat:2 }}</td>
+                        <td class="text-end {% if labor_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if labor_variance > 0 %}+{% endif %}{{ labor_variance|floatformat:2 }}
+                        </td>
+                        <td class="text-end {% if labor_variance_percent > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if labor_variance_percent > 0 %}+{% endif %}{{ labor_variance_percent|floatformat:1 }}%
+                        </td>
+                        <td class="text-end">
+                            {% if labor_variance > 0 %}
+                                <span class="badge bg-danger">Over Budget</span>
+                            {% else %}
+                                <span class="badge bg-success">Under Budget</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <i class="bi bi-tools text-secondary me-2"></i>
+                            Other
+                        </td>
+                        <td class="text-end">{{ other_budget|floatformat:2 }}</td>
+                        <td class="text-end">{{ other_actual|floatformat:2 }}</td>
+                        <td class="text-end {% if other_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if other_variance > 0 %}+{% endif %}{{ other_variance|floatformat:2 }}
+                        </td>
+                        <td class="text-end {% if other_variance_percent > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if other_variance_percent > 0 %}+{% endif %}{{ other_variance_percent|floatformat:1 }}%
+                        </td>
+                        <td class="text-end">
+                            {% if other_variance > 0 %}
+                                <span class="badge bg-danger">Over Budget</span>
+                            {% else %}
+                                <span class="badge bg-success">Under Budget</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr class="fw-bold">
+                        <td>TOTAL</td>
+                        <td class="text-end">{{ total_budget|floatformat:2 }}</td>
+                        <td class="text-end">{{ total_actual|floatformat:2 }}</td>
+                        <td class="text-end {% if variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if variance > 0 %}+{% endif %}{{ variance|floatformat:2 }}
+                        </td>
+                        <td class="text-end {% if variance_percent > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if variance_percent > 0 %}+{% endif %}{{ variance_percent|floatformat:1 }}%
+                        </td>
+                        <td class="text-end">
+                            {% if variance > 0 %}
+                                <span class="badge bg-danger">Over Budget</span>
+                            {% else %}
+                                <span class="badge bg-success">Under Budget</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Expense Timeline -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-8">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-clock-history text-info"></i>
+                    Expense Timeline
+                </h5>
+                <canvas id="expenseTimeline" style="height: 300px;"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-success"></i>
+                    Budget Distribution
+                </h5>
+                <canvas id="budgetDistribution" style="height: 250px;"></canvas>
+                <div class="mt-3">
+                    {% for item in distribution %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>
+                            <i class="bi bi-circle-fill me-2" style="color: {{ item.color }}"></i>
+                            {{ item.label }}:
+                        </span>
+                        <span class="fw-bold">{{ item.percentage|floatformat:1 }}%</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budget Recommendations -->
+    <div class="fishery-table-container">
+        <h5 class="fishery-table-title mb-3">
+            <i class="bi bi-lightbulb text-warning"></i>
+            Budget Recommendations
+        </h5>
+        <div class="row">
+            <div class="col-md-6">
+                {% if variance > 0 %}
+                <div class="recommendation-card border-danger">
+                    <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+                    <div>
+                        <h6>Budget Exceeded</h6>
+                        <p>Current expenses exceed budget by ৳{{ variance|floatformat:2 }}. Review the following categories:</p>
+                        <ul class="mb-0">
+                            {% if fingerling_variance > 0 %}
+                            <li>Fingerlings: +৳{{ fingerling_variance|floatformat:2 }}</li>
+                            {% endif %}
+                            {% if feed_variance > 0 %}
+                            <li>Feed: +৳{{ feed_variance|floatformat:2 }}</li>
+                            {% endif %}
+                            {% if medicine_variance > 0 %}
+                            <li>Medicine: +৳{{ medicine_variance|floatformat:2 }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+                {% else %}
+                <div class="recommendation-card border-success">
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                    <div>
+                        <h6>Under Budget</h6>
+                        <p>Great job! You're under budget by ৳{{ variance|add:"-1"|floatformat:2 }}. Consider:</p>
+                        <ul class="mb-0">
+                            <li>Reinvesting savings into production</li>
+                            <li>Building a reserve fund</li>
+                            <li>Upgrading equipment</li>
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                {% if utilization_percentage > 80 %}
+                <div class="recommendation-card border-warning">
+                    <i class="bi bi-clock-fill text-warning"></i>
+                    <div>
+                        <h6>Budget Running Low</h6>
+                        <p>{{ utilization_percentage|floatformat:1 }}% of budget used. Monitor expenses closely.</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if cycle.status == 'RUNNING' %}
+                <div class="recommendation-card border-info">
+                    <i class="bi bi-info-circle-fill text-info"></i>
+                    <div>
+                        <h6>Cycle in Progress</h6>
+                        <p>Expected harvest: {{ cycle.expected_harvest_date|date:"M d, Y"|default:"TBD" }}</p>
+                        <p>Days remaining: {{ cycle.days_to_harvest }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteBudgetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this budget plan?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This action cannot be undone. All budget data will be lost.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'fishery:budget_delete' budget.id %}" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let expenseTimeline = null;
+    let budgetDistribution = null;
+
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function() {
+        loadExpenseTimeline();
+        loadBudgetDistribution();
+    });
+
+    // Load expense timeline
+    function loadExpenseTimeline() {
+        const ctx = document.getElementById('expenseTimeline').getContext('2d');
+        
+        expenseTimeline = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ timeline_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Budget',
+                        data: {{ timeline_budget|safe }},
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: false
+                    },
+                    {
+                        label: 'Actual',
+                        data: {{ timeline_actual|safe }},
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Amount (৳)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '৳' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Load budget distribution chart
+    function loadBudgetDistribution() {
+        const ctx = document.getElementById('budgetDistribution').getContext('2d');
+        
+        budgetDistribution = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ distribution_labels|safe }},
+                datasets: [{
+                    data: {{ distribution_data|safe }},
+                    backgroundColor: {{ distribution_colors|safe }},
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Toggle actual vs budget view
+    function toggleActualVsBudget() {
+        // Implement view toggle logic
+    }
+
+    // Delete confirmation
+    function confirmDeleteBudget(budgetId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteBudgetModal'));
+        modal.show();
+    }
+
+    // Export budget PDF
+    function exportBudgetPDF() {
+        window.location.href = "{% url 'fishery:export_budget_pdf' budget.id %}";
+    }
+
+    // Print handling
+    window.onbeforeprint = function() {
+        // Expand all sections for printing
+    };
+</script>
+
+<style>
+    .budget-banner {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 30px;
+        color: white;
+    }
+    
+    .banner-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    
+    .banner-subtitle {
+        opacity: 0.9;
+        margin: 0;
+    }
+    
+    .budget-status-card {
+        background: rgba(255,255,255,0.2);
+        border-radius: 15px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    /* Summary Cards */
+    .summary-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .summary-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    }
+    
+    .summary-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+    
+    .summary-content {
+        flex: 1;
+    }
+    
+    .summary-label {
+        display: block;
+        color: #64748b;
+        font-size: 0.85rem;
+        margin-bottom: 5px;
+    }
+    
+    .summary-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1.2;
+    }
+    
+    /* Progress Stack */
+    .progress-stack {
+        padding: 20px;
+    }
+    
+    .progress-item {
+        display: grid;
+        grid-template-columns: 120px 1fr 80px;
+        gap: 15px;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .progress-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #495057;
+        font-weight: 500;
+    }
+    
+    .progress-bars {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .budget-progress, .actual-progress {
+        flex: 1;
+    }
+    
+    .progress-value {
+        font-weight: 600;
+        text-align: right;
+    }
+    
+    /* Legend */
+    .budget-legend {
+        display: flex;
+        gap: 20px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.9rem;
+    }
+    
+    .legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+    }
+    
+    /* Recommendation Cards */
+    .recommendation-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: 12px;
+        margin-bottom: 15px;
+        border-left: 4px solid;
+        transition: all 0.3s ease;
+    }
+    
+    .recommendation-card:hover {
+        transform: translateX(5px);
+        background: white;
+    }
+    
+    .recommendation-card i {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+    
+    .recommendation-card h6 {
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+    
+    .recommendation-card p {
+        margin-bottom: 8px;
+        color: #64748b;
+    }
+    
+    .recommendation-card ul {
+        margin: 0;
+        padding-left: 20px;
+        color: #64748b;
+    }
+    
+    .recommendation-card li {
+        margin-bottom: 3px;
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+    }
+    
+    .badge.bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .badge.bg-danger {
+        background-color: #dc3545 !important;
+    }
+    
+    /* Table foot styling */
+    .fishery-table tfoot {
+        background: #f8fafc;
+        font-weight: 600;
+    }
+    
+    .fishery-table tfoot td {
+        border-top: 2px solid #dee2e6;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .budget-banner {
+            padding: 20px;
+        }
+        
+        .banner-title {
+            font-size: 1.3rem;
+        }
+        
+        .progress-item {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        
+        .progress-value {
+            text-align: left;
+        }
+        
+        .summary-card {
+            padding: 15px;
+        }
+        
+        .summary-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+        }
+        
+        .summary-value {
+            font-size: 1.2rem;
+        }
+        
+        .budget-legend {
+            flex-direction: column;
+            gap: 5px;
+        }
+    }
+</style>
+
+    <!-- Expense Timeline -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-8">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-clock-history text-info"></i>
+                    Expense Timeline
+                </h5>
+                <canvas id="expenseTimeline" style="height: 300px;"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-success"></i>
+                    Budget Distribution
+                </h5>
+                <canvas id="budgetDistribution" style="height: 250px;"></canvas>
+                <div class="mt-3">
+                    {% for item in distribution %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>
+                            <i class="bi bi-circle-fill me-2" style="color: {{ item.color }}"></i>
+                            {{ item.label }}:
+                        </span>
+                        <span class="fw-bold">{{ item.percentage|floatformat:1 }}%</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budget Recommendations -->
+    <div class="fishery-table-container">
+        <h5 class="fishery-table-title mb-3">
+            <i class="bi bi-lightbulb text-warning"></i>
+            Budget Recommendations
+        </h5>
+        <div class="row">
+            <div class="col-md-6">
+                {% if variance > 0 %}
+                <div class="recommendation-card border-danger">
+                    <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+                    <div>
+                        <h6>Budget Exceeded</h6>
+                        <p>Current expenses exceed budget by <strong>৳{{ variance|floatformat:2 }}</strong>. Review the following categories:</p>
+                        <ul class="mb-0">
+                            {% if fingerling_variance > 0 %}
+                            <li>Fingerlings: <span class="text-danger">+৳{{ fingerling_variance|floatformat:2 }}</span></li>
+                            {% endif %}
+                            {% if feed_variance > 0 %}
+                            <li>Feed: <span class="text-danger">+৳{{ feed_variance|floatformat:2 }}</span></li>
+                            {% endif %}
+                            {% if medicine_variance > 0 %}
+                            <li>Medicine: <span class="text-danger">+৳{{ medicine_variance|floatformat:2 }}</span></li>
+                            {% endif %}
+                            {% if labor_variance > 0 %}
+                            <li>Labor: <span class="text-danger">+৳{{ labor_variance|floatformat:2 }}</span></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+                {% else %}
+                <div class="recommendation-card border-success">
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                    <div>
+                        <h6>Under Budget</h6>
+                        <p>Great job! You're under budget by <strong>৳{{ variance|add:"-1"|floatformat:2 }}</strong>. Consider:</p>
+                        <ul class="mb-0">
+                            <li>Reinvesting savings into production</li>
+                            <li>Building a reserve fund for emergencies</li>
+                            <li>Upgrading equipment or facilities</li>
+                            <li>Expanding to additional ponds</li>
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                {% if utilization_percentage > 80 %}
+                <div class="recommendation-card border-warning">
+                    <i class="bi bi-clock-fill text-warning"></i>
+                    <div>
+                        <h6>Budget Running Low</h6>
+                        <p>{{ utilization_percentage|floatformat:1 }}% of budget used. Monitor expenses closely for the remainder of the cycle.</p>
+                        <div class="progress mt-2" style="height: 8px;">
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: {{ utilization_percentage }}%"></div>
+                        </div>
+                        <small class="text-muted mt-1 d-block">Remaining: ৳{{ remaining_budget|floatformat:2 }}</small>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if cycle.status == 'RUNNING' %}
+                <div class="recommendation-card border-info">
+                    <i class="bi bi-info-circle-fill text-info"></i>
+                    <div>
+                        <h6>Cycle in Progress</h6>
+                        <p><strong>Expected harvest:</strong> {{ cycle.expected_harvest_date|date:"F d, Y"|default:"Not set" }}</p>
+                        <p><strong>Days remaining:</strong> 
+                            <span class="badge {% if cycle.days_to_harvest <= 30 %}bg-danger{% elif cycle.days_to_harvest <= 60 %}bg-warning{% else %}bg-info{% endif %}">
+                                {{ cycle.days_to_harvest }} days
+                            </span>
+                        </p>
+                        <p><strong>Current survival rate:</strong> {{ cycle.survival_rate|floatformat:1 }}%</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if fingerling_variance > 20 or feed_variance > 20 %}
+                <div class="recommendation-card border-warning">
+                    <i class="bi bi-exclamation-diamond-fill text-warning"></i>
+                    <div>
+                        <h6>Significant Variance Detected</h6>
+                        <p>Some categories show variance >20%:</p>
+                        <ul class="mb-0">
+                            {% if fingerling_variance_percent > 20 %}
+                            <li>Fingerlings: {{ fingerling_variance_percent|floatformat:1 }}% over</li>
+                            {% endif %}
+                            {% if feed_variance_percent > 20 %}
+                            <li>Feed: {{ feed_variance_percent|floatformat:1 }}% over</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Projections -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-calendar-week text-primary"></i>
+                    Monthly Budget Projection
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th class="text-end">Projected</th>
+                                <th class="text-end">Actual</th>
+                                <th class="text-end">Variance</th>
+                                <th class="text-end">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month in monthly_projections %}
+                            <tr>
+                                <td>{{ month.month }}</td>
+                                <td class="text-end">৳{{ month.projected|floatformat:2 }}</td>
+                                <td class="text-end">৳{{ month.actual|floatformat:2 }}</td>
+                                <td class="text-end {% if month.variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {% if month.variance > 0 %}+{% endif %}{{ month.variance|floatformat:2 }}
+                                </td>
+                                <td class="text-end">
+                                    {% if month.variance > 10 %}
+                                        <span class="badge bg-danger">Critical</span>
+                                    {% elif month.variance > 5 %}
+                                        <span class="badge bg-warning">Warning</span>
+                                    {% elif month.variance < -5 %}
+                                        <span class="badge bg-success">Under</span>
+                                    {% else %}
+                                        <span class="badge bg-info">On Track</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-3 text-muted">
+                                    No monthly projection data available
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forecast Summary -->
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-graph-up-arrow text-success"></i>
+                    Forecast Summary
+                </h5>
+                
+                <div class="forecast-card">
+                    <div class="forecast-item">
+                        <span class="forecast-label">Projected Final Cost:</span>
+                        <span class="forecast-value">৳{{ projected_final|floatformat:2 }}</span>
+                    </div>
+                    <div class="forecast-item">
+                        <span class="forecast-label">Budget vs Projection:</span>
+                        <span class="forecast-value {% if projection_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if projection_variance > 0 %}+{% endif %}{{ projection_variance|floatformat:2 }}
+                        </span>
+                    </div>
+                    <div class="forecast-item">
+                        <span class="forecast-label">Estimated Completion:</span>
+                        <span class="forecast-value">{{ estimated_completion|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="forecast-item">
+                        <span class="forecast-label">Confidence Level:</span>
+                        <span class="forecast-value">
+                            <span class="badge bg-{{ confidence_level|lower }}">{{ confidence_level }}</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h6 class="fw-bold mb-3">Risk Assessment</h6>
+                    <div class="risk-meter">
+                        <div class="risk-level" style="width: {{ risk_percentage }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <span class="text-success">Low Risk</span>
+                        <span class="text-danger">High Risk</span>
+                    </div>
+                    <p class="mt-2 text-muted">{{ risk_message }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export & Print Options -->
+    <div class="fishery-table-container mt-4">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-download"></i>
+                Export Options
+            </h5>
+        </div>
+        <div class="export-options-grid">
+            <button class="export-option-btn" onclick="exportBudgetPDF()">
+                <i class="bi bi-file-pdf text-danger"></i>
+                <span>PDF Report</span>
+                <small>Complete budget analysis</small>
+            </button>
+            <button class="export-option-btn" onclick="exportBudgetExcel()">
+                <i class="bi bi-file-excel text-success"></i>
+                <span>Excel Data</span>
+                <small>Raw budget numbers</small>
+            </button>
+            <button class="export-option-btn" onclick="exportBudgetCSV()">
+                <i class="bi bi-file-csv text-info"></i>
+                <span>CSV Export</span>
+                <small>Compatible with spreadsheets</small>
+            </button>
+            <button class="export-option-btn" onclick="window.print()">
+                <i class="bi bi-printer text-secondary"></i>
+                <span>Print</span>
+                <small>Printable version</small>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteBudgetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this budget plan?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This action cannot be undone. All budget data will be permanently removed.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'fishery:budget_delete' budget.id %}" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let expenseTimeline = null;
+    let budgetDistribution = null;
+
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function() {
+        loadExpenseTimeline();
+        loadBudgetDistribution();
+    });
+
+    // Load expense timeline
+    function loadExpenseTimeline() {
+        const ctx = document.getElementById('expenseTimeline').getContext('2d');
+        
+        expenseTimeline = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ timeline_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Budget',
+                        data: {{ timeline_budget|safe }},
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: false,
+                        pointBackgroundColor: '#0d6efd',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    },
+                    {
+                        label: 'Actual',
+                        data: {{ timeline_actual|safe }},
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: false,
+                        pointBackgroundColor: '#28a745',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ৳' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Amount (৳)',
+                            font: {
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '৳' + value;
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Load budget distribution chart
+    function loadBudgetDistribution() {
+        const ctx = document.getElementById('budgetDistribution').getContext('2d');
+        
+        budgetDistribution = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ distribution_labels|safe }},
+                datasets: [{
+                    data: {{ distribution_data|safe }},
+                    backgroundColor: {{ distribution_colors|safe }},
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ৳' + context.raw.toFixed(2) + 
+                                       ' (' + context.parsed.toFixed(1) + '%)';
+                            }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+    }
+
+    // Toggle actual vs budget view
+    function toggleActualVsBudget() {
+        const table = document.getElementById('budgetTable');
+        table.classList.toggle('show-actual');
+    }
+
+    // Delete confirmation
+    function confirmDeleteBudget(budgetId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteBudgetModal'));
+        modal.show();
+    }
+
+    // Export functions
+    function exportBudgetPDF() {
+        showFisheryLoading();
+        window.location.href = "{% url 'fishery:export_budget_pdf' budget.id %}";
+    }
+
+    function exportBudgetExcel() {
+        showFisheryLoading();
+        window.location.href = "{% url 'fishery:export_budget_excel' budget.id %}";
+    }
+
+    function exportBudgetCSV() {
+        showFisheryLoading();
+        window.location.href = "{% url 'fishery:export_budget_csv' budget.id %}";
+    }
+
+    // Print handling
+    window.onbeforeprint = function() {
+        // Expand all sections for printing
+        document.querySelectorAll('.collapse').forEach(el => el.classList.add('show'));
+    };
+
+    window.onafterprint = function() {
+        // Collapse sections after printing
+        document.querySelectorAll('.collapse.show').forEach(el => el.classList.remove('show'));
+    };
+
+    // Animate progress bars on scroll
+    const observerOptions = {
+        threshold: 0.5,
+        rootMargin: '0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.width = entry.target.getAttribute('data-width') + '%';
+            }
+        });
+    }, observerOptions);
+
+    document.querySelectorAll('.progress-bar[data-width]').forEach(bar => {
+        observer.observe(bar);
+    });
+
+    // Live updates (simulated)
+    function refreshBudgetData() {
+        showFisheryLoading();
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+    }
+</script>
+
+<style>
+    .budget-banner {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 30px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .budget-banner::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 300px;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1));
+        transform: skewX(-20deg) translateX(200px);
+    }
+    
+    .budget-banner:hover::after {
+        transform: skewX(-20deg) translateX(-200px);
+        transition: transform 1s ease;
+    }
+    
+    .banner-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    
+    .banner-subtitle {
+        opacity: 0.9;
+        margin: 0;
+    }
+    
+    .budget-status-card {
+        background: rgba(255,255,255,0.2);
+        border-radius: 15px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    
+    .status-indicator.bg-success { background-color: #28a745; }
+    .status-indicator.bg-warning { background-color: #ffc107; }
+    .status-indicator.bg-danger { background-color: #dc3545; }
+    
+    @keyframes pulse {
+        0%, 100% { 
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% { 
+            opacity: 0.6;
+            transform: scale(1.1);
+        }
+    }
+    
+    /* Summary Cards */
+    .summary-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(0,0,0,0.02);
+    }
+    
+    .summary-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    }
+    
+    .summary-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        color: white;
+    }
+    
+    .summary-icon.bg-primary { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .summary-icon.bg-success { background: linear-gradient(135deg, #84fab0, #8fd3f4); }
+    .summary-icon.bg-warning { background: linear-gradient(135deg, #fad961, #f76b1c); }
+    .summary-icon.bg-info { background: linear-gradient(135deg, #6b73ff, #000dff); }
+    .summary-icon.bg-danger { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    
+    .summary-content {
+        flex: 1;
+    }
+    
+    .summary-label {
+        display: block;
+        color: #64748b;
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+    }
+    
+    .summary-value {
+        display: block;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1.2;
+    }
+    
+    /* Progress Stack */
+    .progress-stack {
+        padding: 10px;
+    }
+    
+    .progress-item {
+        display: grid;
+        grid-template-columns: 120px 1fr 100px;
+        gap: 15px;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+    
+    .progress-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .progress-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #495057;
+        font-weight: 500;
+    }
+    
+    .progress-label i {
+        font-size: 1.2rem;
+    }
+    
+    .progress-bars {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .budget-progress, .actual-progress {
+        flex: 1;
+    }
+    
+    .progress {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .progress-bar {
+        transition: width 1s ease;
+        font-weight: 500;
+        font-size: 0.8rem;
+        line-height: 25px;
+    }
+    
+    .progress-value {
+        font-weight: 600;
+        text-align: right;
+        font-size: 1rem;
+    }
+    
+    /* Legend */
+    .budget-legend {
+        display: flex;
+        gap: 25px;
+        background: #f8fafc;
+        padding: 10px 20px;
+        border-radius: 30px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+    }
+    
+    /* Recommendation Cards */
+    .recommendation-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: 12px;
+        margin-bottom: 15px;
+        border-left: 4px solid;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .recommendation-card:hover {
+        transform: translateX(5px);
+        background: white;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .recommendation-card i {
+        font-size: 1.8rem;
+        flex-shrink: 0;
+    }
+    
+    .recommendation-card h6 {
+        margin-bottom: 8px;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .recommendation-card p {
+        margin-bottom: 8px;
+        color: #64748b;
+        font-size: 0.95rem;
+    }
+    
+    .recommendation-card ul {
+        margin: 0;
+        padding-left: 20px;
+        color: #64748b;
+    }
+    
+    .recommendation-card li {
+        margin-bottom: 3px;
+    }
+    
+    /* Forecast Card */
+    .forecast-card {
+        background: linear-gradient(135deg, #f8fafc 0%, #e9ecef 100%);
+        border-radius: 15px;
+        padding: 20px;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .forecast-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .forecast-item:last-child {
+        border-bottom: none;
+    }
+    
+    .forecast-label {
+        color: #64748b;
+        font-weight: 500;
+    }
+    
+    .forecast-value {
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    /* Risk Meter */
+    .risk-meter {
+        height: 8px;
+        background: linear-gradient(90deg, #28a745, #ffc107, #dc3545);
+        border-radius: 4px;
+        position: relative;
+        margin: 10px 0;
+    }
+    
+    .risk-level {
+        position: absolute;
+        top: -2px;
+        width: 4px;
+        height: 12px;
+        background: #1e293b;
+        border-radius: 2px;
+        transform: translateX(-50%);
+    }
+    
+    /* Export Options Grid */
+    .export-options-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        padding: 20px;
+    }
+    
+    .export-option-btn {
+        background: #f8fafc;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .export-option-btn:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border-color: transparent;
+    }
+    
+    .export-option-btn i {
+        font-size: 2.5rem;
+    }
+    
+    .export-option-btn span {
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .export-option-btn small {
+        color: #64748b;
+        font-size: 0.8rem;
+        text-align: center;
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        border-radius: 20px;
+    }
+    
+    .badge.bg-success { background: linear-gradient(135deg, #84fab0, #8fd3f4); color: #1e293b; }
+    .badge.bg-warning { background: linear-gradient(135deg, #fad961, #f76b1c); color: white; }
+    .badge.bg-danger { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; }
+    .badge.bg-info { background: linear-gradient(135deg, #6b73ff, #000dff); color: white; }
+    
+    /* Table foot styling */
+    .fishery-table tfoot {
+        background: linear-gradient(135deg, #f8fafc 0%, #e9ecef 100%);
+        font-weight: 600;
+    }
+    
+    .fishery-table tfoot td {
+        border-top: 2px solid #dee2e6;
+    }
+    
+    /* Print styles */
+    @media print {
+        .budget-banner {
+            background: #f8f9fa;
+            color: black;
+            border: 1px solid #ddd;
+        }
+        
+        .budget-status-card {
+            background: #f8f9fa;
+            color: black;
+            border: 1px solid #ddd;
+        }
+        
+        .fishery-table-container {
+            break-inside: avoid;
+            box-shadow: none;
+            border: 1px solid #ddd;
+        }
+        
+        .summary-card, .recommendation-card, .forecast-card {
+            break-inside: avoid;
+            box-shadow: none;
+            border: 1px solid #ddd;
+        }
+        
+        .btn, .btn-group, .fishery-btn-add, .export-options-grid {
+            display: none;
+        }
+        
+        .progress {
+            border: 1px solid #ddd;
+        }
+        
+        .progress-bar {
+            background-color: #e9ecef !important;
+            color: black;
+        }
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .budget-banner {
+            padding: 20px;
+        }
+        
+        .banner-title {
+            font-size: 1.3rem;
+        }
+        
+        .budget-status-card {
+            margin-top: 15px;
+        }
+        
+        .progress-item {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        
+        .progress-value {
+            text-align: left;
+        }
+        
+        .summary-card {
+            padding: 15px;
+        }
+        
+        .summary-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+        
+        .summary-value {
+            font-size: 1.4rem;
+        }
+        
+        .budget-legend {
+            flex-direction: column;
+            gap: 5px;
+            align-items: flex-start;
+        }
+        
+        .export-options-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .forecast-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+        }
+    }
+</style>
+{% endblock %}
+
+
+
+{% endblock %}

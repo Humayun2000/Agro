@@ -1,0 +1,137 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_title %}{% if object %}Edit{% else %}Add{% endif %} Farm{% endblock %}
+
+{% block page_icon %}bi bi-building{% endblock %}
+
+{% block breadcrumb %}
+<a href="{% url 'fishery:farm_list' %}">Farms</a>
+<span>{% if object %}Edit{% else %}Add{% endif %}</span>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="fishery-form-card">
+    <div class="fishery-form-header">
+        <h3>
+            <i class="bi bi-building"></i>
+            {% if object %}Edit Farm: {{ object.name }}{% else %}Add New Farm{% endif %}
+        </h3>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">Farm Name *</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                    <div class="text-danger small">{{ form.name.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">Registration Number</label>
+                    {{ form.registration_number }}
+                    <small class="text-muted">e.g., FARM-2024-001</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="fishery-form-group">
+            <label class="fishery-form-label">Address *</label>
+            {{ form.address }}
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">City *</label>
+                    {{ form.city }}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">State *</label>
+                    {{ form.state }}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">Country</label>
+                    {{ form.country }}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">Phone *</label>
+                    {{ form.phone }}
+                    <small class="text-muted">e.g., +8801XXXXXXXXX</small>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">Email</label>
+                    {{ form.email }}
+                </div>
+            </div>
+        </div>
+
+        <div class="fishery-form-group">
+            <label class="fishery-form-label">Website</label>
+            {{ form.website }}
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">Total Area (acres) *</label>
+                    {{ form.total_area }}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">Active Ponds</label>
+                    {{ form.active_ponds }}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">Employee Count</label>
+                    {{ form.employee_count }}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">Latitude</label>
+                    {{ form.latitude }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="fishery-form-group">
+                    <label class="fishery-form-label">Longitude</label>
+                    {{ form.longitude }}
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn-primary" style="padding: 12px 30px;">
+                <i class="bi bi-check-circle"></i> {% if object %}Update{% else %}Create{% endif %} Farm
+            </button>
+            <a href="{% url 'fishery:farm_list' %}" class="btn-outline" style="padding: 12px 30px;">
+                <i class="bi bi-x-circle"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

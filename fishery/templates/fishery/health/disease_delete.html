@@ -1,0 +1,563 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-exclamation-triangle{% endblock %}
+{% block page_title %}Delete Disease Record{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:disease_list' %}">Health</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete Disease Record</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:disease_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Disease Record
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon & Message -->
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-heart-pulse fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove this disease record?</h4>
+            <p class="text-muted">
+                You are about to delete disease record for 
+                <strong>{{ object.disease_name }}</strong> detected on 
+                <strong>{{ object.detection_date|date:"F d, Y" }}</strong>
+            </p>
+        </div>
+
+        <!-- Disease Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="disease-avatar bg-danger text-white rounded-3 p-3">
+                        <i class="bi bi-bug fs-2"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ object.disease_name }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-water me-1"></i> {{ object.cycle.pond.name }}
+                            <span class="mx-2">|</span>
+                            <i class="bi bi-fish me-1"></i> {{ object.cycle.species.name }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Disease Type</small>
+                            <span class="fw-bold {% if object.disease_type == 'BACTERIAL' %}text-danger{% elif object.disease_type == 'VIRAL' %}text-warning{% elif object.disease_type == 'FUNGAL' %}text-success{% else %}text-info{% endif %}">
+                                {{ object.get_disease_type_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Severity</small>
+                            <span class="fw-bold {% if object.severity == 'CRITICAL' %}text-danger{% elif object.severity == 'HIGH' %}text-warning{% elif object.severity == 'MEDIUM' %}text-info{% else %}text-success{% endif %}">
+                                {{ object.get_severity_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Status</small>
+                            {% if object.is_resolved %}
+                                <span class="fw-bold text-success">Resolved</span>
+                            {% else %}
+                                <span class="fw-bold text-danger">Active</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Estimated Affected</small>
+                            <span class="fw-bold">{{ object.estimated_affected|default:"—" }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Mortality</small>
+                            <span class="fw-bold text-danger">{{ object.mortality_count }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if object.symptoms %}
+                <div class="mt-3 p-3 bg-white rounded-3">
+                    <small class="text-muted d-block">Symptoms</small>
+                    <p class="mb-0">{{ object.symptoms|truncatechars:100 }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Treatment Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>⚠️ This will affect treatment records:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>
+                        <span class="badge bg-primary me-2">{{ treatment_count }}</span>
+                        Treatment Records will be deleted
+                    </li>
+                    <li>
+                        <span class="badge bg-info me-2">৳{{ total_treatment_cost|floatformat:0 }}</span>
+                        Total Treatment Cost will be removed
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Current Treatment List -->
+        {% if treatments %}
+        <div class="card border-0 bg-light mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-capsule text-info me-2"></i>
+                    Treatments to be Deleted
+                </h6>
+                {% for treatment in treatments %}
+                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded-3">
+                    <div>
+                        <span class="fw-bold">{{ treatment.get_treatment_type_display }}</span>
+                        <small class="text-muted d-block">{{ treatment.medication_name }} - {{ treatment.application_date|date:"M d, Y" }}</small>
+                    </div>
+                    <span class="badge bg-info">৳{{ treatment.cost|floatformat:0 }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Cycle Impact -->
+        <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-info-circle-fill fs-4"></i>
+            <div>
+                <strong>Production Cycle Impact:</strong>
+                <p class="mb-0 mt-1">
+                    This will affect health statistics for cycle 
+                    <strong>{{ object.cycle.cycle_id|slice:":8" }}</strong> 
+                    ({{ object.cycle.pond.name }} - {{ object.cycle.species.name }})
+                </p>
+            </div>
+        </div>
+
+        <!-- Statistics Impact -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-pie-chart text-primary me-2"></i>
+                            Disease Statistics
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Cases:</span>
+                            <span class="fw-bold">{{ total_cases }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="text-muted">Active Cases:</span>
+                            <span class="fw-bold">{{ active_cases }}</span>
+                        </div>
+                        {% if not object.is_resolved %}
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="text-muted">After Deletion:</span>
+                            <span class="fw-bold text-danger">{{ active_cases|add:"-1" }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-currency-dollar text-success me-2"></i>
+                            Financial Impact
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Treatment Cost:</span>
+                            <span class="fw-bold">৳{{ total_treatment_cost|floatformat:0 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="text-muted">Mortality Loss:</span>
+                            <span class="fw-bold text-danger">{{ object.mortality_count }} fish</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Severity Warning -->
+        {% if object.severity == 'CRITICAL' or object.severity == 'HIGH' %}
+        <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div>
+                <strong>Critical Disease Warning!</strong>
+                <p class="mb-0 mt-1">
+                    This was a {{ object.get_severity_display|lower }} severity case. 
+                    Consider keeping the record for future reference and disease pattern analysis.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                I understand that deleting this disease record will also delete 
+                <strong>{{ treatment_count }}</strong> associated treatment records
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'fishery:disease_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger px-5 py-3" id="deleteBtn" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Permanently
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal Script -->
+<script>
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = !checkbox.checked;
+    }
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const confirmDelete = document.getElementById('confirmDelete');
+        if (!confirmDelete.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand the consequences of deleting this disease record.');
+        }
+    });
+
+    // Countdown timer for safety
+    let countdown = 5;
+    let countdownInterval = null;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const confirmCheck = document.getElementById('confirmDelete');
+
+    confirmCheck.addEventListener('change', function() {
+        if (this.checked && !countdownInterval) {
+            // Store original text
+            const originalText = deleteBtn.innerHTML;
+            
+            // Start countdown
+            deleteBtn.disabled = true;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                deleteBtn.innerHTML = `Wait ${countdown} seconds... <i class="bi bi-hourglass-split ms-2"></i>`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                    countdown = 5;
+                }
+            }, 1000);
+        } else if (!this.checked && countdownInterval) {
+            // Cancel countdown
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3-fill me-2"></i>Delete Permanently';
+            countdown = 5;
+        }
+    });
+
+    // Keyboard shortcut warning
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const deleteBtn = document.getElementById('deleteBtn');
+            const confirmCheck = document.getElementById('confirmDelete');
+            
+            if (!deleteBtn.disabled && confirmCheck.checked) {
+                if (!confirm('Are you absolutely sure? This will permanently delete this disease record and all associated treatments.')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // Add animation class on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.warning-icon').classList.add('pulse-animation');
+        
+        // Animate detail boxes
+        document.querySelectorAll('.detail-box').forEach(el => {
+            el.classList.add('fade-in');
+        });
+    });
+</script>
+
+<style>
+    .warning-icon {
+        width: 120px;
+        height: 120px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px 15px rgba(220, 53, 69, 0.2);
+        }
+    }
+    
+    .disease-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+        margin-right: 5px;
+    }
+    
+    .badge.bg-primary {
+        background-color: #0d6efd !important;
+    }
+    
+    .badge.bg-info {
+        background-color: #0dcaf0 !important;
+        color: #000;
+    }
+    
+    /* Form check styling */
+    .form-check-input:checked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+        color: #dc3545;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+    
+    /* Disabled button style */
+    #deleteBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* Countdown timer text */
+    #deleteBtn i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Fade in animation */
+    .fade-in {
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Text colors */
+    .text-danger {
+        font-weight: 600 !important;
+    }
+    
+    .text-success {
+        font-weight: 600 !important;
+    }
+    
+    .text-warning {
+        font-weight: 600 !important;
+        color: #ffc107 !important;
+    }
+    
+    .text-info {
+        font-weight: 600 !important;
+        color: #0dcaf0 !important;
+    }
+    
+    /* Treatment list styling */
+    .bg-white.rounded-3 {
+        transition: all 0.3s ease;
+    }
+    
+    .bg-white.rounded-3:hover {
+        transform: translateX(5px);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .warning-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .warning-icon i {
+            font-size: 3rem !important;
+        }
+        
+        .disease-avatar {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .disease-avatar i {
+            font-size: 1.5rem !important;
+        }
+        
+        .btn {
+            padding: 12px 15px !important;
+            font-size: 0.9rem;
+        }
+        
+        h4 {
+            font-size: 1.2rem;
+        }
+        
+        .detail-box {
+            padding: 10px !important;
+        }
+        
+        .badge {
+            font-size: 0.8rem;
+            padding: 3px 6px;
+        }
+        
+        .row.g-3 {
+            --bs-gutter-y: 0.5rem;
+        }
+    }
+
+    /* Print styles */
+    @media print {
+        .btn, .form-check, .alert-info, #deleteBtn {
+            display: none;
+        }
+        
+        .warning-icon {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .bg-danger {
+            background-color: #dc3545 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .alert-warning, .alert-danger, .alert-info {
+            border: 1px solid #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,939 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-cash-stack{% endblock %}
+{% block page_title %}Financial Report - {{ year }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:report_dashboard' %}">Reports</a></li>
+<li class="breadcrumb-item active" aria-current="page">Financial Report {{ year }}</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportPDF()">
+        <i class="bi bi-file-pdf me-1"></i> Export PDF
+    </button>
+    <button class="btn btn-outline-success" onclick="exportExcel()">
+        <i class="bi bi-file-excel me-1"></i> Export Excel
+    </button>
+    <button class="btn btn-outline-secondary" onclick="window.print()">
+        <i class="bi bi-printer me-1"></i> Print
+    </button>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Report Header -->
+    <div class="report-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="report-title">Financial Report {{ year }}</h1>
+                <p class="report-subtitle">Comprehensive financial analysis including revenue, expenses, and profitability</p>
+            </div>
+            <div class="report-period">
+                <span class="badge bg-primary p-3">
+                    <i class="bi bi-calendar3 me-2"></i>
+                    Generated: {% now "F d, Y H:i" %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Controls -->
+    <div class="fishery-table-container mb-4">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-sliders2"></i>
+                Report Controls
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#reportControls">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="reportControls">
+            <form method="get" id="reportForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Year</label>
+                        <select name="year" class="fishery-form-control" onchange="this.form.submit()">
+                            {% for y in years %}
+                            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Report Type</label>
+                        <select name="type" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="summary" {% if report_type == 'summary' %}selected{% endif %}>Summary Report</option>
+                            <option value="detailed" {% if report_type == 'detailed' %}selected{% endif %}>Detailed Analysis</option>
+                            <option value="comparative" {% if report_type == 'comparative' %}selected{% endif %}>Comparative Analysis</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Currency</label>
+                        <select name="currency" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="BDT" {% if currency == 'BDT' %}selected{% endif %}>BDT (৳)</option>
+                            <option value="USD" {% if currency == 'USD' %}selected{% endif %}>USD ($)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="fishery-btn-add w-100">
+                            <i class="bi bi-arrow-repeat me-1"></i> Update Report
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Key Financial Indicators -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ total_revenue|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Total Revenue</div>
+            <div class="stat-comparison {% if revenue_growth >= 0 %}text-success{% else %}text-danger{% endif %}">
+                <i class="bi {% if revenue_growth >= 0 %}bi-arrow-up{% else %}bi-arrow-down{% endif %}"></i>
+                {{ revenue_growth|floatformat:1 }}% vs previous year
+            </div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon red">
+                <i class="bi bi-receipt"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ total_expenses|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Total Expenses</div>
+            <div class="stat-comparison {% if expense_change <= 0 %}text-success{% else %}text-danger{% endif %}">
+                <i class="bi {% if expense_change <= 0 %}bi-arrow-down{% else %}bi-arrow-up{% endif %}"></i>
+                {{ expense_change|floatformat:1 }}% vs previous year
+            </div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-arrow-up"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ net_profit|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Net Profit</div>
+            <div class="stat-comparison {% if profit_growth >= 0 %}text-success{% else %}text-danger{% endif %}">
+                <i class="bi {% if profit_growth >= 0 %}bi-arrow-up{% else %}bi-arrow-down{% endif %}"></i>
+                {{ profit_growth|floatformat:1 }}% vs previous year
+            </div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-pie-chart"></i>
+            </div>
+            <div class="fishery-stat-value">{{ profit_margin|floatformat:1 }}%</div>
+            <div class="fishery-stat-label">Profit Margin</div>
+            <div class="stat-comparison {% if margin_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                <i class="bi {% if margin_change >= 0 %}bi-arrow-up{% else %}bi-arrow-down{% endif %}"></i>
+                {{ margin_change|floatformat:1 }}% vs previous year
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Financial Chart -->
+    <div class="fishery-table-container mb-4">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-bar-chart text-primary"></i>
+                Monthly Financial Overview
+            </h5>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-primary active" onclick="toggleChartType('bar')">Bar</button>
+                <button type="button" class="btn btn-outline-primary" onclick="toggleChartType('line')">Line</button>
+            </div>
+        </div>
+        <canvas id="financialChart" style="height: 400px;"></canvas>
+    </div>
+
+    <!-- Revenue vs Expenses Breakdown -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-8">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-table"></i>
+                    Monthly Financial Breakdown
+                </h5>
+                <div class="table-responsive">
+                    <table class="fishery-table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th class="text-end">Revenue (৳)</th>
+                                <th class="text-end">Expenses (৳)</th>
+                                <th class="text-end">Profit (৳)</th>
+                                <th class="text-end">Margin %</th>
+                                <th class="text-end">vs Budget</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month in monthly_data %}
+                            <tr>
+                                <td class="fw-bold">{{ month.month }}</td>
+                                <td class="text-end text-success">{{ month.revenue|floatformat:0 }}</td>
+                                <td class="text-end text-danger">{{ month.expenses|floatformat:0 }}</td>
+                                <td class="text-end {% if month.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ month.profit|floatformat:0 }}
+                                </td>
+                                <td class="text-end {% if month.margin > 30 %}text-success{% elif month.margin > 20 %}text-info{% elif month.margin > 10 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ month.margin|floatformat:1 }}%
+                                </td>
+                                <td class="text-end {% if month.vs_budget >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {% if month.vs_budget >= 0 %}+{% endif %}{{ month.vs_budget|floatformat:1 }}%
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">
+                                    No monthly data available for {{ year }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="fw-bold">
+                                <td>TOTAL</td>
+                                <td class="text-end">{{ total_revenue|floatformat:0 }}</td>
+                                <td class="text-end">{{ total_expenses|floatformat:0 }}</td>
+                                <td class="text-end {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ net_profit|floatformat:0 }}
+                                </td>
+                                <td class="text-end">{{ profit_margin|floatformat:1 }}%</td>
+                                <td class="text-end">—</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expense Breakdown -->
+        <div class="col-md-4">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-info"></i>
+                    Expense Breakdown
+                </h5>
+                <canvas id="expenseChart" style="height: 250px;"></canvas>
+                <div class="mt-3">
+                    {% for expense in expense_breakdown %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>
+                            <i class="bi bi-circle-fill me-2" style="color: {{ expense.color }}"></i>
+                            {{ expense.category }}:
+                        </span>
+                        <span class="fw-bold">৳{{ expense.amount|floatformat:0 }}</span>
+                    </div>
+                    <div class="progress mb-3" style="height: 6px;">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: {{ expense.percentage }}%; background-color: {{ expense.color }}"></div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Analysis -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-calculator text-success"></i>
+                    Cost Analysis by Category
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-end">Amount (৳)</th>
+                                <th class="text-end">% of Total</th>
+                                <th class="text-end">vs Budget</th>
+                                <th class="text-end">Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <i class="bi bi-fish text-primary me-2"></i>
+                                    Fingerlings
+                                </td>
+                                <td class="text-end">৳{{ fingerling_cost|floatformat:0 }}</td>
+                                <td class="text-end">{{ fingerling_percentage|floatformat:1 }}%</td>
+                                <td class="text-end {% if fingerling_vs_budget <= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {% if fingerling_vs_budget >= 0 %}+{% endif %}{{ fingerling_vs_budget|floatformat:1 }}%
+                                </td>
+                                <td class="text-end">
+                                    {% if fingerling_trend > 0 %}
+                                    <i class="bi bi-arrow-up text-danger" title="Increasing"></i>
+                                    {% else %}
+                                    <i class="bi bi-arrow-down text-success" title="Decreasing"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <i class="bi bi-basket text-success me-2"></i>
+                                    Feed
+                                </td>
+                                <td class="text-end">৳{{ feed_cost|floatformat:0 }}</td>
+                                <td class="text-end">{{ feed_percentage|floatformat:1 }}%</td>
+                                <td class="text-end {% if feed_vs_budget <= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {% if feed_vs_budget >= 0 %}+{% endif %}{{ feed_vs_budget|floatformat:1 }}%
+                                </td>
+                                <td class="text-end">
+                                    {% if feed_trend > 0 %}
+                                    <i class="bi bi-arrow-up text-danger" title="Increasing"></i>
+                                    {% else %}
+                                    <i class="bi bi-arrow-down text-success" title="Decreasing"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <i class="bi bi-droplet text-info me-2"></i>
+                                    Medicine
+                                </td>
+                                <td class="text-end">৳{{ medicine_cost|floatformat:0 }}</td>
+                                <td class="text-end">{{ medicine_percentage|floatformat:1 }}%</td>
+                                <td class="text-end {% if medicine_vs_budget <= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {% if medicine_vs_budget >= 0 %}+{% endif %}{{ medicine_vs_budget|floatformat:1 }}%
+                                </td>
+                                <td class="text-end">
+                                    {% if medicine_trend > 0 %}
+                                    <i class="bi bi-arrow-up text-danger" title="Increasing"></i>
+                                    {% else %}
+                                    <i class="bi bi-arrow-down text-success" title="Decreasing"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <i class="bi bi-people text-warning me-2"></i>
+                                    Labor
+                                </td>
+                                <td class="text-end">৳{{ labor_cost|floatformat:0 }}</td>
+                                <td class="text-end">{{ labor_percentage|floatformat:1 }}%</td>
+                                <td class="text-end {% if labor_vs_budget <= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {% if labor_vs_budget >= 0 %}+{% endif %}{{ labor_vs_budget|floatformat:1 }}%
+                                </td>
+                                <td class="text-end">
+                                    {% if labor_trend > 0 %}
+                                    <i class="bi bi-arrow-up text-danger" title="Increasing"></i>
+                                    {% else %}
+                                    <i class="bi bi-arrow-down text-success" title="Decreasing"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <i class="bi bi-tools text-secondary me-2"></i>
+                                    Other
+                                </td>
+                                <td class="text-end">৳{{ other_cost|floatformat:0 }}</td>
+                                <td class="text-end">{{ other_percentage|floatformat:1 }}%</td>
+                                <td class="text-end {% if other_vs_budget <= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {% if other_vs_budget >= 0 %}+{% endif %}{{ other_vs_budget|floatformat:1 }}%
+                                </td>
+                                <td class="text-end">
+                                    {% if other_trend > 0 %}
+                                    <i class="bi bi-arrow-up text-danger" title="Increasing"></i>
+                                    {% else %}
+                                    <i class="bi bi-arrow-down text-success" title="Decreasing"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="fw-bold">
+                                <td>TOTAL</td>
+                                <td class="text-end">৳{{ total_expenses|floatformat:0 }}</td>
+                                <td class="text-end">100%</td>
+                                <td class="text-end">—</td>
+                                <td class="text-end">—</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profitability Metrics -->
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-graph-up text-warning"></i>
+                    Profitability Metrics
+                </h5>
+                
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <span class="metric-label">Revenue per kg:</span>
+                        <span class="metric-value">৳{{ revenue_per_kg|floatformat:2 }}</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Cost per kg:</span>
+                        <span class="metric-value">৳{{ cost_per_kg|floatformat:2 }}</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Profit per kg:</span>
+                        <span class="metric-value {% if profit_per_kg >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ৳{{ profit_per_kg|floatformat:2 }}
+                        </span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Break-even price:</span>
+                        <span class="metric-value text-info">৳{{ break_even_price|floatformat:2 }}</span>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h6 class="fw-bold mb-3">ROI Analysis</h6>
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ roi_percentage }}%">
+                            ROI: {{ roi_percentage|floatformat:1 }}%
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded-3 text-center">
+                                <small class="text-muted">Return on Investment</small>
+                                <h4 class="mb-0 text-success">{{ roi_percentage|floatformat:1 }}%</h4>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded-3 text-center">
+                                <small class="text-muted">Payback Period</small>
+                                <h4 class="mb-0 text-info">{{ payback_period }} months</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h6 class="fw-bold mb-3">Financial Ratios</h6>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded-3">
+                                <small class="text-muted">Operating Margin</small>
+                                <h5 class="mb-0">{{ operating_margin|floatformat:1 }}%</h5>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded-3">
+                                <small class="text-muted">Net Profit Ratio</small>
+                                <h5 class="mb-0">{{ net_profit_ratio|floatformat:1 }}%</h5>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded-3">
+                                <small class="text-muted">Expense Ratio</small>
+                                <h5 class="mb-0">{{ expense_ratio|floatformat:1 }}%</h5>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded-3">
+                                <small class="text-muted">Current Ratio</small>
+                                <h5 class="mb-0">{{ current_ratio|floatformat:2 }}</h5>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparative Analysis -->
+    {% if report_type == 'comparative' %}
+    <div class="fishery-table-container mb-4">
+        <h5 class="fishery-table-title mb-3">
+            <i class="bi bi-bar-chart-steps text-primary"></i>
+            Year-over-Year Comparison
+        </h5>
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th class="text-end">{{ year|add:"-1" }}</th>
+                        <th class="text-end">{{ year }}</th>
+                        <th class="text-end">Change</th>
+                        <th class="text-end">% Change</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Total Revenue</td>
+                        <td class="text-end">৳{{ prev_year_revenue|floatformat:0 }}</td>
+                        <td class="text-end">৳{{ total_revenue|floatformat:0 }}</td>
+                        <td class="text-end {% if revenue_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ৳{{ revenue_change|floatformat:0 }}
+                        </td>
+                        <td class="text-end {% if revenue_change_percent >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if revenue_change_percent >= 0 %}+{% endif %}{{ revenue_change_percent|floatformat:1 }}%
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Total Expenses</td>
+                        <td class="text-end">৳{{ prev_year_expenses|floatformat:0 }}</td>
+                        <td class="text-end">৳{{ total_expenses|floatformat:0 }}</td>
+                        <td class="text-end {% if expense_change <= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ৳{{ expense_change|floatformat:0 }}
+                        </td>
+                        <td class="text-end {% if expense_change_percent <= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if expense_change_percent >= 0 %}+{% endif %}{{ expense_change_percent|floatformat:1 }}%
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Net Profit</td>
+                        <td class="text-end">৳{{ prev_year_profit|floatformat:0 }}</td>
+                        <td class="text-end">৳{{ net_profit|floatformat:0 }}</td>
+                        <td class="text-end {% if profit_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ৳{{ profit_change|floatformat:0 }}
+                        </td>
+                        <td class="text-end {% if profit_change_percent >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if profit_change_percent >= 0 %}+{% endif %}{{ profit_change_percent|floatformat:1 }}%
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Profit Margin</td>
+                        <td class="text-end">{{ prev_year_margin|floatformat:1 }}%</td>
+                        <td class="text-end">{{ profit_margin|floatformat:1 }}%</td>
+                        <td class="text-end {% if margin_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ margin_change|floatformat:1 }}%
+                        </td>
+                        <td class="text-end">—</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Financial Health Summary -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-shield-check text-success"></i>
+                    Financial Health Assessment
+                </h5>
+                <div class="health-score">
+                    <div class="score-circle {% if health_score >= 80 %}bg-success{% elif health_score >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                        <span class="score-value">{{ health_score }}</span>
+                    </div>
+                    <div class="score-details">
+                        <h6>{{ health_status }}</h6>
+                        <p>{{ health_message }}</p>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6 class="fw-bold mb-3">Key Strengths</h6>
+                    <ul class="strengths-list">
+                        {% for strength in strengths %}
+                        <li>
+                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                            {{ strength }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    
+                    <h6 class="fw-bold mb-3 mt-4">Areas for Improvement</h6>
+                    <ul class="improvements-list">
+                        {% for improvement in improvements %}
+                        <li>
+                            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                            {{ improvement }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-lightbulb text-warning"></i>
+                    Financial Recommendations
+                </h5>
+                
+                {% for rec in recommendations %}
+                <div class="recommendation-card {% if rec.priority == 'high' %}border-danger{% elif rec.priority == 'medium' %}border-warning{% else %}border-info{% endif %}">
+                    <i class="bi {% if rec.priority == 'high' %}bi-exclamation-triangle-fill text-danger{% elif rec.priority == 'medium' %}bi-clock-fill text-warning{% else %}bi-info-circle-fill text-info{% endif %}"></i>
+                    <div>
+                        <h6>{{ rec.title }}</h6>
+                        <p>{{ rec.description }}</p>
+                        <small class="text-muted">Potential Impact: {{ rec.impact }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div class="mt-4">
+                    <h6 class="fw-bold mb-3">Budget vs Actual Summary</h6>
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ budget_utilization }}%">
+                            Actual: ৳{{ total_expenses|floatformat:0 }}
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Budget: ৳{{ total_budget|floatformat:0 }}</span>
+                        <span class="{% if budget_utilization > 100 %}text-danger{% else %}text-success{% endif %}">
+                            {{ budget_variance }} ({{ budget_variance_percent|floatformat:1 }}%)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let financialChart = null;
+    let expenseChart = null;
+
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function() {
+        loadFinancialChart('bar');
+        loadExpenseChart();
+    });
+
+    // Load financial chart
+    function loadFinancialChart(type) {
+        const ctx = document.getElementById('financialChart').getContext('2d');
+        
+        if (financialChart) {
+            financialChart.destroy();
+        }
+        
+        financialChart = new Chart(ctx, {
+            type: type,
+            data: {
+                labels: {{ monthly_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Revenue (৳)',
+                        data: {{ monthly_revenue|safe }},
+                        backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                        borderColor: '#28a745',
+                        borderWidth: type === 'line' ? 3 : 0,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Expenses (৳)',
+                        data: {{ monthly_expenses|safe }},
+                        backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                        borderColor: '#dc3545',
+                        borderWidth: type === 'line' ? 3 : 0,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Profit (৳)',
+                        data: {{ monthly_profit|safe }},
+                        backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                        borderColor: '#ffc107',
+                        borderWidth: type === 'line' ? 3 : 0,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Amount (৳)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '৳' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Load expense breakdown chart
+    function loadExpenseChart() {
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        
+        expenseChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ expense_labels|safe }},
+                datasets: [{
+                    data: {{ expense_data|safe }},
+                    backgroundColor: {{ expense_colors|safe }},
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // Toggle chart type
+    function toggleChartType(type) {
+        document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        loadFinancialChart(type);
+    }
+
+    // Export functions
+    function exportPDF() {
+        window.location.href = "{% url 'fishery:export_financial_pdf' %}?year={{ year }}&type={{ report_type }}";
+    }
+
+    function exportExcel() {
+        window.location.href = "{% url 'fishery:export_financial_excel' %}?year={{ year }}&type={{ report_type }}";
+    }
+
+    // Print handling
+    window.onbeforeprint = function() {
+        document.querySelectorAll('.collapse').forEach(el => el.classList.add('show'));
+    };
+</script>
+
+<style>
+    .report-header {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 20px;
+        padding: 30px;
+        color: white;
+    }
+    
+    .report-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    
+    .report-subtitle {
+        opacity: 0.8;
+        margin: 0;
+    }
+    
+    .stat-comparison {
+        font-size: 0.8rem;
+        margin-top: 5px;
+    }
+    
+    /* Metrics Grid */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        background: #f8fafc;
+        padding: 20px;
+        border-radius: 12px;
+    }
+    
+    .metric-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background: white;
+        border-radius: 8px;
+    }
+    
+    .metric-label {
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+    
+    .metric-value {
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    
+    /* Health Score */
+    .health-score {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: 12px;
+    }
+    
+    .score-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    
+    .score-details h6 {
+        margin-bottom: 5px;
+        font-size: 1.1rem;
+    }
+    
+    .score-details p {
+        margin: 0;
+        color: #64748b;
+    }
+    
+    /* Recommendation Cards */
+    .recommendation-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: 12px;
+        margin-bottom: 15px;
+        border-left: 4px solid;
+        transition: all 0.3s ease;
+    }
+    
+    .recommendation-card:hover {
+        transform: translateX(5px);
+        background: white;
+    }
+    
+    .recommendation-card i {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+    
+    .recommendation-card h6 {
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+    
+    .recommendation-card p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+    
+    /* Strengths & Improvements Lists */
+    .strengths-list, .improvements-list {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .strengths-list li, .improvements-list li {
+        padding: 8px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .strengths-list li:last-child, .improvements-list li:last-child {
+        border-bottom: none;
+    }
+    
+    /* Table foot styling */
+    .fishery-table tfoot {
+        background: #f8fafc;
+        font-weight: 600;
+    }
+    
+    .fishery-table tfoot td {
+        border-top: 2px solid #dee2e6;
+    }
+    
+    /* Progress bar styling */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .progress-bar {
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 20px;
+    }
+    
+    /* Print styles */
+    @media print {
+        .fishery-table-container {
+            break-inside: avoid;
+        }
+        
+        .health-score, .metric-item, .recommendation-card {
+            break-inside: avoid;
+            box-shadow: none;
+            border: 1px solid #ddd;
+        }
+        
+        .btn-group, .btn, .fishery-btn-add {
+            display: none;
+        }
+        
+        .progress {
+            border: 1px solid #ddd;
+        }
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .report-title {
+            font-size: 1.5rem;
+        }
+        
+        .health-score {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .metrics-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .metric-item {
+            font-size: 0.9rem;
+        }
+        
+        .score-circle {
+            width: 60px;
+            height: 60px;
+            font-size: 1.2rem;
+        }
+    }
+</style>
+{% endblock %}

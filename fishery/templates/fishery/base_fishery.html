@@ -1,180 +1,1035 @@
+<!-- templates/fishery/base_fishery.html -->
 {% extends 'base.html' %}
 {% load static %}
 
-{% block content %}
+{% block title %}Fishery Management - {{ block.super }}{% endblock %}
 
+{% block content %}
 <style>
+    /* Fishery Theme Variables - Top Navigation Version */
+    :root {
+        --fishery-primary: #0d6efd;
+        --fishery-secondary: #6c757d;
+        --fishery-success: #198754;
+        --fishery-info: #0dcaf0;
+        --fishery-warning: #ffc107;
+        --fishery-danger: #dc3545;
+        --fishery-light: #f8f9fa;
+        --fishery-dark: #0b5ed7;
+        --fishery-gradient: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        --navbar-height: 60px; /* Reduced from 70px */
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
     body {
+        background: #f8fafc;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        padding-top: var(--navbar-height);
         overflow-x: hidden;
     }
 
-    .sidebar {
-        min-height: 100vh;
-        background: #1e293b;
+    /* Top Navigation Bar - Compact */
+    .top-navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--navbar-height);
+        background: white;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 15px; /* Reduced padding */
+        z-index: 1000;
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.98);
+        border-bottom: 1px solid rgba(0,0,0,0.03);
     }
 
-    .sidebar .nav-link {
-        color: #cbd5e1;
-        border-radius: 6px;
-        padding: 8px 12px;
+    /* Logo Section - Smaller */
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        padding: 4px 10px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        min-width: auto; /* Remove min-width */
+    }
+
+    .navbar-brand:hover {
+        background: rgba(13, 110, 253, 0.08);
+    }
+
+    .logo-icon {
+        width: 35px; /* Reduced from 45px */
+        height: 35px; /* Reduced from 45px */
+        background: var(--fishery-gradient);
+        border-radius: 8px; /* Smaller radius */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem; /* Reduced from 1.8rem */
+        color: white;
+        box-shadow: 0 3px 10px rgba(13, 110, 253, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .navbar-brand:hover .logo-icon {
+        transform: rotate(5deg) scale(1.05);
+    }
+
+    .logo-text {
+        font-weight: 700;
+        font-size: 1.1rem; /* Reduced from 1.3rem */
+        background: var(--fishery-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1.2;
+    }
+
+    .logo-text span {
+        font-weight: 400;
+        font-size: 0.65rem; /* Smaller */
+        color: #64748b;
+        background: none;
+        -webkit-text-fill-color: #64748b;
+        display: block;
+        letter-spacing: 0.2px;
+    }
+
+    /* Navigation Menu - Compact */
+    .nav-menu {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        flex: 1;
+        justify-content: center;
+        padding: 0 10px;
+    }
+
+    /* Dropdown Buttons - Compact */
+    .nav-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+
+    .nav-dropdown-btn {
+        background: transparent;
+        border: none;
+        padding: 8px 12px; /* Reduced padding */
+        border-radius: 8px;
+        color: #475569;
+        font-weight: 600;
+        font-size: 0.85rem; /* Smaller font */
+        display: flex;
+        align-items: center;
+        gap: 4px;
         transition: all 0.2s ease;
+        cursor: pointer;
+        white-space: nowrap;
+        text-decoration: none;
     }
 
-    .sidebar .nav-link:hover {
-        background-color: #334155;
-        color: #ffffff;
+    .nav-dropdown-btn i:first-child {
+        font-size: 1rem; /* Smaller */
+        color: var(--fishery-primary);
     }
 
-    .sidebar .nav-link.active {
-        background-color: #0d6efd;
+    .nav-dropdown-btn i:last-child {
+        font-size: 0.65rem; /* Smaller */
+        color: #94a3b8;
+    }
+
+    .nav-dropdown-btn:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .nav-dropdown.active .nav-dropdown-btn {
+        background: var(--fishery-gradient);
         color: white;
     }
 
-    .top-navbar {
-        background-color: #ffffff;
-        border-bottom: 1px solid #e5e7eb;
+    .nav-dropdown.active .nav-dropdown-btn i:first-child,
+    .nav-dropdown.active .nav-dropdown-btn i:last-child {
+        color: white;
+    }
+
+    /* Dropdown Menus - Click to show/hide */
+    .dropdown-menu-custom {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        min-width: 550px; /* Slightly smaller */
+        padding: 16px;
+        border: 1px solid rgba(0,0,0,0.05);
+        z-index: 1001;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        display: none; /* Hidden by default */
+    }
+
+    .nav-dropdown.active .dropdown-menu-custom {
+        display: grid; /* Show when active */
+    }
+
+    /* Small Dropdowns (profile) */
+    .dropdown-menu-small {
+        min-width: 250px;
+        grid-template-columns: 1fr;
+        left: auto;
+        right: 0;
+        transform: none;
+    }
+
+    .dropdown-header {
+        grid-column: 1 / -1;
+        padding: 8px 12px;
+        font-weight: 700;
+        color: #1e293b;
+        border-bottom: 2px solid #f1f5f9;
+        margin-bottom: 6px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: #f8fafc;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .dropdown-item-custom {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        color: #475569;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        font-size: 0.85rem;
+        background: white;
+        border: 1px solid transparent;
+    }
+
+    .dropdown-item-custom i {
+        width: 20px;
+        font-size: 1rem;
+        color: var(--fishery-primary);
+    }
+
+    .dropdown-item-custom:hover {
+        background: #f8fafc;
+        color: #1e293b;
+        transform: translateX(3px);
+        border-color: #e2e8f0;
+    }
+
+    .dropdown-item-custom.text-danger:hover {
+        background: #fee2e2;
+        color: #dc2626 !important;
+    }
+
+    .dropdown-item-custom.text-danger:hover i {
+        color: #dc2626;
+    }
+
+    .dropdown-divider-custom {
+        grid-column: 1 / -1;
+        height: 1px;
+        background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+        margin: 6px 0;
+    }
+
+    /* Right Side - Profile Only */
+    .navbar-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    /* User Menu - Compact */
+    .user-menu {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 4px 4px 12px;
+        border-radius: 30px;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+    }
+
+    .user-menu:hover {
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+    }
+
+    .user-info {
+        text-align: right;
+    }
+
+    .user-name {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.8rem;
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+    }
+
+    .user-role {
+        font-size: 0.6rem;
+        color: #64748b;
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+
+    .user-avatar {
+        width: 35px; /* Smaller */
+        height: 35px; /* Smaller */
+        background: var(--fishery-gradient);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 1rem;
+        box-shadow: 0 3px 8px rgba(13, 110, 253, 0.2);
+    }
+
+    /* Mobile Menu Button */
+    .mobile-menu-btn {
+        display: none;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: #f8fafc;
+        border: none;
+        font-size: 1.3rem;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .mobile-menu-btn:hover {
+        background: var(--fishery-gradient);
+        color: white;
+    }
+
+    /* Main Content */
+    .main-content {
+        padding: 20px;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+
+    /* Page Header */
+    .fishery-page-header {
+        background: white;
+        border-radius: 16px;
+        padding: 18px 22px; /* Smaller */
+        margin-bottom: 22px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid rgba(0,0,0,0.02);
+    }
+
+    .fishery-page-title {
+        font-size: 1.4rem; /* Smaller */
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .fishery-page-title i {
+        font-size: 1.5rem; /* Smaller */
+        color: var(--fishery-primary);
+        background: rgba(13, 110, 253, 0.1);
+        padding: 10px;
+        border-radius: 12px;
+    }
+
+    .fishery-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        background: #f8fafc;
+        padding: 8px 16px;
+        border-radius: 30px;
+    }
+
+    /* Mobile Menu */
+    .mobile-menu {
+        position: fixed;
+        top: var(--navbar-height);
+        left: 0;
+        right: 0;
+        background: white;
+        padding: 15px;
+        box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        display: none;
+        max-height: calc(100vh - var(--navbar-height));
+        overflow-y: auto;
+        z-index: 999;
+        border-radius: 0 0 16px 16px;
+    }
+
+    .mobile-menu.show {
+        display: block;
+    }
+
+    .mobile-menu .nav-dropdown {
+        display: block;
+        margin-bottom: 8px;
+        width: 100%;
+    }
+
+    .mobile-menu .nav-dropdown-btn {
+        width: 100%;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: #f8fafc;
+        border-radius: 12px;
+        font-size: 0.9rem;
+    }
+
+    .mobile-menu .dropdown-menu-custom {
+        position: static;
+        box-shadow: none;
+        padding: 8px 0 0 16px;
+        display: none;
+        min-width: 100%;
+        background: transparent;
+    }
+
+    .mobile-menu .nav-dropdown.active .dropdown-menu-custom {
+        display: block;
+    }
+
+    .mobile-menu .dropdown-item-custom {
+        padding: 12px 16px;
+        background: #f8fafc;
+        margin-bottom: 4px;
+        border-radius: 12px;
+    }
+
+    /* Loading Spinner */
+    .fishery-spinner-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.9);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .fishery-spinner-overlay.active {
+        display: flex;
+    }
+
+    .fishery-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #f1f5f9;
+        border-top: 3px solid var(--fishery-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .nav-menu {
+            display: none;
+        }
+        .mobile-menu-btn {
+            display: flex;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .top-navbar {
+            padding: 0 10px;
+        }
+        
+        .logo-text span {
+            display: none;
+        }
+        
+        .fishery-page-header {
+            flex-direction: column;
+            gap: 10px;
+            text-align: center;
+            padding: 16px;
+        }
+        
+        .fishery-breadcrumb {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .user-info {
+            display: none;
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .logo-text {
+            font-size: 1rem;
+        }
+        
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            font-size: 1.3rem;
+        }
+        
+        .fishery-page-title {
+            font-size: 1.2rem;
+        }
+        
+        .fishery-page-title i {
+            font-size: 1.3rem;
+            padding: 8px;
+        }
     }
 </style>
 
-<div class="container-fluid">
-    <div class="row">
-
-        <!-- Sidebar -->
-        <nav id="sidebarMenu"
-             class="col-md-3 col-lg-2 d-md-block sidebar collapse">
-
-            <div class="position-sticky pt-3 p-3">
-
-                <h5 class="text-white mb-4 fw-bold">
-                    🐟 Sheikh-Agro
-                </h5>
-
-                <ul class="nav flex-column">
-
-                    <li class="nav-item mb-2">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
-                           href="{% url 'dashboard' %}">
-                            📊 Dashboard
-                        </a>
-                    </li>
-
-                    <hr class="text-secondary">
-
-                    <small class="text-secondary">Core Management</small>
-
-                    <li class="nav-item mt-2">
-                        <a class="nav-link" href="{% url 'pond_list' %}">
-                            🏞 Pond Management
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'fishspecies_list' %}">
-                            🐟 Fish Species
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'stock_list' %}">
-                            📦 Stock
-                        </a>
-                    </li>
-
-                    <hr class="text-secondary">
-
-                    <small class="text-secondary">Operations</small>
-
-                    <li class="nav-item mt-2">
-                        <a class="nav-link" href="{% url 'feed_list' %}">
-                            🌾 Feed Records
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'mortality_list' %}">
-                            ⚠ Mortality
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'harvest_list' %}">
-                            🧺 Harvest
-                        </a>
-                    </li>
-
-                    <hr class="text-secondary">
-
-                    <small class="text-secondary">Finance</small>
-
-                    <li class="nav-item mt-2">
-                        <a class="nav-link" href="{% url 'sale_list' %}">
-                            💰 Fish Sales
-                        </a>
-                    </li>
-                    <li class="nav-item mt-2">
-                        <a class="nav-link" href="{% url 'cycle_list' %}">
-                            🚖 Prouduction Cycles
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'financialy_dashboard' %}">
-                            📈 Financial Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'annual_report_current' %}">
-                            📅 Annual Report
-                        </a>
-                    </li>
-
-                    <hr class="text-secondary">
-
-                    <li class="nav-item mt-3">
-                        <a class="nav-link text-danger" href="{% url 'logout' %}">
-                            🚪 Logout
-                        </a>
-                    </li>
-
-                </ul>
-            </div>
-        </nav>
-
-        <!-- Main Area -->
-        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-
-            <!-- Top Navbar -->
-            <div class="top-navbar d-flex justify-content-between align-items-center py-3 px-2">
-
-                <!-- Mobile Toggle -->
-                <button class="btn btn-outline-secondary d-md-none"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#sidebarMenu">
-                    ☰
-                </button>
-
-                <h5 class="mb-0 fw-semibold">
-                    Fishery Management System
-                </h5>
-
-                <div>
-                    <span class="me-3 text-muted">
-                        Welcome, {{ request.user.username }}
-                    </span>
-                </div>
-
-            </div>
-
-            <!-- Page Content -->
-            <div class="py-4">
-                {% block fishery_content %}
-                {% endblock %}
-            </div>
-
-        </main>
-
-    </div>
+<!-- Loading Spinner -->
+<div class="fishery-spinner-overlay" id="fisherySpinner">
+    <div class="fishery-spinner"></div>
 </div>
 
+<!-- Top Navigation Bar -->
+<nav class="top-navbar">
+    <!-- Logo - Smaller -->
+    <a href="{% url 'fishery:dashboard' %}" class="navbar-brand">
+        <div class="logo-icon">🐟</div>
+        <div class="logo-text">
+            Sheikh-Agro
+            <span>Fishery</span>
+        </div>
+    </a>
+
+    <!-- Desktop Navigation -->
+    <div class="nav-menu">
+        <!-- DASHBOARD -->
+        <div class="nav-dropdown">
+            <a href="{% url 'fishery:dashboard' %}" class="nav-dropdown-btn {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+            <!-- Add Farm Management here -->
+           
+        </div>
+
+        <!-- PONDS & SPECIES -->
+        <div class="nav-dropdown">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown(this)">
+                <i class="bi bi-water"></i>
+                <span>Ponds & Species</span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu-custom">
+                <div class="dropdown-header">🏞️ POND MANAGEMENT</div>
+                 <a href="{% url 'fishery:farm_list' %}" class="nav-dropdown-btn {% if 'farm' in request.path %}active{% endif %}">
+                <i class="bi bi-building"></i>
+                <span>Farms</span>
+                 </a>
+                <a href="{% url 'fishery:pond_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-list-ul"></i> All Ponds
+                </a>
+                <a href="{% url 'fishery:pond_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Pond
+                </a>
+                
+                <div class="dropdown-header">🐟 SPECIES & BATCHES</div>
+                <a href="{% url 'fishery:species_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-fish"></i> Fish Species
+                </a>
+                <a href="{% url 'fishery:species_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Species
+                </a>
+                <a href="{% url 'fishery:batch_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-diagram-3"></i> Fish Batches
+                </a>
+                <a href="{% url 'fishery:batch_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Batch
+                </a>
+            </div>
+        </div>
+
+        <!-- PRODUCTION -->
+        <div class="nav-dropdown">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown(this)">
+                <i class="bi bi-arrow-repeat"></i>
+                <span>Production</span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu-custom">
+                <div class="dropdown-header">🔄 CYCLES</div>
+                <a href="{% url 'fishery:cycle_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-list-ul"></i> All Cycles
+                </a>
+                <a href="{% url 'fishery:cycle_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Start Cycle
+                </a>
+                
+                <div class="dropdown-header">✂️ HARVEST</div>
+                <a href="{% url 'fishery:harvest_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-list-ul"></i> Harvest Records
+                </a>
+                <a href="{% url 'fishery:harvest_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Record Harvest
+                </a>
+            </div>
+        </div>
+
+        <!-- FEED -->
+        <div class="nav-dropdown">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown(this)">
+                <i class="bi bi-basket"></i>
+                <span>Feed</span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu-custom">
+                <div class="dropdown-header">📦 FEED TYPES</div>
+                <a href="{% url 'fishery:feed_type_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-list-ul"></i> All Types
+                </a>
+                <a href="{% url 'fishery:feed_type_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Type
+                </a>
+                
+                <div class="dropdown-header">🚚 PURCHASES</div>
+                <a href="{% url 'fishery:feed_purchase_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-truck"></i> All Purchases
+                </a>
+                <a href="{% url 'fishery:feed_purchase_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Purchase
+                </a>
+                
+                <div class="dropdown-header">🍽️ FEEDING</div>
+                <a href="{% url 'fishery:feed_record_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-list-ul"></i> Feeding Records
+                </a>
+                <a href="{% url 'fishery:feed_record_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Feeding
+                </a>
+            </div>
+        </div>
+
+        <!-- WATER & HEALTH -->
+        <div class="nav-dropdown">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown(this)">
+                <i class="bi bi-droplet"></i>
+                <span>Water & Health</span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu-custom">
+                <div class="dropdown-header">💧 WATER QUALITY</div>
+                <a href="{% url 'fishery:water_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-list-ul"></i> All Tests
+                </a>
+                <a href="{% url 'fishery:water_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Test
+                </a>
+                
+                <div class="dropdown-header">🏥 HEALTH</div>
+                <a href="{% url 'fishery:disease_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-heart-pulse"></i> Diseases
+                </a>
+                <a href="{% url 'fishery:disease_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Disease
+                </a>
+                <a href="{% url 'fishery:treatment_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-capsule"></i> Treatments
+                </a>
+                <a href="{% url 'fishery:treatment_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Treatment
+                </a>
+                <a href="{% url 'fishery:mortality_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-exclamation-triangle"></i> Mortality
+                </a>
+                <a href="{% url 'fishery:mortality_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Mortality
+                </a>
+            </div>
+        </div>
+
+        <!-- SALES -->
+        <div class="nav-dropdown">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown(this)">
+                <i class="bi bi-cash"></i>
+                <span>Sales</span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu-custom">
+                <div class="dropdown-header">👥 CUSTOMERS</div>
+                <a href="{% url 'fishery:customer_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-list-ul"></i> All Customers
+                </a>
+                <a href="{% url 'fishery:customer_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-person-plus"></i> Add Customer
+                </a>
+                
+                <div class="dropdown-header">💰 FISH SALES</div>
+                <a href="{% url 'fishery:sale_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-list-ul"></i> All Sales
+                </a>
+                <a href="{% url 'fishery:sale_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Sale
+                </a>
+            </div>
+        </div>
+
+        <!-- FINANCE -->
+        <div class="nav-dropdown">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown(this)">
+                <i class="bi bi-receipt"></i>
+                <span>Finance</span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu-custom">
+                <div class="dropdown-header">📝 EXPENSES</div>
+                <a href="{% url 'fishery:expense_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-list-ul"></i> All Expenses
+                </a>
+                <a href="{% url 'fishery:expense_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Add Expense
+                </a>
+                
+                <div class="dropdown-header">📊 BUDGETS</div>
+                <a href="{% url 'fishery:budget_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-pie-chart"></i> All Budgets
+                </a>
+                <a href="{% url 'fishery:budget_add' %}" class="dropdown-item-custom">
+                    <i class="bi bi-plus-circle"></i> Create Budget
+                </a>
+            </div>
+        </div>
+
+        <!-- REPORTS -->
+        <div class="nav-dropdown">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown(this)">
+                <i class="bi bi-file-text"></i>
+                <span>Reports</span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu-custom">
+                <div class="dropdown-header">📈 REPORTS</div>
+                <a href="{% url 'fishery:report_dashboard' %}" class="dropdown-item-custom">
+                    <i class="bi bi-speedometer2"></i> Reports Dashboard
+                </a>
+                <a href="{% url 'fishery:production_report' %}" class="dropdown-item-custom">
+                    <i class="bi bi-graph-up"></i> Production Report
+                </a>
+                <a href="{% url 'fishery:financial_report' %}" class="dropdown-item-custom">
+                    <i class="bi bi-cash-stack"></i> Financial Report
+                </a>
+                <a href="{% url 'fishery:generate_financial_report' %}" class="dropdown-item-custom">
+                    <i class="bi bi-file-earmark-pdf"></i> Generate Report
+                </a>
+                
+                <div class="dropdown-header">📥 EXPORTS</div>
+                <a href="{% url 'fishery:export_ponds_csv' %}" class="dropdown-item-custom" data-no-loader>
+                    <i class="bi bi-water"></i> Export Ponds
+                </a>
+                <a href="{% url 'fishery:export_cycles_csv' %}" class="dropdown-item-custom" data-no-loader>
+                    <i class="bi bi-arrow-repeat"></i> Export Cycles
+                </a>
+                <a href="{% url 'fishery:export_sales_csv' %}" class="dropdown-item-custom" data-no-loader>
+                    <i class="bi bi-cash"></i> Export Sales
+                </a>
+                <a href="{% url 'fishery:export_expenses_csv' %}" class="dropdown-item-custom" data-no-loader>
+                    <i class="bi bi-receipt"></i> Export Expenses
+                </a>
+                <a href="{% url 'fishery:export_feed_csv' %}" class="dropdown-item-custom" data-no-loader>
+                    <i class="bi bi-basket"></i> Export Feed
+                </a>
+                <a href="{% url 'fishery:export_harvests_csv' %}" class="dropdown-item-custom" data-no-loader>
+                    <i class="bi bi-scissors"></i> Export Harvests
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side - Profile Only -->
+    <div class="navbar-right">
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+            <i class="bi bi-list"></i>
+        </button>
+
+        <!-- User Menu -->
+        <div class="nav-dropdown">
+            <div class="user-menu" onclick="toggleDropdown(this, true)">
+                <div class="user-info">
+                    <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+                    <div class="user-role">
+                        {% if request.user.is_superuser %}Admin{% else %}Staff{% endif %}
+                    </div>
+                </div>
+                <div class="user-avatar">
+                    {{ request.user.username|first|upper }}
+                </div>
+            </div>
+            <div class="dropdown-menu-custom dropdown-menu-small">
+                <div class="dropdown-header">👤 MY ACCOUNT</div>
+                
+                <a href="{% url 'accounts:profile' %}" class="dropdown-item-custom">
+                    <i class="bi bi-person-circle"></i> My Profile
+                </a>
+                
+                <a href="{% url 'accounts:profile_edit' %}" class="dropdown-item-custom">
+                    <i class="bi bi-pencil-square"></i> Edit Profile
+                </a>
+                
+                <a href="{% url 'accounts:settings' %}" class="dropdown-item-custom">
+                    <i class="bi bi-gear"></i> Settings
+                </a>
+                
+                <a href="{% url 'accounts:dashboard' %}" class="dropdown-item-custom">
+                    <i class="bi bi-speedometer2"></i> Account Dashboard
+                </a>
+                
+                {% if request.user.is_superuser %}
+                <div class="dropdown-divider-custom"></div>
+                <div class="dropdown-header">⚡ ADMIN</div>
+                <a href="{% url 'accounts:user_list' %}" class="dropdown-item-custom">
+                    <i class="bi bi-people-fill"></i> User Management
+                </a>
+                {% endif %}
+                
+                <div class="dropdown-divider-custom"></div>
+                <a href="{% url 'accounts:logout' %}" class="dropdown-item-custom text-danger">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div class="mobile-menu" id="mobileMenu"></div>
+
+<!-- Main Content -->
+<main class="main-content">
+    <!-- Page Header -->
+    <div class="fishery-page-header">
+        <h1 class="fishery-page-title">
+            <i class="{% block page_icon %}bi bi-fish{% endblock %}"></i>
+            {% block page_title %}Fishery Dashboard{% endblock %}
+        </h1>
+        <div class="fishery-breadcrumb">
+            <a href="{% url 'fishery:dashboard' %}">Fishery</a>
+            <span>/</span>
+            {% block breadcrumb %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Page Content -->
+    {% block fishery_content %}{% endblock %}
+</main>
+
+<script>
+    // Toggle dropdown on click (stays open until clicked again)
+    function toggleDropdown(element, isProfile = false) {
+        const dropdown = element.closest('.nav-dropdown');
+        
+        // If clicking on the same dropdown, toggle it
+        if (dropdown.classList.contains('active')) {
+            dropdown.classList.remove('active');
+        } else {
+            // Close all other dropdowns first
+            document.querySelectorAll('.nav-dropdown.active').forEach(d => {
+                d.classList.remove('active');
+            });
+            // Open this dropdown
+            dropdown.classList.add('active');
+        }
+        
+        // Prevent event from bubbling
+        event.stopPropagation();
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('.nav-dropdown')) {
+            document.querySelectorAll('.nav-dropdown.active').forEach(dropdown => {
+                dropdown.classList.remove('active');
+            });
+        }
+    });
+
+    // Toggle mobile menu
+    function toggleMobileMenu() {
+        const menu = document.getElementById('mobileMenu');
+        menu.classList.toggle('show');
+        
+        if (menu.classList.contains('show')) {
+            // Close any open dropdowns in mobile
+            document.querySelectorAll('.mobile-dropdown.active').forEach(d => {
+                d.classList.remove('active');
+            });
+        }
+    }
+
+    // Populate mobile menu
+    function populateMobileMenu() {
+        const mobileMenu = document.getElementById('mobileMenu');
+        const desktopDropdowns = document.querySelectorAll('.nav-menu .nav-dropdown');
+        
+        let html = '<div class="mobile-menu-content">';
+        
+        // Add Dashboard
+        html += `
+            <div class="nav-dropdown mobile-dropdown">
+                <a href="{% url 'fishery:dashboard' %}" class="nav-dropdown-btn">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </div>
+        `;
+        
+        desktopDropdowns.forEach(dropdown => {
+            const btn = dropdown.querySelector('.nav-dropdown-btn');
+            const menu = dropdown.querySelector('.dropdown-menu-custom');
+            
+            if (btn && menu) {
+                const btnClone = btn.cloneNode(true);
+                const menuClone = menu.cloneNode(true);
+                
+                html += `<div class="nav-dropdown mobile-dropdown">`;
+                html += btnClone.outerHTML;
+                html += menuClone.outerHTML;
+                html += `</div>`;
+            }
+        });
+        
+        // Add profile menu for mobile
+        html += `
+            <div class="dropdown-divider-custom" style="margin: 15px 0;"></div>
+            <div class="nav-dropdown mobile-dropdown">
+                <button class="nav-dropdown-btn" onclick="toggleMobileSubmenu(this)">
+                    <i class="bi bi-person-circle"></i> My Account
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="dropdown-menu-custom">
+                    <a href="{% url 'accounts:profile' %}" class="dropdown-item-custom">
+                        <i class="bi bi-person-circle"></i> My Profile
+                    </a>
+                    <a href="{% url 'accounts:profile_edit' %}" class="dropdown-item-custom">
+                        <i class="bi bi-pencil-square"></i> Edit Profile
+                    </a>
+                    <a href="{% url 'accounts:settings' %}" class="dropdown-item-custom">
+                        <i class="bi bi-gear"></i> Settings
+                    </a>
+                    <a href="{% url 'accounts:dashboard' %}" class="dropdown-item-custom">
+                        <i class="bi bi-speedometer2"></i> Account Dashboard
+                    </a>
+                    {% if request.user.is_superuser %}
+                    <div class="dropdown-divider-custom"></div>
+                    <a href="{% url 'accounts:user_list' %}" class="dropdown-item-custom">
+                        <i class="bi bi-people-fill"></i> User Management
+                    </a>
+                    {% endif %}
+                    <div class="dropdown-divider-custom"></div>
+                    <a href="{% url 'accounts:logout' %}" class="dropdown-item-custom text-danger">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </div>
+            </div>
+        `;
+        
+        html += '</div>';
+        mobileMenu.innerHTML = html;
+        
+        // Add click handlers for mobile dropdowns
+        document.querySelectorAll('.mobile-dropdown > .nav-dropdown-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const parent = this.closest('.mobile-dropdown');
+                const isAccountMenu = this.querySelector('i.bi-person-circle') !== null;
+                
+                if (isAccountMenu) {
+                    // For account menu, toggle directly
+                    parent.classList.toggle('active');
+                } else {
+                    // For other menus, check if it has dropdown
+                    const hasDropdown = parent.querySelector('.dropdown-menu-custom');
+                    if (hasDropdown) {
+                        parent.classList.toggle('active');
+                    } else {
+                        // It's a link, navigate
+                        window.location.href = this.href;
+                    }
+                }
+            });
+        });
+    }
+
+    // Loading functions
+    function showFisheryLoading() {
+        document.getElementById('fisherySpinner').classList.add('active');
+    }
+
+    function hideFisheryLoading() {
+        document.getElementById('fisherySpinner').classList.remove('active');
+    }
+
+    // Add loading to links
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.main-content a:not([data-no-loader]), .main-content button[type="submit"]').forEach(el => {
+            el.addEventListener('click', showFisheryLoading);
+        });
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 1200) {
+            document.getElementById('mobileMenu').classList.remove('show');
+        }
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        populateMobileMenu();
+    });
+</script>
 {% endblock %}

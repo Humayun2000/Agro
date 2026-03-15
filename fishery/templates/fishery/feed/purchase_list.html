@@ -1,0 +1,519 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-cart-check{% endblock %}
+{% block page_title %}Feed Purchases{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:feed_type_list' %}">Feed Types</a></li>
+<li class="breadcrumb-item"><a href="{% url 'fishery:feed_purchase_list' %}">Purchases</a></li>
+<li class="breadcrumb-item active" aria-current="page">All Purchases</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportPurchases()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:feed_purchase_add' %}" class="btn btn-success">
+        <i class="bi bi-cart-plus me-1"></i> Record Purchase
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-cart-check"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_purchases }}</div>
+            <div class="fishery-stat-label">Total Purchases</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-cake"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_quantity|floatformat:0 }} kg</div>
+            <div class="fishery-stat-label">Total Quantity</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ total_cost|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Total Investment</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon info">
+                <i class="bi bi-truck"></i>
+            </div>
+            <div class="fishery-stat-value">{{ supplier_count }}</div>
+            <div class="fishery-stat-label">Suppliers</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Purchases
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Feed Type</label>
+                        <select name="feed_type" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Feed Types</option>
+                            {% for feed in feed_types %}
+                            <option value="{{ feed.id }}" {% if current_feed == feed.id|stringformat:"s" %}selected{% endif %}>
+                                {{ feed.name }} - {{ feed.brand }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Supplier</label>
+                        <select name="supplier" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Suppliers</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier }}" {% if current_supplier == supplier %}selected{% endif %}>
+                                {{ supplier }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">From Date</label>
+                        <input type="date" name="date_from" class="fishery-form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">To Date</label>
+                        <input type="date" name="date_to" class="fishery-form-control" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="fishery-btn-add w-100">
+                                <i class="bi bi-search me-1"></i> Apply
+                            </button>
+                            <a href="{% url 'fishery:feed_purchase_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Purchases Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Feed Purchase Records
+                <span class="badge bg-success ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeletePurchases()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Date</th>
+                        <th>Feed Type</th>
+                        <th>Brand</th>
+                        <th>Quantity (kg)</th>
+                        <th>Price/kg</th>
+                        <th>Total Cost</th>
+                        <th>Supplier</th>
+                        <th>Batch #</th>
+                        <th>Expiry</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for purchase in purchases %}
+                    <tr class="purchase-row {% if purchase.expiry_date and purchase.expiry_date < today %}table-danger{% elif purchase.expiry_date and purchase.expiry_date < expiry_soon %}table-warning{% endif %}" data-id="{{ purchase.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input purchase-checkbox" value="{{ purchase.id }}">
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ purchase.purchase_date|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ purchase.purchase_date|timesince }} ago</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="purchase-avatar bg-success bg-opacity-10 rounded p-2">
+                                    <i class="bi bi-box text-success"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ purchase.feed_type.name }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ purchase.feed_type.brand }}</td>
+                        <td class="fw-bold">{{ purchase.quantity_kg }} kg</td>
+                        <td>৳{{ purchase.price_per_kg|floatformat:2 }}</td>
+                        <td class="fw-bold text-success">৳{{ purchase.total_cost|floatformat:2 }}</td>
+                        <td>{{ purchase.supplier|truncatechars:20 }}</td>
+                        <td>
+                            {% if purchase.batch_number %}
+                                <span class="badge bg-info">{{ purchase.batch_number }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if purchase.expiry_date %}
+                                <span class="{% if purchase.expiry_date < today %}text-danger{% elif purchase.expiry_date < expiry_soon %}text-warning{% endif %}">
+                                    {{ purchase.expiry_date|date:"M d, Y" }}
+                                </span>
+                                {% if purchase.expiry_date < today %}
+                                    <i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Expired"></i>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:feed_purchase_edit' purchase.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeletePurchase({{ purchase.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center py-5">
+                            <i class="bi bi-cart-x fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No feed purchases found</h5>
+                            <p class="text-muted mb-3">Record your first feed purchase</p>
+                            <a href="{% url 'fishery:feed_purchase_add' %}" class="btn btn-success">
+                                <i class="bi bi-cart-plus me-2"></i>Record Purchase
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-success border-success">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Purchase Analytics -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    Purchases by Feed Type
+                </h5>
+                {% for item in purchases_by_type %}
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                        <span class="fw-bold">{{ item.feed_type__name }}</span>
+                        <small class="text-muted d-block">{{ item.count }} purchases</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-muted">{{ item.total_quantity|floatformat:0 }} kg</span>
+                        <span class="fw-bold text-success">৳{{ item.total_cost|floatformat:0 }}</span>
+                    </div>
+                </div>
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar bg-primary" role="progressbar" 
+                         style="width: {% widthratio item.total_cost total_cost 100 %}%"></div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center py-3">No purchase data available</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-calendar-week text-info"></i>
+                    Monthly Purchase Trend
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="purchaseChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deletePurchaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this feed purchase?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will revert the stock count for this feed type.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeletePurchaseBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Store delete URL template
+    const DELETE_PURCHASE_URL = "{% url 'fishery:feed_purchase_delete' 0 %}";
+    const today = new Date();
+    
+    // Initialize purchase chart
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('purchaseChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ monthly_labels|safe }},
+                datasets: [{
+                    label: 'Purchase Amount (৳)',
+                    data: {{ monthly_data|safe }},
+                    backgroundColor: '#20c997',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '৳' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.purchase-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.purchase-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.purchase-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeletePurchase(purchaseId) {
+        const modal = new bootstrap.Modal(document.getElementById('deletePurchaseModal'));
+        document.getElementById('confirmDeletePurchaseBtn').href = DELETE_PURCHASE_URL.replace('0', purchaseId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeletePurchases() {
+        const selected = Array.from(document.querySelectorAll('.purchase-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} purchase records? Stock will be updated.`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/feed-purchases/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportPurchases() {
+        window.location.href = "{% url 'fishery:export_feed' %}";
+    }
+
+    // Row click to view details
+    document.querySelectorAll('.purchase-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:feed_purchase_edit' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .purchase-avatar {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .purchase-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .purchase-row td {
+        vertical-align: middle;
+    }
+    
+    .table-danger {
+        background-color: #f8d7da !important;
+    }
+    
+    .table-danger:hover {
+        background-color: #f5c6cb !important;
+    }
+    
+    .table-warning {
+        background-color: #fff3cd !important;
+    }
+    
+    .table-warning:hover {
+        background-color: #ffe69c !important;
+    }
+    
+    .badge {
+        font-size: 0.8rem;
+        padding: 5px 8px;
+    }
+    
+    /* Progress bars */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.9rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .purchase-avatar {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,670 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-heart-pulse{% endblock %}
+{% block page_title %}Disease Records{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:disease_list' %}">Health</a></li>
+<li class="breadcrumb-item active" aria-current="page">Disease Records</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportDiseases()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:disease_add' %}" class="btn btn-danger">
+        <i class="bi bi-plus-circle me-1"></i> Report Disease
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon red">
+                <i class="bi bi-heart-pulse"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_diseases }}</div>
+            <div class="fishery-stat-label">Total Cases</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="fishery-stat-value">{{ active_cases }}</div>
+            <div class="fishery-stat-label">Active Cases</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="fishery-stat-value">{{ resolved_cases }}</div>
+            <div class="fishery-stat-label">Resolved</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon info">
+                <i class="bi bi-egg"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_mortality }}</div>
+            <div class="fishery-stat-label">Mortality</div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-danger bg-opacity-10 rounded p-3">
+                                <i class="bi bi-bug fs-3 text-danger"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Bacterial</h6>
+                            <h3 class="mb-0">{{ bacterial_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-virus fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Viral</h6>
+                            <h3 class="mb-0">{{ viral_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-droplet fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Fungal</h6>
+                            <h3 class="mb-0">{{ fungal_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-bandaid fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Parasitic</h6>
+                            <h3 class="mb-0">{{ parasitic_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Disease Records
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Pond</label>
+                        <select name="pond" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Ponds</option>
+                            {% for pond in ponds %}
+                            <option value="{{ pond.id }}" {% if current_pond == pond.id|stringformat:"s" %}selected{% endif %}>
+                                {{ pond.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Disease Type</label>
+                        <select name="disease_type" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            {% for value, label in disease_types %}
+                            <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">Severity</label>
+                        <select name="severity" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            {% for value, label in severity_levels %}
+                            <option value="{{ value }}" {% if current_severity == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">Status</label>
+                        <select name="status" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option value="active" {% if current_status == 'active' %}selected{% endif %}>Active</option>
+                            <option value="resolved" {% if current_status == 'resolved' %}selected{% endif %}>Resolved</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="fishery-btn-add w-100">
+                                <i class="bi bi-search me-1"></i> Apply
+                            </button>
+                            <a href="{% url 'fishery:disease_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Active Outbreak Alert -->
+    {% if active_cases > 0 %}
+    <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+        <div class="flex-grow-1">
+            <strong>{{ active_cases }} Active Disease {{ active_cases|pluralize:"Case,Cases" }}</strong>
+            <p class="mb-0 mt-1">Immediate attention required. Check affected ponds and treatment progress.</p>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="scrollToActive()">
+            View Active Cases
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Disease Records Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Disease Records
+                <span class="badge bg-danger ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeleteDiseases()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Detection Date</th>
+                        <th>Pond</th>
+                        <th>Disease Name</th>
+                        <th>Type</th>
+                        <th>Severity</th>
+                        <th>Affected</th>
+                        <th>Mortality</th>
+                        <th>Treatment</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for disease in diseases %}
+                    <tr class="disease-row {% if not disease.is_resolved %}table-danger{% else %}table-light{% endif %}" data-id="{{ disease.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input disease-checkbox" value="{{ disease.id }}">
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ disease.detection_date|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ disease.detection_date|timesince }} ago</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="pond-avatar bg-danger bg-opacity-10 rounded p-2">
+                                    <i class="bi bi-water text-danger"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ disease.cycle.pond.name }}</div>
+                                    <small class="text-muted">Cycle: {{ disease.cycle.cycle_id|slice:":8" }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ disease.disease_name }}</span>
+                        </td>
+                        <td>
+                            <span class="fishery-badge {% if disease.disease_type == 'BACTERIAL' %}fishery-badge-danger{% elif disease.disease_type == 'VIRAL' %}fishery-badge-warning{% elif disease.disease_type == 'FUNGAL' %}fishery-badge-success{% else %}fishery-badge-info{% endif %}">
+                                {{ disease.get_disease_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if disease.severity == 'LOW' %}
+                                <span class="fishery-badge fishery-badge-success">Low</span>
+                            {% elif disease.severity == 'MEDIUM' %}
+                                <span class="fishery-badge fishery-badge-warning">Medium</span>
+                            {% elif disease.severity == 'HIGH' %}
+                                <span class="fishery-badge fishery-badge-danger">High</span>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-danger">Critical</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ disease.estimated_affected|default:"—" }}</td>
+                        <td>
+                            <span class="fw-bold text-danger">{{ disease.mortality_count }}</span>
+                        </td>
+                        <td>
+                            {% if disease.treatment_applied %}
+                                <span class="badge bg-info">Yes</span>
+                                <small class="d-block text-muted">৳{{ disease.treatment_cost|default:"0" }}</small>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if disease.is_resolved %}
+                                <span class="fishery-badge fishery-badge-success">Resolved</span>
+                                <small class="d-block text-muted">{{ disease.resolved_date|date:"M d" }}</small>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-danger">Active</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:disease_edit' disease.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'fishery:treatment_add' %}?disease={{ disease.id }}" class="btn btn-sm btn-outline-info" title="Add Treatment">
+                                    <i class="bi bi-capsule"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteDisease({{ disease.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center py-5">
+                            <i class="bi bi-heart-pulse fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No disease records found</h5>
+                            <p class="text-muted mb-3">Report your first disease case</p>
+                            <a href="{% url 'fishery:disease_add' %}" class="btn btn-danger">
+                                <i class="bi bi-plus-circle me-2"></i>Report Disease
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-danger border-danger">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Disease Analytics -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    Disease Distribution
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="diseaseChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-calendar-week text-info"></i>
+                    Recent Outbreaks
+                </h5>
+                {% for disease in diseases|slice:":5" %}
+                <div class="d-flex align-items-center justify-content-between mb-3 p-2 bg-light rounded-3">
+                    <div>
+                        <span class="fw-bold">{{ disease.disease_name }}</span>
+                        <small class="text-muted d-block">{{ disease.cycle.pond.name }} - {{ disease.detection_date|date:"M d" }}</small>
+                    </div>
+                    <div>
+                        {% if disease.severity == 'CRITICAL' %}
+                            <span class="badge bg-danger">Critical</span>
+                        {% elif disease.severity == 'HIGH' %}
+                            <span class="badge bg-warning">High</span>
+                        {% else %}
+                            <span class="badge bg-info">{{ disease.get_severity_display }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center py-3">No recent outbreaks</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteDiseaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this disease record?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will also delete all associated treatment records.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteDiseaseBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Store delete URL template
+    const DELETE_DISEASE_URL = "{% url 'fishery:disease_delete' 0 %}";
+    
+    // Initialize disease chart
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('diseaseChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Bacterial', 'Viral', 'Fungal', 'Parasitic', 'Other'],
+                datasets: [{
+                    data: [
+                        {{ bacterial_count|default:0 }},
+                        {{ viral_count|default:0 }},
+                        {{ fungal_count|default:0 }},
+                        {{ parasitic_count|default:0 }},
+                        {{ other_count|default:0 }}
+                    ],
+                    backgroundColor: [
+                        '#dc3545',
+                        '#ffc107',
+                        '#28a745',
+                        '#17a2b8',
+                        '#6c757d'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.disease-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.disease-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.disease-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeleteDisease(diseaseId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteDiseaseModal'));
+        document.getElementById('confirmDeleteDiseaseBtn').href = DELETE_DISEASE_URL.replace('0', diseaseId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeleteDiseases() {
+        const selected = Array.from(document.querySelectorAll('.disease-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} disease records?`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/diseases/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportDiseases() {
+        window.location.href = "{% url 'fishery:export_diseases' %}";
+    }
+
+    // Scroll to active cases
+    function scrollToActive() {
+        const activeRows = document.querySelector('.table-danger');
+        if (activeRows) {
+            activeRows.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    // Row click to edit
+    document.querySelectorAll('.disease-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:disease_edit' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .pond-avatar {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .disease-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .disease-row td {
+        vertical-align: middle;
+    }
+    
+    .table-danger {
+        background-color: #f8d7da !important;
+    }
+    
+    .table-danger:hover {
+        background-color: #f5c6cb !important;
+    }
+    
+    .table-light {
+        background-color: #f8f9fa !important;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        white-space: nowrap;
+    }
+    
+    .fishery-badge-danger {
+        background-color: #f8d7da;
+        color: #dc3545;
+    }
+    
+    .fishery-badge-warning {
+        background-color: #fff3cd;
+        color: #ffc107;
+    }
+    
+    .fishery-badge-success {
+        background-color: #d4edda;
+        color: #28a745;
+    }
+    
+    .fishery-badge-info {
+        background-color: #d1ecf1;
+        color: #17a2b8;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 5px 8px;
+    }
+    
+    /* Quick stats cards */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.85rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .pond-avatar {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .fishery-badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 5px;
+        }
+    }
+</style>
+{% endblock %}

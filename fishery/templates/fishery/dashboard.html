@@ -1,149 +1,1572 @@
+<!-- templates/fishery/fishery_dashboard.html -->
 {% extends 'fishery/base_fishery.html' %}
 {% load static %}
 
-{% block fishery_content %}
+{% block page_title %}Dashboard{% endblock %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="fw-bold mb-0">Fish Farm Dashboard</h2>
-        <small class="text-muted">Manage your aquaculture operations efficiently</small>
+{% block page_icon %}bi bi-fish{% endblock %}
+
+{% block breadcrumb %}
+<span>Dashboard</span>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="dashboard">
+    <!-- Welcome Section -->
+    <div class="welcome-section">
+        <div class="welcome-content">
+            <h1 class="welcome-title">
+                Welcome back, <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+            </h1>
+            <p class="welcome-subtitle">
+                Here's what's happening with your fishery today
+            </p>
+        </div>
+        <div class="welcome-actions">
+            <div class="date-time">
+                <i class="bi bi-calendar3"></i>
+                {% now "l, F j, Y" %}
+                <span class="mx-2">|</span>
+                <i class="bi bi-clock"></i>
+                <span id="live-clock"></span>
+            </div>
+            <button class="btn-refresh" onclick="refreshFisheryDashboard()">
+                <i class="bi bi-arrow-repeat"></i>
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="bi bi-water"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-label">Total Ponds</span>
+                <div class="stat-value-wrapper">
+                    <span class="stat-value" id="totalPonds">0</span>
+                    <span class="stat-trend positive">
+                        <i class="bi bi-arrow-up"></i>
+                        <span id="pondTrendValue">0</span>%
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="bi bi-fish"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-label">Active Batches</span>
+                <div class="stat-value-wrapper">
+                    <span class="stat-value" id="activeBatches">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon yellow">
+                <i class="bi bi-basket"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-label">Today's Feed</span>
+                <div class="stat-value-wrapper">
+                    <span class="stat-value" id="todayFeed">0</span>
+                    <span class="stat-unit">kg</span>
+                </div>
+                <span class="stat-meta" id="feedCost">৳0 cost</span>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <i class="bi bi-droplet"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-label">Water Quality</span>
+                <div class="stat-value-wrapper">
+                    <span class="stat-value" id="waterQuality">0</span>
+                    <span class="stat-unit">%</span>
+                </div>
+                <span class="stat-meta" id="qualityStatus">Good</span>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon orange">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-label">Monthly Revenue</span>
+                <div class="stat-value-wrapper">
+                    <span class="stat-value" id="monthlyRevenue">৳0</span>
+                </div>
+                <span class="stat-meta positive" id="revenueTrend">+0% vs last month</span>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon red">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-label">Health Alerts</span>
+                <div class="stat-value-wrapper">
+                    <span class="stat-value" id="healthAlerts">0</span>
+                </div>
+                <span class="stat-meta" id="mortalityCount">0 mortalities</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Row -->
+    <div class="quick-actions">
+        <a href="{% url 'fishery:pond_add' %}" class="quick-action-card">
+            <div class="quick-action-icon blue">
+                <i class="bi bi-plus-circle"></i>
+            </div>
+            <span>Add Pond</span>
+        </a>
+        <a href="{% url 'fishery:batch_add' %}" class="quick-action-card">
+            <div class="quick-action-icon green">
+                <i class="bi bi-diagram-3"></i>
+            </div>
+            <span>Add Batch</span>
+        </a>
+        <a href="{% url 'fishery:cycle_add' %}" class="quick-action-card">
+            <div class="quick-action-icon purple">
+                <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <span>Start Cycle</span>
+        </a>
+        <a href="{% url 'fishery:feed_record_add' %}" class="quick-action-card">
+            <div class="quick-action-icon yellow">
+                <i class="bi bi-basket"></i>
+            </div>
+            <span>Add Feeding</span>
+        </a>
+        <a href="{% url 'fishery:water_add' %}" class="quick-action-card">
+            <div class="quick-action-icon info">
+                <i class="bi bi-droplet"></i>
+            </div>
+            <span>Test Water</span>
+        </a>
+        <a href="{% url 'fishery:disease_add' %}" class="quick-action-card">
+            <div class="quick-action-icon red">
+                <i class="bi bi-heart-pulse"></i>
+            </div>
+            <span>Health Check</span>
+        </a>
+        <a href="{% url 'fishery:harvest_add' %}" class="quick-action-card">
+            <div class="quick-action-icon orange">
+                <i class="bi bi-scissors"></i>
+            </div>
+            <span>Record Harvest</span>
+        </a>
+        <a href="{% url 'fishery:sale_add' %}" class="quick-action-card">
+            <div class="quick-action-icon teal">
+                <i class="bi bi-cash"></i>
+            </div>
+            <span>Add Sale</span>
+        </a>
+    </div>
+
+    <!-- Management Modules Section -->
+    <div class="section-header">
+        <h2 class="section-title">
+            <i class="bi bi-grid-3x3-gap-fill"></i>
+            Management Modules
+        </h2>
+        <p class="section-subtitle">Quick access to all fishery management features</p>
+    </div>
+
+    <!-- Modules Grid - Exactly like dairy dashboard -->
+    <div class="modules-grid">
+        <!-- Pond Management -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon pond">
+                    <i class="bi bi-water"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge active" id="activePonds">0</span> Active
+                    </span>
+                    <span class="module-stat">
+                        <span class="stat-badge total" id="totalPondsSmall">0</span> Total
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Pond Management</h3>
+                <p class="module-description">Manage your ponds, monitor conditions, and track maintenance</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:pond_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View All
+                </a>
+                <a href="{% url 'fishery:pond_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Add New
+                </a>
+            </div>
+        </div>
+
+        <!-- Fish Batches -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon batch">
+                    <i class="bi bi-diagram-3"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge active" id="activeBatchesSmall">0</span> Active
+                    </span>
+                    <span class="module-stat">
+                        <span class="stat-badge total" id="totalBatches">0</span> Total
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Fish Batches</h3>
+                <p class="module-description">Track batches by stocking date, species, and pond location</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:batch_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View All
+                </a>
+                <a href="{% url 'fishery:batch_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Add Batch
+                </a>
+            </div>
+        </div>
+
+        <!-- Production Cycles -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon cycle">
+                    <i class="bi bi-arrow-repeat"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge active" id="activeCycles">0</span> Active
+                    </span>
+                    <span class="module-stat">
+                        <span class="stat-badge success" id="completedCycles">0</span> Completed
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Production Cycles</h3>
+                <p class="module-description">Manage production cycles from stocking to harvest</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:cycle_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View All
+                </a>
+                <a href="{% url 'fishery:cycle_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Start Cycle
+                </a>
+            </div>
+        </div>
+
+        <!-- Feed Management -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon feed">
+                    <i class="bi bi-basket"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge" id="todayFeedings">0</span> Today
+                    </span>
+                    <span class="module-stat">
+                        <span class="stat-badge" id="totalFeedStock">0</span> kg Stock
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Feed Management</h3>
+                <p class="module-description">Track feed types, purchases, and daily feeding records</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:feed_record_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View Records
+                </a>
+                <a href="{% url 'fishery:feed_record_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Add Feeding
+                </a>
+            </div>
+        </div>
+
+        <!-- Water Quality -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon water">
+                    <i class="bi bi-droplet"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge" id="recentTests">0</span> Recent
+                    </span>
+                    <span class="module-stat">
+                        <span class="stat-badge warning" id="alertTests">0</span> Alerts
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Water Quality</h3>
+                <p class="module-description">Monitor pH, temperature, dissolved oxygen, and ammonia</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:water_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View Tests
+                </a>
+                <a href="{% url 'fishery:water_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Add Test
+                </a>
+            </div>
+        </div>
+
+        <!-- Health Management -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon health">
+                    <i class="bi bi-heart-pulse"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge" id="activeDiseases">0</span> Diseases
+                    </span>
+                    <span class="module-stat">
+                        <span class="stat-badge danger" id="mortalityToday">0</span> Mortality
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Health Management</h3>
+                <p class="module-description">Track diseases, treatments, and mortality records</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:disease_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View Health
+                </a>
+                <a href="{% url 'fishery:disease_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Add Record
+                </a>
+            </div>
+        </div>
+
+        <!-- Harvest Records -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon harvest">
+                    <i class="bi bi-scissors"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge" id="todayHarvest">0</span> Today
+                    </span>
+                    <span class="module-stat">
+                        <span class="stat-badge success" id="monthlyHarvest">0</span> kg Month
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Harvest Records</h3>
+                <p class="module-description">Record and track fish harvests by pond and batch</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:harvest_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View All
+                </a>
+                <a href="{% url 'fishery:harvest_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Add Harvest
+                </a>
+            </div>
+        </div>
+
+        <!-- Customers -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon customers">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge" id="totalCustomers">0</span> Customers
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Customers</h3>
+                <p class="module-description">Manage customer information and purchase history</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:customer_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View All
+                </a>
+                <a href="{% url 'fishery:customer_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Add Customer
+                </a>
+            </div>
+        </div>
+
+        <!-- Expenses -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon expenses">
+                    <i class="bi bi-receipt"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge" id="monthlyExpenses">৳0</span> This Month
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Expenses</h3>
+                <p class="module-description">Track feed, medicine, and operational costs</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:expense_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View All
+                </a>
+                <a href="{% url 'fishery:expense_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Add Expense
+                </a>
+            </div>
+        </div>
+
+        <!-- Budgets -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon budgets">
+                    <i class="bi bi-pie-chart"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge" id="activeBudgets">0</span> Active
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Budgets</h3>
+                <p class="module-description">Plan and monitor production cycle budgets</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:budget_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View All
+                </a>
+                <a href="{% url 'fishery:budget_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Create Budget
+                </a>
+            </div>
+        </div>
+
+        <!-- Fish Species (Additional) -->
+        <div class="module-card">
+            <div class="module-card-header">
+                <div class="module-icon species">
+                    <i class="bi bi-fish"></i>
+                </div>
+                <div class="module-stats">
+                    <span class="module-stat">
+                        <span class="stat-badge" id="totalSpecies">0</span> Species
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-body">
+                <h3 class="module-title">Fish Species</h3>
+                <p class="module-description">Manage fish species, growth rates, and optimal conditions</p>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'fishery:species_list' %}" class="btn-outline">
+                    <i class="bi bi-eye"></i> View All
+                </a>
+                <a href="{% url 'fishery:species_add' %}" class="btn-primary">
+                    <i class="bi bi-plus"></i> Add Species
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Section - Exactly like dairy dashboard -->
+    <div class="analytics-grid">
+        <!-- Growth & Production Trends Chart -->
+        <div class="analytics-card">
+            <div class="analytics-header">
+                <div class="analytics-title">
+                    <i class="bi bi-graph-up"></i>
+                    <div>
+                        <h3>Growth & Production Trends</h3>
+                        <p>Daily weight gain and harvest overview</p>
+                    </div>
+                </div>
+                <div class="analytics-actions">
+                    <button class="chart-period active" data-period="week">Week</button>
+                    <button class="chart-period" data-period="month">Month</button>
+                    <button class="chart-period" data-period="year">Year</button>
+                </div>
+            </div>
+            <div class="analytics-chart">
+                <canvas id="growthChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="analytics-card">
+            <div class="analytics-header">
+                <div class="analytics-title">
+                    <i class="bi bi-clock-history"></i>
+                    <div>
+                        <h3>Recent Activities</h3>
+                        <p>Latest fishery updates</p>
+                    </div>
+                </div>
+            </div>
+            <div class="activities-feed" id="activityList">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics - Exactly like dairy dashboard -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-icon warning">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <div class="metric-content">
+                <span class="metric-label">Ready to Harvest</span>
+                <span class="metric-value" id="readyToHarvest">0</span>
+                <span class="metric-trend" id="harvestReadyPonds">0 ponds ready</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon danger">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="metric-content">
+                <span class="metric-label">Low Feed Stock</span>
+                <span class="metric-value" id="lowFeedStock">0</span>
+                <span class="metric-trend">Need reordering soon</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon success">
+                <i class="bi bi-droplet-half"></i>
+            </div>
+            <div class="metric-content">
+                <span class="metric-label">Optimal Water</span>
+                <span class="metric-value" id="optimalWater">0</span>
+                <span class="metric-trend">ponds within parameters</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon info">
+                <i class="bi bi-heart"></i>
+            </div>
+            <div class="metric-content">
+                <span class="metric-label">Health Issues</span>
+                <span class="metric-value" id="healthIssues">0</span>
+                <span class="metric-trend">Require attention</span>
+            </div>
+        </div>
     </div>
 </div>
 
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Copy all styles from dairy dashboard exactly -->
 <style>
-    .dashboard-card {
-        border-radius: 15px;
-        transition: all 0.3s ease;
-        background: #ffffff;
-    }
+/* Professional Dashboard Styles - Exactly matching dairy */
+.dashboard {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 20px;
+}
 
-    .dashboard-card:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-    }
+/* Welcome Section */
+.welcome-section {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 24px;
+    padding: 32px;
+    margin-bottom: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
 
-    .dashboard-icon {
-        font-size: 32px;
-        margin-bottom: 10px;
-    }
+.welcome-title {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
 
-    .section-title {
-        font-weight: 600;
-        margin-bottom: 20px;
-        color: #495057;
+.welcome-title span {
+    background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.welcome-subtitle {
+    color: #94a3b8;
+    font-size: 16px;
+}
+
+.welcome-actions {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.date-time {
+    background: rgba(255,255,255,0.1);
+    padding: 12px 24px;
+    border-radius: 40px;
+    font-size: 14px;
+    backdrop-filter: blur(10px);
+}
+
+.btn-refresh {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 40px;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-refresh:hover {
+    background: white;
+    color: #1e293b;
+    transform: translateY(-2px);
+}
+
+/* Statistics Cards Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    transition: all 0.3s ease;
+    border: 1px solid #f1f5f9;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 30px rgba(0,0,0,0.05);
+    border-color: #e2e8f0;
+}
+
+.stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.stat-icon.blue { background: #e9ecef; color: #0d6efd; }
+.stat-icon.green { background: #d4edda; color: #198754; }
+.stat-icon.yellow { background: #fff3cd; color: #ffc107; }
+.stat-icon.purple { background: #e9ecef; color: #6f42c1; }
+.stat-icon.orange { background: #fff3cd; color: #fd7e14; }
+.stat-icon.red { background: #f8d7da; color: #dc3545; }
+.stat-icon.info { background: #cff4fc; color: #0dcaf0; }
+
+.stat-details {
+    flex: 1;
+}
+
+.stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.stat-value-wrapper {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.2;
+}
+
+.stat-unit {
+    font-size: 14px;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.stat-trend {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 20px;
+    background: #d4edda;
+    color: #28a745;
+}
+
+.stat-trend.positive { background: #d4edda; color: #28a745; }
+.stat-trend.negative { background: #f8d7da; color: #dc3545; }
+
+.stat-meta {
+    font-size: 12px;
+    color: #94a3b8;
+    display: block;
+    margin-top: 4px;
+}
+
+.stat-meta.positive { color: #28a745; }
+
+/* Quick Actions */
+.quick-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+}
+
+.quick-action-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: white;
+    border-radius: 40px;
+    text-decoration: none;
+    color: #475569;
+    font-weight: 500;
+    font-size: 14px;
+    border: 1px solid #f1f5f9;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.quick-action-card:hover {
+    background: #f8fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    border-color: #e2e8f0;
+}
+
+.quick-action-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.quick-action-icon.blue { background: #e9ecef; color: #0d6efd; }
+.quick-action-icon.green { background: #d4edda; color: #198754; }
+.quick-action-icon.yellow { background: #fff3cd; color: #ffc107; }
+.quick-action-icon.red { background: #f8d7da; color: #dc3545; }
+.quick-action-icon.purple { background: #e9ecef; color: #6f42c1; }
+.quick-action-icon.orange { background: #fff3cd; color: #fd7e14; }
+.quick-action-icon.info { background: #cff4fc; color: #0dcaf0; }
+.quick-action-icon.teal { background: #cce5ff; color: #17a2b8; }
+
+/* Section Header */
+.section-header {
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.section-title i {
+    color: #0d6efd;
+}
+
+.section-subtitle {
+    color: #64748b;
+    font-size: 14px;
+    margin-left: 34px;
+}
+
+/* Modules Grid */
+.modules-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.module-card {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    border: 1px solid #f1f5f9;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.module-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 30px rgba(0,0,0,0.05);
+    border-color: #e2e8f0;
+}
+
+.module-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.module-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+
+.module-icon.pond { background: #e9ecef; color: #0d6efd; }
+.module-icon.batch { background: #cff4fc; color: #0dcaf0; }
+.module-icon.cycle { background: #fff3cd; color: #ffc107; }
+.module-icon.feed { background: #f8d7da; color: #fd7e14; }
+.module-icon.water { background: #e9ecef; color: #0dcaf0; }
+.module-icon.health { background: #f8d7da; color: #dc3545; }
+.module-icon.harvest { background: #fff3cd; color: #6f42c1; }
+.module-icon.customers { background: #d4edda; color: #28a745; }
+.module-icon.expenses { background: #f8d7da; color: #dc3545; }
+.module-icon.budgets { background: #e9ecef; color: #6f42c1; }
+.module-icon.species { background: #d4edda; color: #198754; }
+
+.module-stats {
+    display: flex;
+    gap: 12px;
+}
+
+.module-stat {
+    font-size: 12px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.stat-badge {
+    background: #f1f5f9;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.stat-badge.active { background: #d4edda; color: #28a745; }
+.stat-badge.total { background: #e9ecef; color: #0d6efd; }
+.stat-badge.danger { background: #f8d7da; color: #dc3545; }
+.stat-badge.success { background: #d4edda; color: #28a745; }
+.stat-badge.warning { background: #fff3cd; color: #ffc107; }
+
+.module-card-body {
+    flex: 1;
+    margin-bottom: 20px;
+}
+
+.module-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.module-description {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.module-card-footer {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-outline {
+    flex: 1;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.3s ease;
+}
+
+.btn-outline:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+.btn-primary {
+    flex: 1;
+    padding: 10px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(13, 110, 253, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(13, 110, 253, 0.4);
+}
+
+/* Analytics Grid */
+.analytics-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.analytics-card {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+}
+
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.analytics-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.analytics-title i {
+    font-size: 24px;
+    color: #0d6efd;
+}
+
+.analytics-title h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.analytics-title p {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.analytics-actions {
+    display: flex;
+    gap: 6px;
+    background: #f8fafc;
+    padding: 4px;
+    border-radius: 40px;
+}
+
+.chart-period {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.chart-period:hover {
+    background: white;
+    color: #0d6efd;
+}
+
+.chart-period.active {
+    background: white;
+    color: #0d6efd;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.analytics-chart {
+    height: 300px;
+    position: relative;
+}
+
+/* Activities Feed */
+.activities-feed {
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.activities-feed::-webkit-scrollbar {
+    width: 4px;
+}
+
+.activities-feed::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.activities-feed::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 14px;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+}
+
+.activity-item:hover {
+    background: white;
+    transform: translateX(4px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.activity-icon.primary { background: #e9ecef; color: #0d6efd; }
+.activity-icon.success { background: #d4edda; color: #28a745; }
+.activity-icon.warning { background: #fff3cd; color: #ffc107; }
+.activity-icon.danger { background: #f8d7da; color: #dc3545; }
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-content p {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.activity-time {
+    font-size: 11px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.metric-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid #f1f5f9;
+    transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+}
+
+.metric-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+
+.metric-icon.warning { background: #fff3cd; color: #ffc107; }
+.metric-icon.danger { background: #f8d7da; color: #dc3545; }
+.metric-icon.success { background: #d4edda; color: #28a745; }
+.metric-icon.info { background: #cce5ff; color: #17a2b8; }
+
+.metric-content {
+    flex: 1;
+}
+
+.metric-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e293b;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.metric-trend {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+/* Loading State */
+.loading-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid #f1f5f9;
+    border-top-color: #0d6efd;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
     }
+    
+    .modules-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 1200px) {
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .welcome-section {
+        flex-direction: column;
+        text-align: center;
+        gap: 20px;
+    }
+    
+    .welcome-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .modules-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .quick-actions {
+        justify-content: center;
+    }
+    
+    .analytics-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .modules-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+}
 </style>
 
-<!-- Core Management -->
-<h5 class="section-title">Core Management</h5>
+<script>
+    let growthChart = null;
 
-<div class="row g-4 mb-4">
+    // Show/hide loading functions from base
+    function showFisheryLoading() {
+        const spinner = document.getElementById('fisherySpinner');
+        if (spinner) spinner.classList.add('active');
+    }
 
-    <div class="col-md-4">
-        <div class="card dashboard-card shadow-sm text-center p-4">
-            <div class="dashboard-icon text-primary">🌊</div>
-            <h5>Ponds</h5>
-            <p class="text-muted small">Manage pond information </p>
-            <a href="{% url 'pond_list' %}" class="btn btn-primary btn-sm mt-2">Manage</a>
-        </div>
-    </div>
+    function hideFisheryLoading() {
+        const spinner = document.getElementById('fisherySpinner');
+        if (spinner) spinner.classList.remove('active');
+    }
 
-    <div class="col-md-4">
-        <div class="card dashboard-card shadow-sm text-center p-4">
-            <div class="dashboard-icon text-success">🐟</div>
-            <h5>Fish Species</h5>
-            <p class="text-muted small">Maintain species records</p>
-            <a href="{% url 'fishspecies_list' %}" class="btn btn-success btn-sm mt-2">Manage</a>
-        </div>
-    </div>
+    // Refresh dashboard data
+    async function refreshFisheryDashboard() {
+        showFisheryLoading();
+        try {
+            const response = await fetch('/fishery/api/dashboard/stats/');
+            const data = await response.json();
+            
+            if (data.success) {
+                updateStats(data.data);
+                updateModules(data.data);
+                updateMetrics(data.data);
+            }
+        } catch (error) {
+            console.error('Error refreshing dashboard:', error);
+        } finally {
+            hideFisheryLoading();
+        }
+    }
 
-    <div class="col-md-4">
-        <div class="card dashboard-card shadow-sm text-center p-4">
-            <div class="dashboard-icon text-info">📦</div>
-            <h5>Stock</h5>
-            <p class="text-muted small">Track fish stock levels</p>
-            <a href="{% url 'stock_list' %}" class="btn btn-info btn-sm mt-2 text-white">Manage</a>
-        </div>
-    </div>
+    // Update statistics
+    function updateStats(data) {
+        document.getElementById('totalPonds').textContent = data.ponds?.total || 0;
+        document.getElementById('pondTrendValue').textContent = data.trends?.ponds || 0;
+        document.getElementById('activeBatches').textContent = data.batches?.active || 0;
+        document.getElementById('todayFeed').textContent = data.feed?.today || 0;
+        document.getElementById('feedCost').innerHTML = '৳' + (data.feed?.cost || 0).toLocaleString() + ' cost';
+        
+        const waterQuality = data.water?.avg_quality || 0;
+        document.getElementById('waterQuality').textContent = waterQuality;
+        document.getElementById('qualityStatus').textContent = waterQuality > 80 ? 'Excellent' : waterQuality > 60 ? 'Good' : 'Poor';
+        
+        const monthlyRevenue = data.finance?.monthly_revenue || 0;
+        document.getElementById('monthlyRevenue').innerHTML = '৳' + monthlyRevenue.toLocaleString();
+        
+        const revenueTrend = data.finance?.revenue_trend || 0;
+        document.getElementById('revenueTrend').innerHTML = (revenueTrend > 0 ? '+' : '') + revenueTrend + '% vs last month';
+        
+        document.getElementById('healthAlerts').textContent = data.health?.alerts || 0;
+        document.getElementById('mortalityCount').textContent = (data.health?.mortality_today || 0) + ' mortalities';
+    }
 
-</div>
+    // Update module cards
+    function updateModules(data) {
+        document.getElementById('activePonds').textContent = data.ponds?.active || 0;
+        document.getElementById('totalPondsSmall').textContent = data.ponds?.total || 0;
+        document.getElementById('activeBatchesSmall').textContent = data.batches?.active || 0;
+        document.getElementById('totalBatches').textContent = data.batches?.total || 0;
+        document.getElementById('activeCycles').textContent = data.cycles?.active || 0;
+        document.getElementById('completedCycles').textContent = data.cycles?.completed || 0;
+        document.getElementById('todayFeedings').textContent = data.feed?.today_count || 0;
+        document.getElementById('totalFeedStock').textContent = data.feed?.total_stock || 0;
+        document.getElementById('recentTests').textContent = data.water?.recent_tests || 0;
+        document.getElementById('alertTests').textContent = data.water?.alerts || 0;
+        document.getElementById('activeDiseases').textContent = data.health?.active_diseases || 0;
+        document.getElementById('mortalityToday').textContent = data.health?.mortality_today || 0;
+        document.getElementById('todayHarvest').textContent = data.harvest?.today || 0;
+        document.getElementById('monthlyHarvest').textContent = data.harvest?.monthly || 0;
+        document.getElementById('todaySales').textContent = data.sales?.today_quantity || 0;
+        
+        const todayRevenue = data.sales?.today_revenue || 0;
+        document.getElementById('todayRevenue').innerHTML = '৳' + todayRevenue.toLocaleString();
+        
+        document.getElementById('totalCustomers').textContent = data.customers?.total || 0;
+        
+        const monthlyExpenses = data.expenses?.monthly || 0;
+        document.getElementById('monthlyExpenses').innerHTML = '৳' + monthlyExpenses.toLocaleString();
+        
+        document.getElementById('activeBudgets').textContent = data.budgets?.active || 0;
+        document.getElementById('totalSpecies').textContent = data.species?.total || 0;
+    }
 
-<!-- Operations -->
-<h5 class="section-title">Operations</h5>
+    // Update metrics
+    function updateMetrics(data) {
+        document.getElementById('readyToHarvest').textContent = data.metrics?.ready_to_harvest || 0;
+        document.getElementById('harvestReadyPonds').textContent = (data.metrics?.harvest_ready_ponds || 0) + ' ponds ready';
+        document.getElementById('lowFeedStock').textContent = data.metrics?.low_feed_stock || 0;
+        document.getElementById('optimalWater').textContent = data.metrics?.optimal_water_quality || 0;
+        document.getElementById('healthIssues').textContent = data.metrics?.health_issues || 0;
+    }
 
-<div class="row g-4 mb-4">
+    // Load chart data
+    async function loadGrowthChart(period = 'week') {
+        showFisheryLoading();
+        try {
+            const response = await fetch(`/fishery/api/dashboard/growth-chart/?period=${period}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                if (growthChart) {
+                    growthChart.destroy();
+                }
+                
+                const ctx = document.getElementById('growthChart').getContext('2d');
+                growthChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels || [],
+                        datasets: [
+                            {
+                                label: 'Avg Weight (g)',
+                                data: data.weight_data || [],
+                                borderColor: '#0d6efd',
+                                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                                borderWidth: 3,
+                                pointBackgroundColor: '#0d6efd',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                                tension: 0.4,
+                                fill: true,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'Harvest (kg)',
+                                data: data.harvest_data || [],
+                                borderColor: '#198754',
+                                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                                borderWidth: 3,
+                                pointBackgroundColor: '#198754',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                                tension: 0.4,
+                                fill: true,
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    color: '#1e293b',
+                                    font: { size: 12 }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1e293b',
+                                titleColor: '#fff',
+                                bodyColor: '#94a3b8',
+                                padding: 12,
+                                cornerRadius: 12,
+                                displayColors: true
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#f1f5f9', drawBorder: false },
+                                ticks: { 
+                                    color: '#64748b',
+                                    callback: function(value) {
+                                        return value + 'g';
+                                    }
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Weight (grams)',
+                                    color: '#64748b'
+                                }
+                            },
+                            y1: {
+                                beginAtZero: true,
+                                position: 'right',
+                                grid: { drawOnChartArea: false },
+                                ticks: { 
+                                    color: '#64748b',
+                                    callback: function(value) {
+                                        return value + 'kg';
+                                    }
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Harvest (kg)',
+                                    color: '#64748b'
+                                }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#64748b' }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error loading chart:', error);
+        } finally {
+            hideFisheryLoading();
+        }
+    }
 
-    <div class="col-md-4">
-        <div class="card dashboard-card shadow-sm text-center p-4">
-            <div class="dashboard-icon text-success">🌾</div>
-            <h5>Feed Records</h5>
-            <p class="text-muted small">Monitor feeding activities</p>
-            <a href="{% url 'feed_list' %}" class="btn btn-outline-success btn-sm mt-2">Manage</a>
-        </div>
-    </div>
+    // Load recent activities
+    async function loadFisheryActivities() {
+        try {
+            const response = await fetch('/fishery/api/dashboard/recent-activity/');
+            const data = await response.json();
+            
+            const container = document.getElementById('activityList');
+            if (data.success && data.activities && data.activities.length > 0) {
+                let html = '';
+                data.activities.slice(0, 8).forEach(activity => {
+                    const iconColor = {
+                        'primary': 'primary',
+                        'success': 'success',
+                        'warning': 'warning',
+                        'danger': 'danger',
+                        'info': 'info'
+                    }[activity.color] || 'primary';
+                    
+                    html += `
+                        <div class="activity-item">
+                            <div class="activity-icon ${iconColor}">
+                                <i class="bi bi-${activity.icon || 'info-circle'}"></i>
+                            </div>
+                            <div class="activity-content">
+                                <p>${activity.description}</p>
+                                <div class="activity-time">
+                                    <i class="bi bi-clock"></i> ${activity.time}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-clock-history fs-1 d-block mb-3"></i>
+                        <p class="mb-0">No recent activities</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading activities:', error);
+        }
+    }
 
-    <div class="col-md-4">
-        <div class="card dashboard-card shadow-sm text-center p-4">
-            <div class="dashboard-icon text-warning">⚠️</div>
-            <h5>Mortality</h5>
-            <p class="text-muted small">Track fish mortality rates</p>
-            <a href="{% url 'mortality_list' %}" class="btn btn-outline-warning btn-sm mt-2">Manage</a>
-        </div>
-    </div>
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshFisheryDashboard();
+        loadGrowthChart('week');
+        loadFisheryActivities();
+        
+        // Auto-refresh every 60 seconds
+        setInterval(refreshFisheryDashboard, 60000);
+    });
 
-    <div class="col-md-4">
-        <div class="card dashboard-card shadow-sm text-center p-4">
-            <div class="dashboard-icon text-danger">🎣</div>
-            <h5>Harvest</h5>
-            <p class="text-muted small">Manage harvest records</p>
-            <a href="{% url 'harvest_list' %}" class="btn btn-outline-danger btn-sm mt-2">Manage</a>
-        </div>
-    </div>
-
-</div>
-
-<!-- Sales & Finance -->
-<h5 class="section-title">Sales & Finance</h5>
-
-<div class="row g-4">
-
-    <div class="col-md-4">
-        <div class="card dashboard-card shadow-sm text-center p-4">
-            <div class="dashboard-icon text-dark">💰</div>
-            <h5>Sales</h5>
-            <p class="text-muted small">Manage fish sales transactions</p>
-            <a href="{% url 'sale_list' %}" class="btn btn-dark btn-sm mt-2">Manage</a>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card dashboard-card shadow-sm text-center p-4">
-            <div class="dashboard-icon text-dark">🚖</div>
-            <h5>Production Cycles</h5>
-            <p class="text-muted small">Manage fish sales transactions</p>
-            <a href="{% url 'cycle_list' %}" class="btn btn-primary btn-sm mt-2">Manage</a>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card dashboard-card shadow-sm text-center p-4">
-            <div class="dashboard-icon text-primary">📊</div>
-            <h5>Financial Dashboard</h5>
-            <p class="text-muted small">View revenue & profit analytics</p>
-            <a href="{% url 'financialy_dashboard' %}" class="btn btn-primary btn-sm mt-2">View</a>
-        </div>
-    </div>
-
-     <!-- Annual Report Card -->
-    <div class="col-md-4">
-        <div class="card dashboard-card shadow-sm text-center p-4">
-            <div class="dashboard-icon text-success">📅</div>
-            <h5>Annual Report</h5>
-            <p class="text-muted small">View yearly fishery financial summary</p>
-            <a href="{% url 'annual_report_current' %}" class="btn btn-success btn-sm mt-2">View</a>
-        </div>
-    </div>
-
-</div>
-
+    // Chart period buttons
+    document.querySelectorAll('.chart-period').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.chart-period').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const period = this.getAttribute('data-period');
+            loadGrowthChart(period);
+        });
+    });
+</script>
 {% endblock %}

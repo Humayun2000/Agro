@@ -1,0 +1,663 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Report Disease{% else %}Edit Disease Record{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:disease_list' %}">Health</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Report Disease{% else %}Edit Disease{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:disease_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Disease Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Report Disease Outbreak
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Disease Record
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Record and track disease cases in your fishery
+                        {% else %}
+                            Update disease information and treatment progress
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="diseaseForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Basic Disease Information -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-info-circle text-danger me-2"></i>
+                            Basic Information
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-arrow-repeat me-1 text-danger"></i>
+                                        Production Cycle *
+                                    </label>
+                                    {{ form.cycle }}
+                                    <small class="text-muted">Select the affected production cycle</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar me-1 text-danger"></i>
+                                        Detection Date *
+                                    </label>
+                                    {{ form.detection_date }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cycle Info Preview -->
+                        <div id="cyclePreview" class="mt-3 p-3 bg-light rounded-3" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <small class="text-muted d-block">Pond:</small>
+                                    <span class="fw-bold" id="cyclePond">—</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted d-block">Species:</small>
+                                    <span class="fw-bold" id="cycleSpecies">—</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted d-block">Population:</small>
+                                    <span class="fw-bold" id="cyclePopulation">—</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Disease Details -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-bug text-warning me-2"></i>
+                            Disease Details
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-tag me-1 text-warning"></i>
+                                        Disease Name *
+                                    </label>
+                                    {{ form.disease_name }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-grid-3x3 me-1 text-warning"></i>
+                                        Disease Type *
+                                    </label>
+                                    {{ form.disease_type }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-exclamation-triangle me-1 text-warning"></i>
+                                        Severity *
+                                    </label>
+                                    {{ form.severity }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-people me-1 text-warning"></i>
+                                        Estimated Affected
+                                    </label>
+                                    {{ form.estimated_affected }}
+                                    <small class="text-muted">Number of fish showing symptoms</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-emoji-frown me-1 text-warning"></i>
+                                        Mortality Count
+                                    </label>
+                                    {{ form.mortality_count }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Symptoms Section -->
+                        <div class="row g-3 mt-2">
+                            <div class="col-12">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-chat-text me-1 text-warning"></i>
+                                        Symptoms Observed *
+                                    </label>
+                                    {{ form.symptoms }}
+                                    <small class="text-muted">Describe the symptoms in detail</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Symptom Selector -->
+                        <div class="mt-3">
+                            <label class="fishery-form-label">Common Symptoms:</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addSymptom('Lethargy')">Lethargy</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addSymptom('Loss of appetite')">Loss of appetite</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addSymptom('Abnormal swimming')">Abnormal swimming</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addSymptom('Skin lesions')">Skin lesions</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addSymptom('Gasping at surface')">Gasping at surface</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Treatment Information -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-capsule text-info me-2"></i>
+                            Treatment Information
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-eyedropper me-1 text-info"></i>
+                                        Treatment Applied
+                                    </label>
+                                    {{ form.treatment_applied }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-capsule me-1 text-info"></i>
+                                        Medication Used
+                                    </label>
+                                    {{ form.medication_used }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-currency-dollar me-1 text-info"></i>
+                                        Treatment Cost (৳)
+                                    </label>
+                                    {{ form.treatment_cost }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Resolution Status -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Resolution Status
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-check mt-2">
+                                    {{ form.is_resolved }}
+                                    <label class="form-check-label fw-bold" for="{{ form.is_resolved.id_for_label }}">
+                                        <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                        Mark as Resolved
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="resolutionDateField">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar-check me-1 text-success"></i>
+                                        Resolution Date
+                                    </label>
+                                    {{ form.resolved_date }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Notes -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-chat-text text-secondary me-2"></i>
+                            Additional Notes
+                        </h5>
+                        
+                        <div class="fishery-form-group">
+                            {{ form.notes }}
+                            <small class="text-muted">Any additional observations or comments</small>
+                        </div>
+                    </div>
+
+                    <!-- Emergency Response Guide -->
+                    <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+                        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                        <div>
+                            <strong>Emergency Response Guidelines:</strong>
+                            <ul class="mb-0 mt-1">
+                                <li>Isolate affected pond immediately</li>
+                                <li>Contact your veterinarian</li>
+                                <li>Stop water exchange between ponds</li>
+                                <li>Document all symptoms and treatments</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Diagnosed By</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.diagnosed_by.get_full_name|default:form.instance.diagnosed_by.username|default:'Unknown' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Reported At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.detection_date|date:'M d, Y' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Treatment History (Edit mode only) -->
+                    {% if action == 'edit' and form.instance.treatmentrecord_set.exists %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-clock-history text-info me-2"></i>
+                            Treatment History
+                        </h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Treatment</th>
+                                        <th>Medication</th>
+                                        <th>Dosage</th>
+                                        <th>Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for treatment in form.instance.treatmentrecord_set.all %}
+                                    <tr>
+                                        <td>{{ treatment.application_date|date:"M d, Y" }}</td>
+                                        <td>{{ treatment.get_treatment_type_display }}</td>
+                                        <td>{{ treatment.medication_name }}</td>
+                                        <td>{{ treatment.dosage }}</td>
+                                        <td>৳{{ treatment.cost|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-2 text-end">
+                            <a href="{% url 'fishery:treatment_add' %}?disease={{ form.instance.id }}" class="btn btn-sm btn-info">
+                                <i class="bi bi-plus-circle me-1"></i> Add Treatment
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:disease_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Report Disease{% else %}Update Record{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const cycleSelect = document.getElementById('{{ form.cycle.id_for_label }}');
+        const isResolvedCheck = document.getElementById('{{ form.is_resolved.id_for_label }}');
+        const resolutionDateField = document.getElementById('resolutionDateField');
+        const mortalityInput = document.getElementById('{{ form.mortality_count.id_for_label }}');
+        const affectedInput = document.getElementById('{{ form.estimated_affected.id_for_label }}');
+        
+        // Preview elements
+        const cyclePreview = document.getElementById('cyclePreview');
+        const cyclePond = document.getElementById('cyclePond');
+        const cycleSpecies = document.getElementById('cycleSpecies');
+        const cyclePopulation = document.getElementById('cyclePopulation');
+
+        // Cycle data (populated from Django)
+        const cycleData = {
+            {% for cycle in cycles %}
+                {{ cycle.id }}: {
+                    pond: "{{ cycle.pond.name }}",
+                    species: "{{ cycle.species.name }}",
+                    population: {{ cycle.current_population }}
+                },
+            {% endfor %}
+        };
+
+        // Update cycle preview
+        function updateCyclePreview() {
+            const cycleId = parseInt(cycleSelect.value);
+            if (cycleId && cycleData[cycleId]) {
+                cyclePreview.style.display = 'block';
+                cyclePond.textContent = cycleData[cycleId].pond;
+                cycleSpecies.textContent = cycleData[cycleId].species;
+                cyclePopulation.textContent = cycleData[cycleId].population.toLocaleString();
+            } else {
+                cyclePreview.style.display = 'none';
+            }
+        }
+
+        // Toggle resolution date field
+        function toggleResolutionDate() {
+            if (isResolvedCheck) {
+                resolutionDateField.style.display = isResolvedCheck.checked ? 'block' : 'none';
+            }
+        }
+
+        // Validate mortality doesn't exceed population
+        function validateMortality() {
+            const cycleId = parseInt(cycleSelect.value);
+            if (cycleId && cycleData[cycleId]) {
+                const mortality = parseInt(mortalityInput.value) || 0;
+                const affected = parseInt(affectedInput.value) || 0;
+                const population = cycleData[cycleId].population;
+                
+                if (mortality > population) {
+                    mortalityInput.setCustomValidity('Mortality cannot exceed current population');
+                    mortalityInput.classList.add('is-invalid');
+                } else {
+                    mortalityInput.setCustomValidity('');
+                    mortalityInput.classList.remove('is-invalid');
+                }
+                
+                if (affected > population) {
+                    affectedInput.setCustomValidity('Affected count cannot exceed current population');
+                    affectedInput.classList.add('is-invalid');
+                } else {
+                    affectedInput.setCustomValidity('');
+                    affectedInput.classList.remove('is-invalid');
+                }
+            }
+        }
+
+        // Event listeners
+        if (cycleSelect) {
+            cycleSelect.addEventListener('change', function() {
+                updateCyclePreview();
+                validateMortality();
+            });
+        }
+        
+        if (isResolvedCheck) {
+            isResolvedCheck.addEventListener('change', toggleResolutionDate);
+        }
+        
+        if (mortalityInput) {
+            mortalityInput.addEventListener('input', validateMortality);
+        }
+        
+        if (affectedInput) {
+            affectedInput.addEventListener('input', validateMortality);
+        }
+
+        // Initialize
+        updateCyclePreview();
+        toggleResolutionDate();
+
+        // Set default date to today for detection date
+        const detectionDate = document.getElementById('{{ form.detection_date.id_for_label }}');
+        if (detectionDate && !detectionDate.value) {
+            const today = new Date().toISOString().split('T')[0];
+            detectionDate.value = today;
+        }
+
+        // Form validation
+        document.getElementById('diseaseForm').addEventListener('submit', function(e) {
+            const cycle = cycleSelect.value;
+            const diseaseName = document.getElementById('{{ form.disease_name.id_for_label }}').value;
+            const symptoms = document.getElementById('{{ form.symptoms.id_for_label }}').value;
+            
+            if (!cycle) {
+                e.preventDefault();
+                alert('Please select a production cycle');
+                return;
+            }
+            
+            if (!diseaseName.trim()) {
+                e.preventDefault();
+                alert('Please enter a disease name');
+                return;
+            }
+            
+            if (!symptoms.trim()) {
+                e.preventDefault();
+                alert('Please describe the symptoms');
+                return;
+            }
+            
+            // Validate mortality against population
+            const cycleId = parseInt(cycle);
+            if (cycleId && cycleData[cycleId]) {
+                const mortality = parseInt(mortalityInput.value) || 0;
+                const population = cycleData[cycleId].population;
+                
+                if (mortality > population) {
+                    e.preventDefault();
+                    alert('Mortality cannot exceed current population');
+                    return;
+                }
+            }
+        });
+
+        // Unsaved changes warning
+        let formChanged = false;
+        document.getElementById('diseaseForm').addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    });
+
+    // Quick symptom selector
+    function addSymptom(symptom) {
+        const symptomsField = document.getElementById('{{ form.symptoms.id_for_label }}');
+        if (symptomsField) {
+            const currentValue = symptomsField.value;
+            if (currentValue) {
+                symptomsField.value = currentValue + ', ' + symptom;
+            } else {
+                symptomsField.value = symptom;
+            }
+        }
+    }
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #dc3545;
+        box-shadow: 0 5px 20px rgba(220, 53, 69, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+        cursor: default;
+    }
+    
+    .is-invalid {
+        border-color: #dc3545;
+    }
+    
+    .is-invalid:focus {
+        box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
+    }
+    
+    /* Quick symptom buttons */
+    .btn-outline-secondary {
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: white;
+    }
+    
+    /* Cycle preview */
+    #cyclePreview {
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    #cyclePreview:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+    }
+    
+    /* Alert styling */
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Treatment history table */
+    .table-sm td, .table-sm th {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        #cyclePreview .row > div {
+            margin-bottom: 10px;
+        }
+        
+        #cyclePreview .row > div:last-child {
+            margin-bottom: 0;
+        }
+        
+        .d-flex.flex-wrap.gap-2 {
+            justify-content: center;
+        }
+        
+        .btn-outline-secondary {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+    }
+</style>
+{% endblock %}

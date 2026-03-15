@@ -1,0 +1,523 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-arrow-repeat{% endblock %}
+{% block page_title %}Production Cycles{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:cycle_list' %}">Cycles</a></li>
+<li class="breadcrumb-item active" aria-current="page">All Cycles</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportCycles()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:cycle_add' %}" class="btn btn-success">
+        <i class="bi bi-plus-circle me-1"></i> Start New Cycle
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_count }}</div>
+            <div class="fishery-stat-label">Total Cycles</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-play-circle"></i>
+            </div>
+            <div class="fishery-stat-value">{{ running_count }}</div>
+            <div class="fishery-stat-label">Running Cycles</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="fishery-stat-value">{{ completed_count }}</div>
+            <div class="fishery-stat-label">Completed</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-calendar-week"></i>
+            </div>
+            <div class="fishery-stat-value">{{ cycles_ending_soon|default:"0" }}</div>
+            <div class="fishery-stat-label">Harvest Soon</div>
+        </div>
+    </div>
+
+    <!-- Quick Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Cycles
+            </h5>
+            <div class="btn-group" role="group">
+                <a href="?status=RUNNING" class="btn btn-sm {% if current_status == 'RUNNING' %}btn-success{% else %}btn-outline-success{% endif %}">
+                    Running
+                </a>
+                <a href="?status=COMPLETED" class="btn btn-sm {% if current_status == 'COMPLETED' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    Completed
+                </a>
+                <a href="?status=PLANNED" class="btn btn-sm {% if current_status == 'PLANNED' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                    Planned
+                </a>
+                <a href="{% url 'fishery:cycle_list' %}" class="btn btn-sm btn-outline-secondary">
+                    All
+                </a>
+            </div>
+        </div>
+
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Pond</label>
+                        <select name="pond" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Ponds</option>
+                            {% for pond in ponds %}
+                            <option value="{{ pond.id }}" {% if current_pond == pond.id|stringformat:"s" %}selected{% endif %}>
+                                {{ pond.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Species</label>
+                        <select name="species" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Species</option>
+                            {% for species in species %}
+                            <option value="{{ species.id }}" {% if current_species == species.id|stringformat:"s" %}selected{% endif %}>
+                                {{ species.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">From Date</label>
+                        <input type="date" name="date_from" class="fishery-form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">To Date</label>
+                        <input type="date" name="date_to" class="fishery-form-control" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="fishery-btn-add w-100">
+                            <i class="bi bi-search me-1"></i> Apply
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cycles Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Production Cycles
+                <span class="badge bg-primary ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeleteCycles()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Cycle ID</th>
+                        <th>Pond</th>
+                        <th>Species</th>
+                        <th>Stocking Date</th>
+                        <th>Initial Qty</th>
+                        <th>Harvest (kg)</th>
+                        <th>Survival %</th>
+                        <th>FCR</th>
+                        <th>Status</th>
+                        <th>Days</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cycle in cycles %}
+                    <tr class="cycle-row {% if cycle.status == 'RUNNING' %}table-success{% elif cycle.status == 'COMPLETED' %}table-light{% endif %}" data-id="{{ cycle.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input cycle-checkbox" value="{{ cycle.id }}">
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ cycle.cycle_id|slice:":8" }}</span>
+                        </td>
+                        <td>
+                            <a href="{% url 'fishery:pond_detail' cycle.pond.id %}" class="text-decoration-none">
+                                {{ cycle.pond.name }}
+                            </a>
+                        </td>
+                        <td>{{ cycle.species.name }}</td>
+                        <td>{{ cycle.stocking_date|date:"M d, Y" }}</td>
+                        <td>{{ cycle.initial_quantity }}</td>
+                        <td>
+                            {% if cycle.total_harvest > 0 %}
+                                {{ cycle.total_harvest|floatformat:1 }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if cycle.survival_rate > 0 %}
+                                <span class="{% if cycle.survival_rate >= cycle.target_survival %}text-success{% else %}text-warning{% endif %}">
+                                    {{ cycle.survival_rate|floatformat:1 }}%
+                                </span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if cycle.fcr > 0 %}
+                                <span class="{% if cycle.fcr <= cycle.target_fcr %}text-success{% else %}text-danger{% endif %}">
+                                    {{ cycle.fcr|floatformat:2 }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if cycle.status == 'RUNNING' %}
+                                <span class="fishery-badge fishery-badge-success">Running</span>
+                                {% if cycle.days_to_harvest <= 15 %}
+                                    <small class="d-block text-warning">{{ cycle.days_to_harvest }} days left</small>
+                                {% endif %}
+                            {% elif cycle.status == 'COMPLETED' %}
+                                <span class="fishery-badge fishery-badge-primary">Completed</span>
+                            {% elif cycle.status == 'PLANNED' %}
+                                <span class="fishery-badge fishery-badge-warning">Planned</span>
+                            {% elif cycle.status == 'CANCELLED' %}
+                                <span class="fishery-badge fishery-badge-danger">Cancelled</span>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-secondary">{{ cycle.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if cycle.status == 'RUNNING' %}
+                                <span class="badge bg-info">{{ cycle.days_in_production }}d</span>
+                            {% elif cycle.status == 'COMPLETED' %}
+                                <span class="badge bg-secondary">{{ cycle.days_in_production }}d</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:cycle_detail' cycle.id %}" class="btn btn-sm btn-outline-info" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if cycle.status == 'RUNNING' %}
+                                <a href="{% url 'fishery:cycle_complete' cycle.id %}" class="btn btn-sm btn-outline-success" title="Mark Complete">
+                                    <i class="bi bi-check-circle"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'fishery:cycle_edit' cycle.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteCycle({{ cycle.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="12" class="text-center py-5">
+                            <i class="bi bi-arrow-repeat fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No production cycles found</h5>
+                            <p class="text-muted mb-3">Start your first production cycle</p>
+                            <a href="{% url 'fishery:cycle_add' %}" class="btn btn-success">
+                                <i class="bi bi-plus-circle me-2"></i>Start New Cycle
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-success border-success">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Quick Stats Summary -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-trophy-fill text-warning"></i>
+                    Best Performing Cycles
+                </h5>
+                <div id="bestCycles">
+                    {% for cycle in cycles %}
+                    {% if forloop.counter <= 3 and cycle.survival_rate >= 80 %}
+                    <div class="d-flex align-items-center justify-content-between mb-3 p-2 bg-light rounded-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="badge bg-warning rounded-circle p-2">{{ forloop.counter }}</span>
+                            <div>
+                                <span class="fw-bold">{{ cycle.pond.name }}</span>
+                                <small class="text-muted d-block">{{ cycle.species.name }}</small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success">{{ cycle.survival_rate }}% survival</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% empty %}
+                    <p class="text-muted text-center py-4">No performance data available</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-calendar-week text-info"></i>
+                    Upcoming Harvests
+                </h5>
+                <div id="upcomingHarvests">
+                    {% for cycle in cycles %}
+                    {% if cycle.status == 'RUNNING' and cycle.days_to_harvest <= 30 %}
+                    <div class="d-flex align-items-center justify-content-between mb-3 p-2 bg-light rounded-3">
+                        <div>
+                            <span class="fw-bold">{{ cycle.pond.name }}</span>
+                            <small class="text-muted d-block">{{ cycle.species.name }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge {% if cycle.days_to_harvest <= 7 %}bg-danger{% elif cycle.days_to_harvest <= 15 %}bg-warning{% else %}bg-info{% endif %}">
+                                {{ cycle.days_to_harvest }} days
+                            </span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% empty %}
+                    <p class="text-muted text-center py-4">No upcoming harvests</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteCycleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this production cycle?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will also delete all associated feed records, mortality records, and harvests.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteCycleBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Store delete URL template
+    const DELETE_CYCLE_URL = "{% url 'fishery:cycle_delete' 0 %}";
+    
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.cycle-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.cycle-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.cycle-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeleteCycle(cycleId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteCycleModal'));
+        document.getElementById('confirmDeleteCycleBtn').href = DELETE_CYCLE_URL.replace('0', cycleId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeleteCycles() {
+        const selected = Array.from(document.querySelectorAll('.cycle-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} cycles? This cannot be undone.`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/cycles/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportCycles() {
+        window.location.href = "{% url 'fishery:export_cycles' %}";
+    }
+
+    // Row click to view details
+    document.querySelectorAll('.cycle-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:cycle_detail' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .cycle-row {
+        transition: all 0.3s ease;
+    }
+    
+    .cycle-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .cycle-row.table-success {
+        background-color: #d4edda !important;
+    }
+    
+    .cycle-row.table-success:hover {
+        background-color: #c3e6cb !important;
+    }
+    
+    .cycle-row.table-light {
+        background-color: #f8f9fa !important;
+    }
+    
+    .cycle-row td {
+        vertical-align: middle;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+    }
+    
+    .btn-group .btn {
+        margin: 0 2px;
+    }
+    
+    /* Progress indicators */
+    .badge.bg-info, .badge.bg-warning, .badge.bg-danger {
+        font-size: 0.9rem;
+        padding: 5px 12px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.9rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .btn-group {
+            flex-wrap: wrap;
+        }
+    }
+</style>
+{% endblock %}

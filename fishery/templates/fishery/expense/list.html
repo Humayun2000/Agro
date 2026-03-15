@@ -1,0 +1,786 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-receipt{% endblock %}
+{% block page_title %}Expense Management{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:expense_list' %}">Expenses</a></li>
+<li class="breadcrumb-item active" aria-current="page">All Expenses</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportExpenses()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:expense_add' %}" class="btn btn-danger">
+        <i class="bi bi-plus-circle me-1"></i> Add Expense
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon red">
+                <i class="bi bi-receipt"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_expenses }}</div>
+            <div class="fishery-stat-label">Total Expenses</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-calendar-month"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ monthly_total|floatformat:0 }}</div>
+            <div class="fishery-stat-label">This Month</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon info">
+                <i class="bi bi-graph-up"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ average_expense|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Average per Expense</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-tag"></i>
+            </div>
+            <div class="fishery-stat-value">{{ category_count }}</div>
+            <div class="fishery-stat-label">Categories</div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-basket fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Feed</h6>
+                            <h3 class="mb-0">৳{{ feed_total|floatformat:0 }}</h3>
+                            <small class="text-primary">{{ feed_count }} expenses</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-droplet fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Medicine</h6>
+                            <h3 class="mb-0">৳{{ medicine_total|floatformat:0 }}</h3>
+                            <small class="text-success">{{ medicine_count }} expenses</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-tools fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Maintenance</h6>
+                            <h3 class="mb-0">৳{{ maintenance_total|floatformat:0 }}</h3>
+                            <small class="text-warning">{{ maintenance_count }} expenses</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-truck fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Transport</h6>
+                            <h3 class="mb-0">৳{{ transport_total|floatformat:0 }}</h3>
+                            <small class="text-info">{{ transport_count }} expenses</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Expenses
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Expense Type</label>
+                        <select name="type" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            {% for value, label in expense_types %}
+                            <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Pond</label>
+                        <select name="pond" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Ponds</option>
+                            {% for pond in ponds %}
+                            <option value="{{ pond.id }}" {% if current_pond == pond.id|stringformat:"s" %}selected{% endif %}>
+                                {{ pond.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">From Date</label>
+                        <input type="date" name="date_from" class="fishery-form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">To Date</label>
+                        <input type="date" name="date_to" class="fishery-form-control" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="fishery-btn-add w-100">
+                                <i class="bi bi-search me-1"></i> Apply
+                            </button>
+                            <a href="{% url 'fishery:expense_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input type="checkbox" name="high_value" class="form-check-input" id="highValue" 
+                                   {% if high_value %}checked{% endif %} onchange="this.form.submit()">
+                            <label class="form-check-label" for="highValue">Show high value only ( > ৳5000 )</label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- High Value Alert -->
+    {% if high_value_count > 0 %}
+    <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+        <div class="flex-grow-1">
+            <strong>{{ high_value_count }} High Value Expenses Found</strong>
+            <p class="mb-0 mt-1">Total: ৳{{ high_value_total|floatformat:2 }}</p>
+        </div>
+        <button class="btn btn-sm btn-outline-warning" onclick="scrollToHighValue()">
+            View High Value
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Expenses Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Expense Records
+                <span class="badge bg-danger ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeleteExpenses()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Date</th>
+                        <th>Expense Type</th>
+                        <th>Description</th>
+                        <th>Pond/Cycle</th>
+                        <th>Amount</th>
+                        <th>Payment Method</th>
+                        <th>Receipt</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr class="expense-row {% if expense.amount > 5000 %}table-warning{% endif %}" data-id="{{ expense.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input expense-checkbox" value="{{ expense.id }}">
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ expense.expense_date|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ expense.expense_date|timesince }} ago</small>
+                        </td>
+                        <td>
+                            <span class="fishery-badge 
+                                {% if expense.expense_type == 'FEED' %}fishery-badge-primary
+                                {% elif expense.expense_type == 'MEDICINE' %}fishery-badge-success
+                                {% elif expense.expense_type == 'LABOR' %}fishery-badge-warning
+                                {% elif expense.expense_type == 'ELECTRICITY' %}fishery-badge-info
+                                {% elif expense.expense_type == 'MAINTENANCE' %}fishery-badge-secondary
+                                {% elif expense.expense_type == 'TRANSPORT' %}fishery-badge-dark
+                                {% else %}fishery-badge-light{% endif %}">
+                                {{ expense.get_expense_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ expense.description }}</div>
+                            {% if expense.notes %}
+                            <small class="text-muted">{{ expense.notes|truncatechars:30 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if expense.cycle %}
+                                <div class="d-flex align-items-center gap-1">
+                                    <i class="bi bi-water text-info"></i>
+                                    <span>{{ expense.cycle.pond.name }}</span>
+                                </div>
+                                <small class="text-muted">Cycle: {{ expense.cycle.cycle_id|slice:":8" }}</small>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold {% if expense.amount > 5000 %}text-danger{% else %}text-success{% endif %}">
+                                ৳{{ expense.amount|floatformat:2 }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if expense.payment_method %}
+                                <span class="fishery-badge fishery-badge-light">
+                                    {{ expense.get_payment_method_display }}
+                                </span>
+                                {% if expense.paid_to %}
+                                <small class="d-block text-muted">{{ expense.paid_to }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if expense.receipt_number %}
+                                <span class="badge bg-info">{{ expense.receipt_number }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:expense_edit' expense.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% if expense.feed_purchase %}
+                                <a href="{% url 'fishery:feed_purchase_edit' expense.feed_purchase.id %}" class="btn btn-sm btn-outline-info" title="View Feed Purchase">
+                                    <i class="bi bi-basket"></i>
+                                </a>
+                                {% endif %}
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteExpense({{ expense.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5">
+                            <i class="bi bi-receipt fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No expense records found</h5>
+                            <p class="text-muted mb-3">Record your first expense</p>
+                            <a href="{% url 'fishery:expense_add' %}" class="btn btn-danger">
+                                <i class="bi bi-plus-circle me-2"></i>Add Expense
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-danger border-danger">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Expense Analytics -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    Expenses by Type
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="expenseChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-graph-up text-info"></i>
+                    Monthly Expense Trend
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="expenseTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-bar-chart text-success"></i>
+                    Expense Breakdown by Category
+                </h5>
+                <div class="row">
+                    {% for category in category_breakdown %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="fw-bold mb-1">{{ category.type_display }}</h6>
+                                        <small class="text-muted">{{ category.count }} expenses</small>
+                                    </div>
+                                    <span class="badge bg-danger">৳{{ category.total|floatformat:0 }}</span>
+                                </div>
+                                <div class="progress mt-2" style="height: 5px;">
+                                    <div class="progress-bar bg-danger" role="progressbar" 
+                                         style="width: {% widthratio category.total category_grand_total 100 %}%"></div>
+                                </div>
+                                <small class="text-muted">{% widthratio category.total category_grand_total 100 %}% of total</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <p class="text-muted text-center py-3">No expense data available</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Feed Purchases -->
+    {% if recent_feed_purchases %}
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-basket text-success"></i>
+                    Recent Feed Purchases
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Feed Type</th>
+                                <th>Quantity</th>
+                                <th>Cost</th>
+                                <th>Supplier</th>
+                                <th>Invoice</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for purchase in recent_feed_purchases %}
+                            <tr>
+                                <td>{{ purchase.purchase_date|date:"M d, Y" }}</td>
+                                <td>{{ purchase.feed_type.name }}</td>
+                                <td>{{ purchase.quantity_kg }} kg</td>
+                                <td class="fw-bold text-success">৳{{ purchase.total_cost|floatformat:2 }}</td>
+                                <td>{{ purchase.supplier }}</td>
+                                <td>{{ purchase.invoice_number|default:"—" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteExpenseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this expense record?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will affect financial calculations and expense reports.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteExpenseBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Store delete URL template
+    const DELETE_EXPENSE_URL = "{% url 'fishery:expense_delete' 0 %}";
+    
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function() {
+        // Expense by type chart
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ type_labels|safe }},
+                datasets: [{
+                    data: {{ type_data|safe }},
+                    backgroundColor: [
+                        '#0d6efd',
+                        '#28a745',
+                        '#ffc107',
+                        '#0dcaf0',
+                        '#6c757d',
+                        '#fd7e14',
+                        '#20c997',
+                        '#dc3545'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Expense trend chart
+        const trendCtx = document.getElementById('expenseTrendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: {{ trend_labels|safe }},
+                datasets: [{
+                    label: 'Expense Amount (৳)',
+                    data: {{ trend_data|safe }},
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '৳' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.expense-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.expense-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.expense-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeleteExpense(expenseId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteExpenseModal'));
+        document.getElementById('confirmDeleteExpenseBtn').href = DELETE_EXPENSE_URL.replace('0', expenseId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeleteExpenses() {
+        const selected = Array.from(document.querySelectorAll('.expense-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} expense records? This will affect financial calculations.`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/expenses/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportExpenses() {
+        window.location.href = "{% url 'fishery:export_expenses' %}";
+    }
+
+    // Scroll to high value
+    function scrollToHighValue() {
+        const highValue = document.querySelector('.table-warning');
+        if (highValue) {
+            highValue.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    // Row click to edit
+    document.querySelectorAll('.expense-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:expense_edit' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .expense-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .expense-row td {
+        vertical-align: middle;
+    }
+    
+    .table-warning {
+        background-color: #fff3cd !important;
+    }
+    
+    .table-warning:hover {
+        background-color: #ffe69c !important;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        white-space: nowrap;
+    }
+    
+    .fishery-badge-primary {
+        background-color: #cfe2ff;
+        color: #0d6efd;
+    }
+    
+    .fishery-badge-success {
+        background-color: #d4edda;
+        color: #28a745;
+    }
+    
+    .fishery-badge-warning {
+        background-color: #fff3cd;
+        color: #ffc107;
+    }
+    
+    .fishery-badge-info {
+        background-color: #d1ecf1;
+        color: #0dcaf0;
+    }
+    
+    .fishery-badge-secondary {
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+    
+    .fishery-badge-dark {
+        background-color: #d6d8d9;
+        color: #343a40;
+    }
+    
+    .fishery-badge-light {
+        background-color: #f8f9fa;
+        color: #6c757d;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 5px 8px;
+    }
+    
+    .badge.bg-info {
+        background-color: #0dcaf0 !important;
+        color: #000;
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Quick stats cards */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.85rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .fishery-badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 5px;
+        }
+    }
+</style>
+{% endblock %}

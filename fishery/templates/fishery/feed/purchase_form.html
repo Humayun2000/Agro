@@ -1,0 +1,586 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-cart-plus{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Record Feed Purchase{% else %}Edit Purchase - {{ form.instance.invoice_number|default:form.instance.id }}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:feed_type_list' %}">Feed Types</a></li>
+<li class="breadcrumb-item"><a href="{% url 'fishery:feed_purchase_list' %}">Purchases</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Record Purchase{% else %}Edit{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:feed_purchase_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Purchase Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #198754 0%, #157347 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-cart-plus-fill me-2"></i>
+                            Record Feed Purchase
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Purchase: {{ form.instance.invoice_number|default:form.instance.id }}
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Add a new feed purchase to update inventory
+                        {% else %}
+                            Update purchase details and stock information
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="purchaseForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Feed Type Selection -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-box text-success me-2"></i>
+                            Feed Information
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-tag me-1 text-success"></i>
+                                        Feed Type *
+                                    </label>
+                                    {{ form.feed_type }}
+                                    <small class="text-muted">Select the type of feed purchased</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-upc-scan me-1 text-success"></i>
+                                        Batch Number
+                                    </label>
+                                    {{ form.batch_number }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Current Stock Preview (shown when feed type selected) -->
+                        <div id="stockPreview" class="mt-3 p-3 bg-light rounded-3" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">Current Stock:</span>
+                                <span id="currentStockValue" class="badge bg-info">0 kg</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <span class="fw-bold">New Stock After Purchase:</span>
+                                <span id="newStockValue" class="badge bg-success">0 kg</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Purchase Details -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-cart text-primary me-2"></i>
+                            Purchase Details
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar me-1 text-primary"></i>
+                                        Purchase Date *
+                                    </label>
+                                    {{ form.purchase_date }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-123 me-1 text-primary"></i>
+                                        Invoice Number
+                                    </label>
+                                    {{ form.invoice_number }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-building me-1 text-primary"></i>
+                                        Supplier *
+                                    </label>
+                                    {{ form.supplier }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-cake me-1 text-primary"></i>
+                                        Quantity (kg) *
+                                    </label>
+                                    {{ form.quantity_kg }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-currency-dollar me-1 text-primary"></i>
+                                        Price per kg (৳) *
+                                    </label>
+                                    {{ form.price_per_kg }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-cash-stack me-1 text-primary"></i>
+                                        Total Cost
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light">৳</span>
+                                        <input type="text" id="totalCostDisplay" class="fishery-form-control" 
+                                               value="0.00" readonly>
+                                    </div>
+                                    <small class="text-muted">Auto-calculated</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expiry & Additional Info -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-calendar2 text-warning me-2"></i>
+                            Expiry & Additional Information
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar-x me-1 text-warning"></i>
+                                        Expiry Date
+                                    </label>
+                                    {{ form.expiry_date }}
+                                    <small class="text-muted">When does this batch expire?</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-chat-text me-1 text-warning"></i>
+                                        Notes
+                                    </label>
+                                    {{ form.notes }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Expiry Warning -->
+                        <div id="expiryWarning" class="alert alert-warning mt-3 mb-0" style="display: none;">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <span id="expiryMessage"></span>
+                        </div>
+                    </div>
+
+                    <!-- Stock Impact Preview -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-graph-up text-info me-2"></i>
+                            Stock Impact Preview
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="bg-light p-3 rounded-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Current Stock:</span>
+                                        <span class="fw-bold" id="previewCurrentStock">0 kg</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Purchase Quantity:</span>
+                                        <span class="fw-bold text-success" id="previewPurchaseQty">0 kg</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between pt-2 border-top">
+                                        <span class="fw-bold">New Stock:</span>
+                                        <span class="fw-bold text-primary" id="previewNewStock">0 kg</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="bg-light p-3 rounded-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Investment:</span>
+                                        <span class="fw-bold" id="previewInvestment">৳0.00</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Average Price/kg:</span>
+                                        <span class="fw-bold" id="previewAvgPrice">৳0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-4">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created By</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_by.get_full_name|default:form.instance.created_by.username|default:'System' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:feed_purchase_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Record Purchase{% else %}Update Purchase{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const feedTypeSelect = document.getElementById('{{ form.feed_type.id_for_label }}');
+        const quantityInput = document.getElementById('{{ form.quantity_kg.id_for_label }}');
+        const priceInput = document.getElementById('{{ form.price_per_kg.id_for_label }}');
+        const totalDisplay = document.getElementById('totalCostDisplay');
+        const expiryDate = document.getElementById('{{ form.expiry_date.id_for_label }}');
+        const expiryWarning = document.getElementById('expiryWarning');
+        const expiryMessage = document.getElementById('expiryMessage');
+        const stockPreview = document.getElementById('stockPreview');
+        const currentStockSpan = document.getElementById('currentStockValue');
+        const newStockSpan = document.getElementById('newStockValue');
+        
+        // Preview elements
+        const previewCurrentStock = document.getElementById('previewCurrentStock');
+        const previewPurchaseQty = document.getElementById('previewPurchaseQty');
+        const previewNewStock = document.getElementById('previewNewStock');
+        const previewInvestment = document.getElementById('previewInvestment');
+        const previewAvgPrice = document.getElementById('previewAvgPrice');
+
+        // Stock data for feed types (populated from Django)
+        const feedStocks = {
+            {% for feed in feed_types %}
+                {{ feed.id }}: {{ feed.current_stock }},
+            {% endfor %}
+        };
+
+        // Update total cost
+        function updateTotal() {
+            const qty = parseFloat(quantityInput.value) || 0;
+            const price = parseFloat(priceInput.value) || 0;
+            const total = qty * price;
+            totalDisplay.value = total.toFixed(2);
+            
+            // Update preview
+            previewInvestment.innerText = '৳' + total.toFixed(2);
+            if (qty > 0) {
+                previewAvgPrice.innerText = '৳' + price.toFixed(2);
+            }
+        }
+
+        // Update stock preview
+        function updateStockPreview() {
+            const feedId = parseInt(feedTypeSelect.value);
+            const qty = parseFloat(quantityInput.value) || 0;
+            
+            if (feedId && feedStocks[feedId] !== undefined) {
+                stockPreview.style.display = 'block';
+                const currentStock = feedStocks[feedId];
+                const newStock = currentStock + qty;
+                
+                currentStockSpan.innerText = currentStock.toFixed(2) + ' kg';
+                newStockSpan.innerText = newStock.toFixed(2) + ' kg';
+                
+                // Update preview section
+                previewCurrentStock.innerText = currentStock.toFixed(2) + ' kg';
+                previewPurchaseQty.innerText = qty.toFixed(2) + ' kg';
+                previewNewStock.innerText = newStock.toFixed(2) + ' kg';
+                
+                // Color code based on stock level
+                if (newStock < 100) {
+                    newStockSpan.className = 'badge bg-danger';
+                } else if (newStock < 500) {
+                    newStockSpan.className = 'badge bg-warning';
+                } else {
+                    newStockSpan.className = 'badge bg-success';
+                }
+            } else {
+                stockPreview.style.display = 'none';
+            }
+        }
+
+        // Check expiry date
+        function checkExpiry() {
+            if (!expiryDate.value) {
+                expiryWarning.style.display = 'none';
+                return;
+            }
+            
+            const expiry = new Date(expiryDate.value);
+            const today = new Date();
+            const threeMonthsLater = new Date();
+            threeMonthsLater.setMonth(today.getMonth() + 3);
+            
+            if (expiry < today) {
+                expiryWarning.style.display = 'block';
+                expiryMessage.innerText = 'This feed batch has already expired!';
+                expiryWarning.className = 'alert alert-danger mt-3 mb-0';
+            } else if (expiry < threeMonthsLater) {
+                expiryWarning.style.display = 'block';
+                const daysLeft = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+                expiryMessage.innerText = `This feed batch will expire in ${daysLeft} days.`;
+                expiryWarning.className = 'alert alert-warning mt-3 mb-0';
+            } else {
+                expiryWarning.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        if (feedTypeSelect) {
+            feedTypeSelect.addEventListener('change', updateStockPreview);
+        }
+        
+        if (quantityInput) {
+            quantityInput.addEventListener('input', function() {
+                updateTotal();
+                updateStockPreview();
+            });
+        }
+        
+        if (priceInput) {
+            priceInput.addEventListener('input', updateTotal);
+        }
+        
+        if (expiryDate) {
+            expiryDate.addEventListener('change', checkExpiry);
+        }
+
+        // Initial updates
+        updateTotal();
+        updateStockPreview();
+        checkExpiry();
+
+        // Form validation
+        document.getElementById('purchaseForm').addEventListener('submit', function(e) {
+            const feedType = feedTypeSelect.value;
+            const quantity = quantityInput.value;
+            const price = priceInput.value;
+            const supplier = document.getElementById('{{ form.supplier.id_for_label }}').value;
+            
+            if (!feedType) {
+                e.preventDefault();
+                alert('Please select a feed type');
+                return;
+            }
+            
+            if (!quantity || parseFloat(quantity) <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid quantity');
+                return;
+            }
+            
+            if (!price || parseFloat(price) <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid price per kg');
+                return;
+            }
+            
+            if (!supplier.trim()) {
+                e.preventDefault();
+                alert('Please enter a supplier name');
+                return;
+            }
+            
+            // Check expiry date warning
+            if (expiryDate.value) {
+                const expiry = new Date(expiryDate.value);
+                const today = new Date();
+                if (expiry < today) {
+                    if (!confirm('This batch has already expired. Are you sure you want to continue?')) {
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            }
+        });
+
+        // Unsaved changes warning
+        let formChanged = false;
+        document.getElementById('purchaseForm').addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    });
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #198754;
+        box-shadow: 0 5px 20px rgba(25, 135, 84, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+    }
+    
+    .input-group-text {
+        background-color: #f8f9fa;
+        border: 2px solid #e9ecef;
+        border-right: none;
+        border-radius: 12px 0 0 12px;
+    }
+    
+    .input-group .fishery-form-control {
+        border-left: none;
+        border-radius: 0 12px 12px 0;
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+    
+    /* Alert styling */
+    .alert {
+        border-left: 4px solid;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-warning {
+        border-left-color: #ffc107;
+    }
+    
+    .alert-danger {
+        border-left-color: #dc3545;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Stock preview */
+    .bg-light.rounded-3 {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .bg-light.rounded-3:hover {
+        border-color: #198754;
+        box-shadow: 0 5px 15px rgba(25, 135, 84, 0.1);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        .badge {
+            font-size: 0.8rem;
+            padding: 5px 8px;
+        }
+    }
+</style>
+{% endblock %}

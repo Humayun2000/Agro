@@ -3,7 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView, View
 from django.urls import reverse_lazy
 from django.contrib import messages
-from django.db.models import Sum, Avg, Count, Q, F
+from django.db.models import Sum, Avg, Count, Q, Min, Max
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponse
 from datetime import datetime, timedelta
@@ -20,6 +20,11 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 from .models import *
 from .forms import *
+
+
+
+
+
 
 # ==================== DASHBOARD VIEW ====================
 
@@ -704,18 +709,22 @@ class CattleSaleUpdateView(LoginRequiredMixin, UpdateView):
 
 
 class CattleSaleDeleteView(LoginRequiredMixin, DeleteView):
-    """Delete cattle sale"""
     model = CattleSale
     template_name = 'dairy/cattle_sale/delete.html'
     success_url = reverse_lazy('dairy:cattle_sale_list')
     
     def delete(self, request, *args, **kwargs):
-        sale = self.get_object()
-        cattle = sale.cattle
+        self.object = self.get_object()
+        cattle = self.object.cattle
         cattle.status = 'ACTIVE'
         cattle.save()
-        messages.success(request, 'Cattle sale record deleted and cattle marked active.')
+        messages.success(request, f'Sale record deleted and {cattle.tag_number} marked as active.')
         return super().delete(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['sale'] = self.get_object()
+        return context
 
 
 # ==================== HEALTH RECORD VIEWS ====================
@@ -1628,6 +1637,36 @@ class WeightByCattleAPIView(LoginRequiredMixin, View):
             'daily_gain': float(r.daily_gain) if r.daily_gain else None,
         } for r in records]
         return JsonResponse({'success': True, 'data': data})
+    
+class BulkWeightDeleteAPIView(LoginRequiredMixin, View):
+    """Bulk delete weight records"""
+    
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            ids = data.get('ids', [])
+            
+            if not ids:
+                return JsonResponse({'success': False, 'error': 'No IDs provided'})
+            
+            # Get all weight records
+            records = WeightRecord.objects.filter(id__in=ids)
+            
+            # Store count for response
+            count = records.count()
+            
+            # Delete all records
+            records.delete()
+            
+            return JsonResponse({
+                'success': True, 
+                'message': f'Successfully deleted {count} weight records',
+                'count': count
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
 
 class WeightChartAPIView(LoginRequiredMixin, View):
     def get(self, request, cattle_id):
@@ -2993,118 +3032,457 @@ class ReportDashboardView(LoginRequiredMixin, TemplateView):
 
 # ==================== MILK PRODUCTION REPORT VIEW ====================
 
+# class MilkProductionReportView(LoginRequiredMixin, TemplateView):
+#     """Milk production report"""
+#     template_name = 'dairy/reports/milk_production.html'
+    
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         year = int(self.request.GET.get('year', timezone.now().year))
+        
+#         monthly_data = []
+#         for month in range(1, 13):
+#             month_start = datetime(year, month, 1).date()
+#             if month == 12:
+#                 month_end = datetime(year, 12, 31).date()
+#             else:
+#                 month_end = datetime(year, month + 1, 1).date() - timedelta(days=1)
+            
+#             total = MilkRecord.objects.filter(date__range=[month_start, month_end]).aggregate(total=Sum('quantity'))['total'] or 0
+#             count = MilkRecord.objects.filter(date__range=[month_start, month_end]).count()
+#             avg_fat = MilkRecord.objects.filter(date__range=[month_start, month_end]).aggregate(avg=Avg('fat_percentage'))['avg'] or 0
+            
+#             monthly_data.append({
+#                 'month': month_start.strftime('%B'),
+#                 'total': total,
+#                 'count': count,
+#                 'avg_fat': avg_fat
+#             })
+        
+#         context['monthly_data'] = monthly_data
+#         context['year'] = year
+#         context['years'] = range(2020, timezone.now().year + 1)
+        
+#         return context
+
+
+# # ==================== HEALTH SUMMARY REPORT VIEW ====================
+
+# class HealthSummaryReportView(LoginRequiredMixin, TemplateView):
+#     """Health summary report"""
+#     template_name = 'dairy/reports/health_summary.html'
+    
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         year = int(self.request.GET.get('year', timezone.now().year))
+        
+#         health_types = []
+#         for health_type, label in HealthRecord.HEALTH_TYPES:
+#             count = HealthRecord.objects.filter(health_type=health_type, date__year=year).count()
+#             cost = HealthRecord.objects.filter(health_type=health_type, date__year=year).aggregate(total=Sum('treatment_cost'))['total'] or 0
+            
+#             if count > 0:
+#                 health_types.append({
+#                     'type': label,
+#                     'count': count,
+#                     'cost': cost
+#                 })
+        
+#         emergencies = HealthRecord.objects.filter(is_emergency=True, date__year=year).count()
+#         total_cases = HealthRecord.objects.filter(date__year=year).count()
+#         total_cost = HealthRecord.objects.filter(date__year=year).aggregate(total=Sum('treatment_cost'))['total'] or 0
+        
+#         context['health_types'] = health_types
+#         context['emergencies'] = emergencies
+#         context['total_cases'] = total_cases
+#         context['total_cost'] = total_cost
+#         context['year'] = year
+#         context['years'] = range(2020, timezone.now().year + 1)
+        
+#         return context
+
+
+# # ==================== BREEDING PERFORMANCE REPORT VIEW ====================
+
+# class BreedingPerformanceReportView(LoginRequiredMixin, TemplateView):
+#     """Breeding performance report"""
+#     template_name = 'dairy/reports/breeding_performance.html'
+    
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         year = int(self.request.GET.get('year', timezone.now().year))
+        
+#         total_breedings = BreedingRecord.objects.filter(breeding_date__year=year).count()
+#         successful = BreedingRecord.objects.filter(breeding_date__year=year, status='CALVED').count()
+#         failed = BreedingRecord.objects.filter(breeding_date__year=year, status='FAILED').count()
+#         ongoing = BreedingRecord.objects.filter(breeding_date__year=year, status='CONFIRMED').count()
+        
+#         # Monthly breakdown
+#         monthly_data = []
+#         for month in range(1, 13):
+#             month_breedings = BreedingRecord.objects.filter(
+#                 breeding_date__year=year,
+#                 breeding_date__month=month
+#             ).count()
+            
+#             month_calvings = BreedingRecord.objects.filter(
+#                 actual_calving_date__year=year,
+#                 actual_calving_date__month=month
+#             ).count()
+            
+#             monthly_data.append({
+#                 'month': datetime(year, month, 1).strftime('%B'),
+#                 'breedings': month_breedings,
+#                 'calvings': month_calvings
+#             })
+        
+#         context['total_breedings'] = total_breedings
+#         context['successful'] = successful
+#         context['failed'] = failed
+#         context['ongoing'] = ongoing
+#         context['success_rate'] = round((successful / total_breedings * 100) if total_breedings > 0 else 0, 1)
+#         context['monthly_data'] = monthly_data
+#         context['year'] = year
+#         context['years'] = range(2020, timezone.now().year + 1)
+        
+#         return context
+
+
+# views.py
+
 class MilkProductionReportView(LoginRequiredMixin, TemplateView):
-    """Milk production report"""
     template_name = 'dairy/reports/milk_production.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Get filter parameters
+        period = self.request.GET.get('period', 'monthly')
         year = int(self.request.GET.get('year', timezone.now().year))
+        month = self.request.GET.get('month')
+        if month:
+            month = int(month)
+        start_date = self.request.GET.get('start_date')
+        end_date = self.request.GET.get('end_date')
+        cattle_id = self.request.GET.get('cattle')
         
-        monthly_data = []
-        for month in range(1, 13):
-            month_start = datetime(year, month, 1).date()
-            if month == 12:
-                month_end = datetime(year, 12, 31).date()
+        # Calculate date range based on period
+        if period == 'daily':
+            if start_date:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = start_date
             else:
-                month_end = datetime(year, month + 1, 1).date() - timedelta(days=1)
-            
-            total = MilkRecord.objects.filter(date__range=[month_start, month_end]).aggregate(total=Sum('quantity'))['total'] or 0
-            count = MilkRecord.objects.filter(date__range=[month_start, month_end]).count()
-            avg_fat = MilkRecord.objects.filter(date__range=[month_start, month_end]).aggregate(avg=Avg('fat_percentage'))['avg'] or 0
-            
-            monthly_data.append({
-                'month': month_start.strftime('%B'),
-                'total': total,
-                'count': count,
-                'avg_fat': avg_fat
-            })
+                start_date = timezone.now().date()
+                end_date = start_date
+        elif period == 'weekly':
+            if start_date:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = start_date + timedelta(days=6)
+            else:
+                end_date = timezone.now().date()
+                start_date = end_date - timedelta(days=6)
+        elif period == 'monthly':
+            if month:
+                start_date = datetime(year, month, 1).date()
+                if month == 12:
+                    end_date = datetime(year+1, 1, 1).date() - timedelta(days=1)
+                else:
+                    end_date = datetime(year, month+1, 1).date() - timedelta(days=1)
+            else:
+                today = timezone.now().date()
+                start_date = datetime(today.year, today.month, 1).date()
+                if today.month == 12:
+                    end_date = datetime(today.year+1, 1, 1).date() - timedelta(days=1)
+                else:
+                    end_date = datetime(today.year, today.month+1, 1).date() - timedelta(days=1)
+        elif period == 'quarterly':
+            quarter = int(self.request.GET.get('quarter', (timezone.now().month-1)//3 + 1))
+            start_month = quarter * 3 - 2
+            end_month = quarter * 3
+            start_date = datetime(year, start_month, 1).date()
+            if end_month == 12:
+                end_date = datetime(year+1, 1, 1).date() - timedelta(days=1)
+            else:
+                end_date = datetime(year, end_month+1, 1).date() - timedelta(days=1)
+        elif period == 'yearly':
+            start_date = datetime(year, 1, 1).date()
+            end_date = datetime(year, 12, 31).date()
+        elif period == 'custom':
+            if start_date:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            if end_date:
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            if not start_date:
+                start_date = timezone.now().date() - timedelta(days=30)
+            if not end_date:
+                end_date = timezone.now().date()
         
-        context['monthly_data'] = monthly_data
+        # Base queryset
+        milk_records = MilkRecord.objects.filter(
+            date__range=[start_date, end_date]
+        ).select_related('cattle')
+        
+        # Filter by specific cattle if selected
+        if cattle_id:
+            milk_records = milk_records.filter(cattle_id=cattle_id)
+        
+        # Calculate summary statistics - using imported Sum, Avg, etc.
+        total_milk = milk_records.aggregate(
+            total=Sum('quantity')
+        )['total'] or 0
+        context['total_milk'] = total_milk
+        
+        days_diff = (end_date - start_date).days + 1
+        context['avg_daily'] = total_milk / days_diff if days_diff > 0 else 0
+        
+        avg_fat = milk_records.aggregate(
+            avg=Avg('fat_percentage')
+        )['avg'] or 0
+        context['avg_fat'] = avg_fat
+        
+        # Revenue calculation
+        milk_sales = MilkSale.objects.filter(
+            date__range=[start_date, end_date]
+        )
+        total_revenue = milk_sales.aggregate(
+            total=Sum('total_amount')
+        )['total'] or 0
+        context['total_revenue'] = total_revenue
+        
+        context['avg_price'] = total_revenue / total_milk if total_milk > 0 else 0
+        
+        # Lactating cows
+        lactating_cows = milk_records.values('cattle').distinct().count()
+        context['total_lactating'] = lactating_cows
+        context['avg_per_cow'] = total_milk / lactating_cows if lactating_cows > 0 else 0
+        
+        # Peak production day
+        daily_totals = milk_records.values('date').annotate(
+            daily_total=Sum('quantity')
+        ).order_by('-daily_total')
+        
+        if daily_totals:
+            peak_day = daily_totals.first()
+            context['peak_day'] = peak_day['date']
+            context['peak_amount'] = peak_day['daily_total']
+        else:
+            context['peak_day'] = None
+            context['peak_amount'] = 0
+        
+        # Growth percentage compared to previous period
+        prev_start = start_date - timedelta(days=days_diff)
+        prev_end = start_date - timedelta(days=1)
+        
+        prev_total = MilkRecord.objects.filter(
+            date__range=[prev_start, prev_end]
+        ).aggregate(prev_total=Sum('quantity'))['prev_total'] or 0
+        
+        context['milk_growth'] = ((total_milk - prev_total) / prev_total * 100) if prev_total > 0 else 0
+        
+        # Top producers - Using Max (make sure Max is imported)
+        from django.db.models import Max  # Import here if not at top
+        
+        top_producers_data = milk_records.values(
+            'cattle', 'cattle__tag_number', 'cattle__name', 'cattle__breed'
+        ).annotate(
+            total=Sum('quantity'),
+            avg=Avg('quantity'),
+            max=Max('quantity')
+        ).order_by('-total')[:10]
+        
+        context['top_producers'] = []
+        for producer in top_producers_data:
+            producer_dict = {
+                'cattle': {
+                    'id': producer['cattle'],
+                    'tag_number': producer['cattle__tag_number'],
+                    'name': producer['cattle__name'] or '',
+                    'breed': producer['cattle__breed'],
+                    'get_breed_display': lambda: producer['cattle__breed']
+                },
+                'total': producer['total'],
+                'avg': producer['avg'],
+                'max': producer['max'],
+                'percentage': (producer['total'] / total_milk * 100) if total_milk > 0 else 0
+            }
+            context['top_producers'].append(producer_dict)
+        
+        # Daily breakdown
+        daily_data = milk_records.values('date').annotate(
+            morning=Sum('quantity', filter=Q(session='MORNING')),
+            afternoon=Sum('quantity', filter=Q(session='AFTERNOON')),
+            evening=Sum('quantity', filter=Q(session='EVENING')),
+            total=Sum('quantity'),
+            avg_fat=Avg('fat_percentage'),
+            cow_count=Count('cattle', distinct=True)
+        ).order_by('date')
+        
+        context['daily_breakdown'] = []
+        context['chart_labels'] = []
+        context['morning_data'] = []
+        context['afternoon_data'] = []
+        context['evening_data'] = []
+        context['total_data'] = []
+        
+        for day in daily_data:
+            # Calculate revenue for this day
+            day_revenue = MilkSale.objects.filter(
+                date=day['date']
+            ).aggregate(day_total=Sum('total_amount'))['day_total'] or 0
+            
+            context['daily_breakdown'].append({
+                'date': day['date'],
+                'morning': float(day['morning'] or 0),
+                'afternoon': float(day['afternoon'] or 0),
+                'evening': float(day['evening'] or 0),
+                'total': float(day['total'] or 0),
+                'avg_fat': float(day['avg_fat'] or 0),
+                'cow_count': day['cow_count'] or 0,
+                'revenue': float(day_revenue)
+            })
+            
+            context['chart_labels'].append(day['date'].strftime('%Y-%m-%d'))
+            context['morning_data'].append(float(day['morning'] or 0))
+            context['afternoon_data'].append(float(day['afternoon'] or 0))
+            context['evening_data'].append(float(day['evening'] or 0))
+            context['total_data'].append(float(day['total'] or 0))
+        
+        # Context for filters
+        context['period'] = period
         context['year'] = year
-        context['years'] = range(2020, timezone.now().year + 1)
+        context['month'] = month
+        context['start_date'] = start_date
+        context['end_date'] = end_date
+        context['selected_cattle'] = int(cattle_id) if cattle_id else None
+        
+        # Years for filter dropdown
+        current_year = timezone.now().year
+        context['years'] = range(current_year - 5, current_year + 1)
+        
+        # Months for filter dropdown
+        context['months'] = [
+            {'value': 1, 'name': 'January'},
+            {'value': 2, 'name': 'February'},
+            {'value': 3, 'name': 'March'},
+            {'value': 4, 'name': 'April'},
+            {'value': 5, 'name': 'May'},
+            {'value': 6, 'name': 'June'},
+            {'value': 7, 'name': 'July'},
+            {'value': 8, 'name': 'August'},
+            {'value': 9, 'name': 'September'},
+            {'value': 10, 'name': 'October'},
+            {'value': 11, 'name': 'November'},
+            {'value': 12, 'name': 'December'},
+        ]
+        
+        # Cattle list for filter
+        context['cattle_list'] = Cattle.objects.filter(status='ACTIVE').values('id', 'tag_number', 'name')
         
         return context
 
-
-# ==================== HEALTH SUMMARY REPORT VIEW ====================
-
 class HealthSummaryReportView(LoginRequiredMixin, TemplateView):
-    """Health summary report"""
     template_name = 'dairy/reports/health_summary.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         year = int(self.request.GET.get('year', timezone.now().year))
+        quarter = int(self.request.GET.get('quarter', 
+                     (timezone.now().month - 1) // 3 + 1))
         
-        health_types = []
-        for health_type, label in HealthRecord.HEALTH_TYPES:
-            count = HealthRecord.objects.filter(health_type=health_type, date__year=year).count()
-            cost = HealthRecord.objects.filter(health_type=health_type, date__year=year).aggregate(total=Sum('treatment_cost'))['total'] or 0
-            
-            if count > 0:
-                health_types.append({
-                    'type': label,
-                    'count': count,
-                    'cost': cost
-                })
+        # Calculate quarter dates
+        start_month = quarter * 3 - 2
+        end_month = quarter * 3
+        start_date = datetime(year, start_month, 1).date()
         
-        emergencies = HealthRecord.objects.filter(is_emergency=True, date__year=year).count()
-        total_cases = HealthRecord.objects.filter(date__year=year).count()
-        total_cost = HealthRecord.objects.filter(date__year=year).aggregate(total=Sum('treatment_cost'))['total'] or 0
+        if end_month == 12:
+            end_date = datetime(year+1, 1, 1).date() - timedelta(days=1)
+        else:
+            end_date = datetime(year, end_month+1, 1).date() - timedelta(days=1)
         
-        context['health_types'] = health_types
-        context['emergencies'] = emergencies
-        context['total_cases'] = total_cases
-        context['total_cost'] = total_cost
+        # Get health records
+        health_records = HealthRecord.objects.filter(
+            date__range=[start_date, end_date]
+        ).select_related('cattle')
+        
+        # Cases by type
+        context['cases_by_type'] = health_records.values(
+            'health_type'
+        ).annotate(
+            count=Count('id'),
+            total_cost=Sum('treatment_cost')
+        )
+        
+        # Emergency cases
+        context['emergencies'] = health_records.filter(
+            is_emergency=True
+        ).order_by('-date')[:10]
+        
+        # Vaccination status
+        today = timezone.now().date()
+        context['vaccination_status'] = {
+            'upcoming': VaccinationSchedule.objects.filter(
+                scheduled_date__gte=today,
+                is_completed=False
+            ).count(),
+            'overdue': VaccinationSchedule.objects.filter(
+                scheduled_date__lt=today,
+                is_completed=False
+            ).count(),
+            'completed': VaccinationSchedule.objects.filter(
+                administered_date__year=year
+            ).count(),
+        }
+        
         context['year'] = year
-        context['years'] = range(2020, timezone.now().year + 1)
+        context['quarter'] = quarter
         
         return context
 
 
-# ==================== BREEDING PERFORMANCE REPORT VIEW ====================
-
 class BreedingPerformanceReportView(LoginRequiredMixin, TemplateView):
-    """Breeding performance report"""
     template_name = 'dairy/reports/breeding_performance.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         year = int(self.request.GET.get('year', timezone.now().year))
         
-        total_breedings = BreedingRecord.objects.filter(breeding_date__year=year).count()
-        successful = BreedingRecord.objects.filter(breeding_date__year=year, status='CALVED').count()
-        failed = BreedingRecord.objects.filter(breeding_date__year=year, status='FAILED').count()
-        ongoing = BreedingRecord.objects.filter(breeding_date__year=year, status='CONFIRMED').count()
+        # Get breeding records for the year
+        breedings = BreedingRecord.objects.filter(
+            breeding_date__year=year
+        ).select_related('cattle', 'sire')
         
-        # Monthly breakdown
-        monthly_data = []
-        for month in range(1, 13):
-            month_breedings = BreedingRecord.objects.filter(
-                breeding_date__year=year,
-                breeding_date__month=month
-            ).count()
-            
-            month_calvings = BreedingRecord.objects.filter(
-                actual_calving_date__year=year,
-                actual_calving_date__month=month
-            ).count()
-            
-            monthly_data.append({
-                'month': datetime(year, month, 1).strftime('%B'),
-                'breedings': month_breedings,
-                'calvings': month_calvings
-            })
+        # Calculate statistics
+        context['total_breedings'] = breedings.count()
+        context['confirmed_pregnant'] = breedings.filter(
+            is_pregnant=True
+        ).count()
+        context['calved'] = breedings.filter(
+            status='CALVED'
+        ).count()
         
-        context['total_breedings'] = total_breedings
-        context['successful'] = successful
-        context['failed'] = failed
-        context['ongoing'] = ongoing
-        context['success_rate'] = round((successful / total_breedings * 100) if total_breedings > 0 else 0, 1)
-        context['monthly_data'] = monthly_data
+        # Success rate
+        if context['total_breedings'] > 0:
+            context['success_rate'] = round(
+                context['confirmed_pregnant'] / context['total_breedings'] * 100, 1
+            )
+        
+        # Upcoming calving
+        today = timezone.now().date()
+        context['upcoming_calving'] = BreedingRecord.objects.filter(
+            expected_calving_date__gte=today,
+            is_pregnant=True,
+            status='CONFIRMED'
+        ).order_by('expected_calving_date')[:10]
+        
+        # Sire performance
+        context['sire_performance'] = breedings.values(
+            'sire__tag_number', 'sire__breed'
+        ).annotate(
+            total=Count('id'),
+            successful=Count('id', filter=Q(is_pregnant=True))
+        ).order_by('-successful')
+        
         context['year'] = year
-        context['years'] = range(2020, timezone.now().year + 1)
         
         return context
 

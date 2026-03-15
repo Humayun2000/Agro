@@ -1,0 +1,740 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-capsule{% endblock %}
+{% block page_title %}Treatment Records{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:treatment_list' %}">Health</a></li>
+<li class="breadcrumb-item active" aria-current="page">Treatments</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportTreatments()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:treatment_add' %}" class="btn btn-info">
+        <i class="bi bi-plus-circle me-1"></i> Add Treatment
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-capsule"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_treatments }}</div>
+            <div class="fishery-stat-label">Total Treatments</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-calendar-week"></i>
+            </div>
+            <div class="fishery-stat-value">{{ treatments_this_month }}</div>
+            <div class="fishery-stat-label">This Month</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ total_cost|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Total Cost</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon info">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="fishery-stat-value">{{ pending_followup }}</div>
+            <div class="fishery-stat-label">Pending Follow-up</div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-danger bg-opacity-10 rounded p-3">
+                                <i class="bi bi-eyedropper fs-3 text-danger"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Antibiotic</h6>
+                            <h3 class="mb-0">{{ antibiotic_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-bug fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Antiparasitic</h6>
+                            <h3 class="mb-0">{{ antiparasitic_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-droplet fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Fungicide</h6>
+                            <h3 class="mb-0">{{ fungicide_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-capsule fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Other</h6>
+                            <h3 class="mb-0">{{ other_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Treatment Records
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Pond</label>
+                        <select name="pond" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Ponds</option>
+                            {% for pond in ponds %}
+                            <option value="{{ pond.id }}" {% if current_pond == pond.id|stringformat:"s" %}selected{% endif %}>
+                                {{ pond.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Treatment Type</label>
+                        <select name="treatment_type" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            {% for value, label in treatment_types %}
+                            <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">From Date</label>
+                        <input type="date" name="date_from" class="fishery-form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">To Date</label>
+                        <input type="date" name="date_to" class="fishery-form-control" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="fishery-btn-add w-100">
+                                <i class="bi bi-search me-1"></i> Apply
+                            </button>
+                            <a href="{% url 'fishery:treatment_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pending Follow-up Alert -->
+    {% if pending_followup > 0 %}
+    <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-clock-history fs-4"></i>
+        <div class="flex-grow-1">
+            <strong>{{ pending_followup }} Treatments Require Follow-up</strong>
+            <p class="mb-0 mt-1">These treatments have scheduled follow-up dates that need attention.</p>
+        </div>
+        <button class="btn btn-sm btn-outline-warning" onclick="scrollToFollowup()">
+            View Pending
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Treatment Records Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Treatment Records
+                <span class="badge bg-info ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeleteTreatments()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Date</th>
+                        <th>Pond</th>
+                        <th>Cycle</th>
+                        <th>Treatment Type</th>
+                        <th>Medication</th>
+                        <th>Dosage</th>
+                        <th>Method</th>
+                        <th>Next Application</th>
+                        <th>Cost</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for treatment in treatments %}
+                    <tr class="treatment-row {% if treatment.next_application and treatment.next_application < today %}table-danger{% elif treatment.next_application and treatment.next_application <= followup_soon %}table-warning{% endif %}" data-id="{{ treatment.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input treatment-checkbox" value="{{ treatment.id }}">
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ treatment.application_date|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ treatment.application_date|timesince }} ago</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="pond-avatar bg-info bg-opacity-10 rounded p-2">
+                                    <i class="bi bi-water text-info"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ treatment.cycle.pond.name }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="{% url 'fishery:cycle_detail' treatment.cycle.id %}" class="text-decoration-none">
+                                {{ treatment.cycle.cycle_id|slice:":8" }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="fishery-badge 
+                                {% if treatment.treatment_type == 'ANTIBIOTIC' %}fishery-badge-danger
+                                {% elif treatment.treatment_type == 'ANTIPARASITIC' %}fishery-badge-warning
+                                {% elif treatment.treatment_type == 'FUNGICIDE' %}fishery-badge-success
+                                {% elif treatment.treatment_type == 'VACCINE' %}fishery-badge-info
+                                {% elif treatment.treatment_type == 'PROBIOTIC' %}fishery-badge-primary
+                                {% else %}fishery-badge-secondary{% endif %}">
+                                {{ treatment.get_treatment_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ treatment.medication_name }}</td>
+                        <td>{{ treatment.dosage }}</td>
+                        <td>{{ treatment.get_application_method_display }}</td>
+                        <td>
+                            {% if treatment.next_application %}
+                                <span class="{% if treatment.next_application < today %}text-danger{% elif treatment.next_application <= followup_soon %}text-warning{% endif %}">
+                                    {{ treatment.next_application|date:"M d, Y" }}
+                                </span>
+                                {% if treatment.next_application < today %}
+                                    <i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Overdue"></i>
+                                {% elif treatment.next_application <= followup_soon %}
+                                    <i class="bi bi-clock-history text-warning ms-1" title="Due soon"></i>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold text-success">৳{{ treatment.cost|floatformat:2 }}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:treatment_edit' treatment.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'fishery:treatment_add' %}?disease={{ treatment.disease.id }}" class="btn btn-sm btn-outline-info" title="Related Disease">
+                                    <i class="bi bi-bug"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteTreatment({{ treatment.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center py-5">
+                            <i class="bi bi-capsule fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No treatment records found</h5>
+                            <p class="text-muted mb-3">Record your first treatment</p>
+                            <a href="{% url 'fishery:treatment_add' %}" class="btn btn-info">
+                                <i class="bi bi-plus-circle me-2"></i>Add Treatment
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-info border-info">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Treatment Analytics -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    Treatment Distribution
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="treatmentChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-clock-history text-info"></i>
+                    Upcoming Follow-ups
+                </h5>
+                <div style="max-height: 250px; overflow-y: auto;">
+                    {% for treatment in treatments %}
+                        {% if treatment.next_application and treatment.next_application >= today %}
+                        <div class="d-flex align-items-center justify-content-between mb-2 p-2 bg-light rounded-3">
+                            <div>
+                                <span class="fw-bold">{{ treatment.cycle.pond.name }}</span>
+                                <small class="text-muted d-block">{{ treatment.medication_name }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge {% if treatment.next_application <= followup_soon %}bg-warning{% else %}bg-info{% endif %}">
+                                    {{ treatment.next_application|date:"M d" }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% empty %}
+                    <p class="text-muted text-center py-3">No upcoming follow-ups</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Summary by Type -->
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-cash-stack text-success"></i>
+                    Treatment Costs by Type
+                </h5>
+                <div class="row">
+                    {% for cost in costs_by_type %}
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="fw-bold mb-1">{{ cost.treatment_type }}</h6>
+                                        <small class="text-muted">{{ cost.count }} treatments</small>
+                                    </div>
+                                    <span class="badge bg-success">৳{{ cost.total_cost|floatformat:0 }}</span>
+                                </div>
+                                <div class="progress mt-2" style="height: 5px;">
+                                    {% widthratio cost.total_cost total_cost 100 as cost_percentage %}
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                         style="width: {{ cost_percentage }}%"></div>
+                                </div>
+                                <small class="text-muted">{{ cost_percentage }}% of total</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <p class="text-muted text-center py-3">No cost data available</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteTreatmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this treatment record?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will remove treatment history for this disease.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteTreatmentBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Store delete URL template
+    const DELETE_TREATMENT_URL = "{% url 'fishery:treatment_delete' 0 %}";
+    
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('treatmentChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ type_labels|safe }},
+                datasets: [{
+                    data: {{ type_data|safe }},
+                    backgroundColor: [
+                        '#dc3545',
+                        '#ffc107',
+                        '#28a745',
+                        '#0dcaf0',
+                        '#0d6efd',
+                        '#6c757d'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.treatment-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.treatment-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.treatment-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeleteTreatment(treatmentId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteTreatmentModal'));
+        document.getElementById('confirmDeleteTreatmentBtn').href = DELETE_TREATMENT_URL.replace('0', treatmentId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeleteTreatments() {
+        const selected = Array.from(document.querySelectorAll('.treatment-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} treatment records?`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/treatments/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportTreatments() {
+        window.location.href = "{% url 'fishery:export_treatments' %}";
+    }
+
+    // Scroll to follow-up
+    function scrollToFollowup() {
+        const followup = document.querySelector('.table-warning, .table-danger');
+        if (followup) {
+            followup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    // Row click to edit
+    document.querySelectorAll('.treatment-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:treatment_edit' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .pond-avatar {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .treatment-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .treatment-row td {
+        vertical-align: middle;
+    }
+    
+    .table-danger {
+        background-color: #f8d7da !important;
+    }
+    
+    .table-danger:hover {
+        background-color: #f5c6cb !important;
+    }
+    
+    .table-warning {
+        background-color: #fff3cd !important;
+    }
+    
+    .table-warning:hover {
+        background-color: #ffe69c !important;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        white-space: nowrap;
+    }
+    
+    .fishery-badge-danger {
+        background-color: #f8d7da;
+        color: #dc3545;
+    }
+    
+    .fishery-badge-warning {
+        background-color: #fff3cd;
+        color: #ffc107;
+    }
+    
+    .fishery-badge-success {
+        background-color: #d4edda;
+        color: #28a745;
+    }
+    
+    .fishery-badge-info {
+        background-color: #d1ecf1;
+        color: #0dcaf0;
+    }
+    
+    .fishery-badge-primary {
+        background-color: #cfe2ff;
+        color: #0d6efd;
+    }
+    
+    .fishery-badge-secondary {
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 5px 8px;
+    }
+    
+    .badge.bg-warning {
+        color: #000;
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Quick stats cards */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Upcoming follow-ups scrollbar */
+    #upcomingFollowups {
+        max-height: 250px;
+        overflow-y: auto;
+    }
+    
+    #upcomingFollowups::-webkit-scrollbar {
+        width: 5px;
+    }
+    
+    #upcomingFollowups::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 10px;
+    }
+    
+    #upcomingFollowups::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+    
+    #upcomingFollowups::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.85rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .pond-avatar {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .fishery-badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 5px;
+        }
+    }
+</style>
+{% endblock %}

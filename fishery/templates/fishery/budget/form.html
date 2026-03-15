@@ -1,0 +1,735 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Create New Budget{% else %}Edit Budget - {{ form.instance.cycle.pond.name }}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:budget_list' %}">Budgets</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Create Budget{% else %}Edit Budget{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:budget_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Budget Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Create New Budget Plan
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Budget: {{ form.instance.cycle.pond.name }}
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Plan and track expenses for a production cycle
+                        {% else %}
+                            Update budget allocations and targets
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="budgetForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Cycle Selection -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-arrow-repeat text-primary me-2"></i>
+                            Production Cycle
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-water me-1 text-primary"></i>
+                                        Production Cycle *
+                                    </label>
+                                    {{ form.cycle }}
+                                    <small class="text-muted">Select the production cycle to budget for</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cycle Preview -->
+                        <div id="cyclePreview" class="mt-3 p-3 bg-light rounded-3" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Pond:</small>
+                                    <span class="fw-bold" id="cyclePond">—</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Species:</small>
+                                    <span class="fw-bold" id="cycleSpecies">—</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Stocking Date:</small>
+                                    <span class="fw-bold" id="cycleDate">—</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Current Expenses:</small>
+                                    <span class="fw-bold" id="cycleExpenses">৳0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget Categories -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-fish text-primary me-2"></i>
+                                    Fingerlings & Stocking
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-123 me-1 text-primary"></i>
+                                        Planned Fingerling Cost (৳)
+                                    </label>
+                                    {{ form.planned_fingerling_cost }}
+                                    <small class="text-muted">Budget for fingerling purchase</small>
+                                </div>
+
+                                {% if form.instance.cycle and form.instance.cycle.fingerling_cost %}
+                                <div class="alert alert-info mt-2 py-2">
+                                    <small>Current actual: <strong>৳{{ form.instance.cycle.fingerling_cost|floatformat:2 }}</strong></small>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-basket text-success me-2"></i>
+                                    Feed & Nutrition
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-123 me-1 text-success"></i>
+                                        Planned Feed Cost (৳)
+                                    </label>
+                                    {{ form.planned_feed_cost }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-123 me-1 text-success"></i>
+                                        Planned Medicine Cost (৳)
+                                    </label>
+                                    {{ form.planned_medicine_cost }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-people text-warning me-2"></i>
+                                    Labor & Operations
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-123 me-1 text-warning"></i>
+                                        Planned Labor Cost (৳)
+                                    </label>
+                                    {{ form.planned_labor_cost }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-123 me-1 text-warning"></i>
+                                        Planned Other Cost (৳)
+                                    </label>
+                                    {{ form.planned_other_cost }}
+                                </div>
+                            </div>
+
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-calculator text-info me-2"></i>
+                                    Revenue Targets
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-123 me-1 text-info"></i>
+                                        Planned Harvest (kg)
+                                    </label>
+                                    {{ form.planned_harvest_kg }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-currency-dollar me-1 text-info"></i>
+                                        Planned Price per kg (৳)
+                                    </label>
+                                    {{ form.planned_price_per_kg }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget Summary -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-calculator text-secondary me-2"></i>
+                            Budget Summary
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="summary-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Total Investment</small>
+                                    <h4 class="mb-0 text-primary" id="totalInvestment">৳0</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="summary-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Expected Revenue</small>
+                                    <h4 class="mb-0 text-success" id="expectedRevenue">৳0</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="summary-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Expected Profit</small>
+                                    <h4 class="mb-0 text-warning" id="expectedProfit">৳0</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="summary-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">ROI</small>
+                                    <h4 class="mb-0 text-info" id="expectedROI">0%</h4>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="progress" style="height: 10px;">
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                         style="width: 0%" id="profitMarginBar"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted" id="profitMarginText">Profit Margin: 0%</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comparison with Actuals (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-bar-chart text-info me-2"></i>
+                            Budget vs Actual Comparison
+                        </h5>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th class="text-end">Budgeted</th>
+                                        <th class="text-end">Actual</th>
+                                        <th class="text-end">Variance</th>
+                                        <th class="text-end">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Fingerlings</td>
+                                        <td class="text-end">৳{{ form.instance.planned_fingerling_cost|floatformat:2 }}</td>
+                                        <td class="text-end">৳{{ actual_fingerlings|floatformat:2 }}</td>
+                                        <td class="text-end {% if actual_fingerlings > form.instance.planned_fingerling_cost %}text-danger{% else %}text-success{% endif %}">
+                                            ৳{{ actual_fingerlings|add:form.instance.planned_fingerling_cost|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end">
+                                            {% if actual_fingerlings > form.instance.planned_fingerling_cost %}
+                                                <span class="badge bg-danger">Over</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Under</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Feed</td>
+                                        <td class="text-end">৳{{ form.instance.planned_feed_cost|floatformat:2 }}</td>
+                                        <td class="text-end">৳{{ actual_feed|floatformat:2 }}</td>
+                                        <td class="text-end {% if actual_feed > form.instance.planned_feed_cost %}text-danger{% else %}text-success{% endif %}">
+                                            ৳{{ actual_feed|add:form.instance.planned_feed_cost|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end">
+                                            {% if actual_feed > form.instance.planned_feed_cost %}
+                                                <span class="badge bg-danger">Over</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Under</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Medicine</td>
+                                        <td class="text-end">৳{{ form.instance.planned_medicine_cost|floatformat:2 }}</td>
+                                        <td class="text-end">৳{{ actual_medicine|floatformat:2 }}</td>
+                                        <td class="text-end {% if actual_medicine > form.instance.planned_medicine_cost %}text-danger{% else %}text-success{% endif %}">
+                                            ৳{{ actual_medicine|add:form.instance.planned_medicine_cost|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end">
+                                            {% if actual_medicine > form.instance.planned_medicine_cost %}
+                                                <span class="badge bg-danger">Over</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Under</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Labor</td>
+                                        <td class="text-end">৳{{ form.instance.planned_labor_cost|floatformat:2 }}</td>
+                                        <td class="text-end">৳{{ actual_labor|floatformat:2 }}</td>
+                                        <td class="text-end {% if actual_labor > form.instance.planned_labor_cost %}text-danger{% else %}text-success{% endif %}">
+                                            ৳{{ actual_labor|add:form.instance.planned_labor_cost|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end">
+                                            {% if actual_labor > form.instance.planned_labor_cost %}
+                                                <span class="badge bg-danger">Over</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Under</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Other</td>
+                                        <td class="text-end">৳{{ form.instance.planned_other_cost|floatformat:2 }}</td>
+                                        <td class="text-end">৳{{ actual_other|floatformat:2 }}</td>
+                                        <td class="text-end {% if actual_other > form.instance.planned_other_cost %}text-danger{% else %}text-success{% endif %}">
+                                            ৳{{ actual_other|add:form.instance.planned_other_cost|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end">
+                                            {% if actual_other > form.instance.planned_other_cost %}
+                                                <span class="badge bg-danger">Over</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Under</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td>Total</td>
+                                        <td class="text-end">৳{{ total_budgeted|floatformat:2 }}</td>
+                                        <td class="text-end">৳{{ total_actual|floatformat:2 }}</td>
+                                        <td class="text-end {% if total_actual > total_budgeted %}text-danger{% else %}text-success{% endif %}">
+                                            ৳{{ total_actual|add:total_budgeted|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end">
+                                            {% if total_actual > total_budgeted %}
+                                                <span class="badge bg-danger">Over Budget</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Under Budget</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Budget Guidelines -->
+                    <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+                        <i class="bi bi-lightbulb-fill fs-4"></i>
+                        <div>
+                            <strong>Budget Planning Tips:</strong>
+                            <ul class="mb-0 mt-1">
+                                <li>Base fingerling costs on actual supplier quotes</li>
+                                <li>Calculate feed costs based on expected FCR and growth</li>
+                                <li>Include medicine costs for disease prevention</li>
+                                <li>Factor in labor costs for feeding, monitoring, and harvesting</li>
+                                <li>Research current market prices for revenue projections</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Last Updated</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.updated_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:budget_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Create Budget{% else %}Update Budget{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const cycleSelect = document.getElementById('{{ form.cycle.id_for_label }}');
+        const fingerlingCost = document.getElementById('{{ form.planned_fingerling_cost.id_for_label }}');
+        const feedCost = document.getElementById('{{ form.planned_feed_cost.id_for_label }}');
+        const medicineCost = document.getElementById('{{ form.planned_medicine_cost.id_for_label }}');
+        const laborCost = document.getElementById('{{ form.planned_labor_cost.id_for_label }}');
+        const otherCost = document.getElementById('{{ form.planned_other_cost.id_for_label }}');
+        const harvestKg = document.getElementById('{{ form.planned_harvest_kg.id_for_label }}');
+        const pricePerKg = document.getElementById('{{ form.planned_price_per_kg.id_for_label }}');
+        
+        // Summary elements
+        const totalInvestment = document.getElementById('totalInvestment');
+        const expectedRevenue = document.getElementById('expectedRevenue');
+        const expectedProfit = document.getElementById('expectedProfit');
+        const expectedROI = document.getElementById('expectedROI');
+        const profitMarginBar = document.getElementById('profitMarginBar');
+        const profitMarginText = document.getElementById('profitMarginText');
+        
+        // Preview elements
+        const cyclePreview = document.getElementById('cyclePreview');
+        const cyclePond = document.getElementById('cyclePond');
+        const cycleSpecies = document.getElementById('cycleSpecies');
+        const cycleDate = document.getElementById('cycleDate');
+        const cycleExpenses = document.getElementById('cycleExpenses');
+
+        // Cycle data (populated from Django)
+        const cycleData = {
+            {% for cycle in cycles %}
+                {{ cycle.id }}: {
+                    pond: "{{ cycle.pond.name }}",
+                    species: "{{ cycle.species.name }}",
+                    date: "{{ cycle.stocking_date|date:'M d, Y' }}",
+                    expenses: {{ cycle.total_expense|default:0 }}
+                },
+            {% endfor %}
+        };
+
+        // Calculate totals
+        function calculateTotals() {
+            // Get values
+            const fingerling = parseFloat(fingerlingCost.value) || 0;
+            const feed = parseFloat(feedCost.value) || 0;
+            const medicine = parseFloat(medicineCost.value) || 0;
+            const labor = parseFloat(laborCost.value) || 0;
+            const other = parseFloat(otherCost.value) || 0;
+            const harvest = parseFloat(harvestKg.value) || 0;
+            const price = parseFloat(pricePerKg.value) || 0;
+            
+            // Calculate
+            const total = fingerling + feed + medicine + labor + other;
+            const revenue = harvest * price;
+            const profit = revenue - total;
+            const roi = total > 0 ? (profit / total * 100) : 0;
+            const margin = revenue > 0 ? (profit / revenue * 100) : 0;
+            
+            // Update display
+            totalInvestment.textContent = '৳' + total.toFixed(2);
+            expectedRevenue.textContent = '৳' + revenue.toFixed(2);
+            expectedProfit.textContent = '৳' + profit.toFixed(2);
+            expectedROI.textContent = roi.toFixed(1) + '%';
+            
+            // Update profit margin bar
+            const marginPercent = Math.max(0, Math.min(100, margin));
+            profitMarginBar.style.width = marginPercent + '%';
+            profitMarginBar.className = 'progress-bar ' + 
+                (margin > 30 ? 'bg-success' : (margin > 15 ? 'bg-info' : 'bg-warning'));
+            profitMarginText.textContent = 'Profit Margin: ' + margin.toFixed(1) + '%';
+        }
+
+        // Update cycle preview
+        function updateCyclePreview() {
+            const cycleId = parseInt(cycleSelect.value);
+            if (cycleId && cycleData[cycleId]) {
+                const data = cycleData[cycleId];
+                cyclePreview.style.display = 'block';
+                cyclePond.textContent = data.pond;
+                cycleSpecies.textContent = data.species;
+                cycleDate.textContent = data.date;
+                cycleExpenses.textContent = '৳' + data.expenses.toFixed(2);
+            } else {
+                cyclePreview.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        if (cycleSelect) {
+            cycleSelect.addEventListener('change', updateCyclePreview);
+        }
+        
+        const inputs = [fingerlingCost, feedCost, medicineCost, laborCost, otherCost, harvestKg, pricePerKg];
+        inputs.forEach(input => {
+            if (input) {
+                input.addEventListener('input', calculateTotals);
+            }
+        });
+
+        // Initialize
+        updateCyclePreview();
+        calculateTotals();
+
+        // Form validation
+        document.getElementById('budgetForm').addEventListener('submit', function(e) {
+            const cycle = cycleSelect.value;
+            
+            if (!cycle) {
+                e.preventDefault();
+                alert('Please select a production cycle');
+                return;
+            }
+            
+            // Check if any cost is negative
+            const costs = [fingerlingCost, feedCost, medicineCost, laborCost, otherCost];
+            for (let input of costs) {
+                if (input && parseFloat(input.value) < 0) {
+                    e.preventDefault();
+                    alert('Costs cannot be negative');
+                    return;
+                }
+            }
+            
+            // Check harvest and price
+            if (harvestKg && parseFloat(harvestKg.value) < 0) {
+                e.preventDefault();
+                alert('Harvest quantity cannot be negative');
+                return;
+            }
+            
+            if (pricePerKg && parseFloat(pricePerKg.value) < 0) {
+                e.preventDefault();
+                alert('Price per kg cannot be negative');
+                return;
+            }
+        });
+
+        // Unsaved changes warning
+        let formChanged = false;
+        document.getElementById('budgetForm').addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    });
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 20px rgba(13, 110, 253, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+        cursor: default;
+    }
+    
+    /* Summary boxes */
+    .summary-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .summary-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+    
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+    
+    .progress-bar.bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .progress-bar.bg-info {
+        background-color: #0dcaf0 !important;
+    }
+    
+    .progress-bar.bg-warning {
+        background-color: #ffc107 !important;
+    }
+    
+    /* Cycle preview */
+    #cyclePreview {
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    #cyclePreview:hover {
+        border-color: #0d6efd;
+        background-color: #fff !important;
+    }
+    
+    /* Alert styling */
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Comparison table */
+    .table-sm td, .table-sm th {
+        padding: 0.5rem;
+        vertical-align: middle;
+    }
+    
+    .table-sm tfoot {
+        border-top: 2px solid #dee2e6;
+    }
+    
+    .badge {
+        font-size: 0.75rem;
+        padding: 3px 6px;
+    }
+    
+    .badge.bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .badge.bg-danger {
+        background-color: #dc3545 !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        .row {
+            flex-direction: column;
+        }
+        
+        #cyclePreview {
+            padding: 10px !important;
+        }
+        
+        .summary-box {
+            margin-bottom: 10px;
+        }
+        
+        .summary-box h4 {
+            font-size: 1.2rem;
+        }
+        
+        .progress {
+            height: 8px !important;
+        }
+        
+        .table-sm {
+            font-size: 0.8rem;
+        }
+    }
+</style>
+{% endblock %}

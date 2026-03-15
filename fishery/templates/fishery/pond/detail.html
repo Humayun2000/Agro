@@ -1,0 +1,711 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-water{% endblock %}
+{% block page_title %}{{ pond.name }} - Pond Details{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:pond_list' %}">Ponds</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ pond.pond_id }}</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'fishery:water_add' %}?pond={{ pond.id }}" class="btn btn-outline-info">
+        <i class="bi bi-droplet me-1"></i> Water Test
+    </a>
+    <a href="{% url 'fishery:pond_edit' pond.id %}" class="btn btn-warning">
+        <i class="bi bi-pencil me-1"></i> Edit
+    </a>
+    <button class="btn btn-danger" onclick="confirmDeletePond({{ pond.id }})">
+        <i class="bi bi-trash me-1"></i> Delete
+    </button>
+    <a href="{% url 'fishery:pond_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Pond Overview Cards -->
+    <div class="row g-4 mb-4">
+        <!-- Basic Information -->
+        <div class="col-md-4">
+            <div class="fishery-stat-card h-100">
+                <h5 class="mb-3 fw-bold">
+                    <i class="bi bi-info-circle text-primary me-2"></i>
+                    Basic Information
+                </h5>
+                <table class="table table-borderless">
+                    <tr>
+                        <td class="text-muted">Pond ID:</td>
+                        <td class="fw-bold">{{ pond.pond_id }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Name:</td>
+                        <td>{{ pond.name }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Farm:</td>
+                        <td>
+                            {% if pond.farm %}
+                                <a href="#" class="text-decoration-none">{{ pond.farm.name }}</a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Type:</td>
+                        <td>
+                            <span class="fishery-badge fishery-badge-primary">
+                                {{ pond.get_pond_type_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Status:</td>
+                        <td>
+                            {% if pond.status == 'STOCKED' %}
+                                <span class="fishery-badge fishery-badge-success">Stocked</span>
+                            {% elif pond.status == 'PREPARING' %}
+                                <span class="fishery-badge fishery-badge-warning">Preparing</span>
+                            {% elif pond.status == 'HARVESTING' %}
+                                <span class="fishery-badge fishery-badge-info">Harvesting</span>
+                            {% elif pond.status == 'DRYING' %}
+                                <span class="fishery-badge fishery-badge-secondary">Drying</span>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-secondary">{{ pond.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Location:</td>
+                        <td>{{ pond.location|default:"-" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Physical Characteristics -->
+        <div class="col-md-4">
+            <div class="fishery-stat-card h-100">
+                <h5 class="mb-3 fw-bold">
+                    <i class="bi bi-rulers text-success me-2"></i>
+                    Physical Characteristics
+                </h5>
+                <table class="table table-borderless">
+                    <tr>
+                        <td class="text-muted">Size (acres):</td>
+                        <td class="fw-bold">{{ pond.size_in_acres }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Length (m):</td>
+                        <td>{{ pond.length|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Width (m):</td>
+                        <td>{{ pond.width|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Avg Depth (ft):</td>
+                        <td>{{ pond.average_depth|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Max Depth (ft):</td>
+                        <td>{{ pond.max_depth|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Volume (m³):</td>
+                        <td>{{ pond.volume|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Bottom Type:</td>
+                        <td>{{ pond.get_bottom_type_display|default:"-" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Water Source & Thresholds -->
+        <div class="col-md-4">
+            <div class="fishery-stat-card h-100">
+                <h5 class="mb-3 fw-bold">
+                    <i class="bi bi-droplet text-info me-2"></i>
+                    Water Parameters
+                </h5>
+                <table class="table table-borderless">
+                    <tr>
+                        <td class="text-muted">Water Source:</td>
+                        <td>{{ pond.get_water_source_display }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Min Oxygen:</td>
+                        <td>{{ pond.min_oxygen }} mg/L</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Max Ammonia:</td>
+                        <td>{{ pond.max_ammonia }} mg/L</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">pH Range:</td>
+                        <td>{{ pond.min_ph }} - {{ pond.max_ph }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Optimal Temp:</td>
+                        <td>{{ pond.optimal_temp_min }}°C - {{ pond.optimal_temp_max }}°C</td>
+                    </tr>
+                </table>
+                
+                {% if latest_water %}
+                <div class="mt-3 p-3 bg-light rounded-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold">Latest Reading</span>
+                        <small class="text-muted">{{ latest_water.reading_date|timesince }} ago</small>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-4 text-center">
+                            <div class="fw-bold {% if latest_water.temperature < pond.optimal_temp_min or latest_water.temperature > pond.optimal_temp_max %}text-danger{% else %}text-success{% endif %}">
+                                {{ latest_water.temperature }}°C
+                            </div>
+                            <small>Temp</small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div class="fw-bold {% if latest_water.ph_level < pond.min_ph or latest_water.ph_level > pond.max_ph %}text-danger{% else %}text-success{% endif %}">
+                                {{ latest_water.ph_level }}
+                            </div>
+                            <small>pH</small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div class="fw-bold {% if latest_water.dissolved_oxygen < pond.min_oxygen %}text-danger{% else %}text-success{% endif %}">
+                                {{ latest_water.dissolved_oxygen }}
+                            </div>
+                            <small>DO</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Production Cycle -->
+    {% if current_cycle %}
+    <div class="fishery-table-container mb-4">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-arrow-repeat text-success"></i>
+                Current Production Cycle
+            </h5>
+            <a href="{% url 'fishery:cycle_detail' current_cycle.id %}" class="btn btn-sm btn-outline-primary">
+                View Full Details <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="bg-light p-3 rounded-3 text-center">
+                    <small class="text-muted d-block">Species</small>
+                    <h5 class="mb-0">{{ current_cycle.species.name }}</h5>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="bg-light p-3 rounded-3 text-center">
+                    <small class="text-muted d-block">Stocking Date</small>
+                    <h5 class="mb-0">{{ current_cycle.stocking_date|date:"M d, Y" }}</h5>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="bg-light p-3 rounded-3 text-center">
+                    <small class="text-muted d-block">Days Active</small>
+                    <h5 class="mb-0">{{ current_cycle.days_in_production }}</h5>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="bg-light p-3 rounded-3 text-center">
+                    <small class="text-muted d-block">Survival Rate</small>
+                    <h5 class="mb-0 {% if current_cycle.survival_rate >= current_cycle.target_survival %}text-success{% else %}text-warning{% endif %}">
+                        {{ current_cycle.survival_rate }}%
+                    </h5>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="bg-light p-3 rounded-3 text-center">
+                    <small class="text-muted d-block">FCR</small>
+                    <h5 class="mb-0 {% if current_cycle.fcr <= current_cycle.target_fcr %}text-success{% else %}text-danger{% endif %}">
+                        {{ current_cycle.fcr }}
+                    </h5>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabs for Records -->
+    <div class="fishery-table-container">
+        <ul class="nav nav-tabs mb-4" id="pondTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="cycles-tab" data-bs-toggle="tab" data-bs-target="#cycles" type="button">
+                    <i class="bi bi-arrow-repeat me-1"></i> Production Cycles
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="water-tab" data-bs-toggle="tab" data-bs-target="#water" type="button">
+                    <i class="bi bi-droplet me-1"></i> Water Quality
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="harvests-tab" data-bs-toggle="tab" data-bs-target="#harvests" type="button">
+                    <i class="bi bi-scissors me-1"></i> Harvests
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="feeds-tab" data-bs-toggle="tab" data-bs-target="#feeds" type="button">
+                    <i class="bi bi-basket me-1"></i> Feeding Records
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="pondTabsContent">
+            <!-- Production Cycles Tab -->
+            <div class="tab-pane fade show active" id="cycles" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="fishery-table">
+                        <thead>
+                            <tr>
+                                <th>Cycle ID</th>
+                                <th>Species</th>
+                                <th>Stocking Date</th>
+                                <th>Initial Qty</th>
+                                <th>Harvest (kg)</th>
+                                <th>Survival %</th>
+                                <th>FCR</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cycle in cycles %}
+                            <tr>
+                                <td>
+                                    <span class="fw-bold">{{ cycle.cycle_id|slice:":8" }}</span>
+                                </td>
+                                <td>{{ cycle.species.name }}</td>
+                                <td>{{ cycle.stocking_date|date:"M d, Y" }}</td>
+                                <td>{{ cycle.initial_quantity }}</td>
+                                <td>{{ cycle.total_harvest|floatformat:1 }}</td>
+                                <td>
+                                    <span class="{% if cycle.survival_rate >= cycle.target_survival %}text-success{% else %}text-warning{% endif %}">
+                                        {{ cycle.survival_rate }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="{% if cycle.fcr <= cycle.target_fcr %}text-success{% else %}text-danger{% endif %}">
+                                        {{ cycle.fcr }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if cycle.status == 'RUNNING' %}
+                                        <span class="fishery-badge fishery-badge-success">Running</span>
+                                    {% elif cycle.status == 'COMPLETED' %}
+                                        <span class="fishery-badge fishery-badge-primary">Completed</span>
+                                    {% elif cycle.status == 'PLANNED' %}
+                                        <span class="fishery-badge fishery-badge-warning">Planned</span>
+                                    {% else %}
+                                        <span class="fishery-badge fishery-badge-secondary">{{ cycle.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'fishery:cycle_detail' cycle.id %}" class="btn btn-sm btn-outline-info">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">
+                                    <p class="text-muted mb-0">No production cycles found</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if cycles %}
+                <div class="mt-3 text-end">
+                    <a href="{% url 'fishery:cycle_list' %}?pond={{ pond.id }}" class="btn btn-sm btn-outline-primary">
+                        View All Cycles <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Water Quality Tab -->
+            <div class="tab-pane fade" id="water" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="fishery-table">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Temperature</th>
+                                <th>pH</th>
+                                <th>DO (mg/L)</th>
+                                <th>Ammonia</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reading in water_readings %}
+                            <tr>
+                                <td>{{ reading.reading_date|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    <span class="{% if reading.temperature < pond.optimal_temp_min or reading.temperature > pond.optimal_temp_max %}text-danger{% else %}text-success{% endif %}">
+                                        {{ reading.temperature }}°C
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="{% if reading.ph_level < pond.min_ph or reading.ph_level > pond.max_ph %}text-danger{% else %}text-success{% endif %}">
+                                        {{ reading.ph_level }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="{% if reading.dissolved_oxygen < pond.min_oxygen %}text-danger{% else %}text-success{% endif %}">
+                                        {{ reading.dissolved_oxygen }}
+                                    </span>
+                                </td>
+                                <td>{{ reading.ammonia|default:"-" }}</td>
+                                <td>
+                                    {% if reading.alert_generated %}
+                                        <span class="fishery-badge fishery-badge-danger" title="{{ reading.alert_message }}">
+                                            Alert
+                                        </span>
+                                    {% else %}
+                                        <span class="fishery-badge fishery-badge-success">Good</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'fishery:water_edit' reading.id %}" class="btn btn-sm btn-outline-warning">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <p class="text-muted mb-0">No water quality readings found</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if water_readings %}
+                <div class="mt-3 text-end">
+                    <a href="{% url 'fishery:water_list' %}?pond={{ pond.id }}" class="btn btn-sm btn-outline-primary">
+                        View All Readings <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Harvests Tab -->
+            <div class="tab-pane fade" id="harvests" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="fishery-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Cycle</th>
+                                <th>Quantity (kg)</th>
+                                <th>Piece Count</th>
+                                <th>Avg Weight (g)</th>
+                                <th>Grade</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for harvest in harvests %}
+                            <tr>
+                                <td>{{ harvest.harvest_date|date:"M d, Y" }}</td>
+                                <td>
+                                    <a href="{% url 'fishery:cycle_detail' harvest.cycle.id %}">
+                                        {{ harvest.cycle.cycle_id|slice:":8" }}
+                                    </a>
+                                </td>
+                                <td class="fw-bold">{{ harvest.quantity_kg }} kg</td>
+                                <td>{{ harvest.piece_count|default:"-" }}</td>
+                                <td>{{ harvest.avg_weight|default:"-" }} g</td>
+                                <td>
+                                    {% if harvest.grade == 'A' %}
+                                        <span class="fishery-badge fishery-badge-success">Grade A</span>
+                                    {% elif harvest.grade == 'B' %}
+                                        <span class="fishery-badge fishery-badge-info">Grade B</span>
+                                    {% elif harvest.grade == 'C' %}
+                                        <span class="fishery-badge fishery-badge-warning">Grade C</span>
+                                    {% else %}
+                                        <span class="fishery-badge fishery-badge-secondary">{{ harvest.get_grade_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'fishery:harvest_edit' harvest.id %}" class="btn btn-sm btn-outline-warning">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <p class="text-muted mb-0">No harvest records found</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Feeding Records Tab -->
+            <div class="tab-pane fade" id="feeds" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="fishery-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Cycle</th>
+                                <th>Feed Type</th>
+                                <th>Quantity (kg)</th>
+                                <th>Cost (৳)</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for feed in feeds %}
+                            <tr>
+                                <td>{{ feed.date|date:"M d, Y" }}</td>
+                                <td>{{ feed.get_feed_time_display|default:"-" }}</td>
+                                <td>
+                                    <a href="{% url 'fishery:cycle_detail' feed.cycle.id %}">
+                                        {{ feed.cycle.cycle_id|slice:":8" }}
+                                    </a>
+                                </td>
+                                <td>{{ feed.feed_type.name }}</td>
+                                <td>{{ feed.quantity_kg }} kg</td>
+                                <td>৳{{ feed.cost|floatformat:2 }}</td>
+                                <td>
+                                    <a href="{% url 'fishery:feed_record_edit' feed.id %}" class="btn btn-sm btn-outline-warning">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <p class="text-muted mb-0">No feeding records found</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Water Quality Chart -->
+    {% if water_readings|length > 1 %}
+    <div class="fishery-table-container mt-4">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-graph-up text-info"></i>
+                Water Quality Trends
+            </h5>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-info active" onclick="loadWaterChart(7)">7 Days</button>
+                <button type="button" class="btn btn-outline-info" onclick="loadWaterChart(30)">30 Days</button>
+            </div>
+        </div>
+        <canvas id="waterChart" style="height: 300px;"></canvas>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deletePondModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong>{{ pond.name }}</strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will also delete:
+                    <ul class="mb-0 mt-2">
+                        <li>{{ cycles|length }} production cycles</li>
+                        <li>{{ water_readings|length }} water quality readings</li>
+                        <li>All associated harvest and feed records</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'fishery:pond_delete' pond.id %}" class="btn btn-danger">Delete Permanently</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Delete confirmation
+    function confirmDeletePond(pondId) {
+        const modal = new bootstrap.Modal(document.getElementById('deletePondModal'));
+        modal.show();
+    }
+
+    // Water quality chart
+    {% if water_readings|length > 1 %}
+    let waterChart = null;
+
+    function loadWaterChart(days) {
+        showFisheryLoading();
+        fetch(`/fishery/api/water/chart/{{ pond.id }}/?days=${days}`)
+            .then(response => response.json())
+            .then(data => {
+                if (waterChart) {
+                    waterChart.destroy();
+                }
+                
+                const ctx = document.getElementById('waterChart').getContext('2d');
+                waterChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.data.labels || [],
+                        datasets: [
+                            {
+                                label: 'Temperature (°C)',
+                                data: data.data.temperature || [],
+                                borderColor: '#fd7e14',
+                                backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.4,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'pH',
+                                data: data.data.ph || [],
+                                borderColor: '#0dcaf0',
+                                backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.4,
+                                yAxisID: 'y1'
+                            },
+                            {
+                                label: 'Dissolved Oxygen',
+                                data: data.data.oxygen || [],
+                                borderColor: '#198754',
+                                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.4,
+                                yAxisID: 'y'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Temperature (°C) / DO (mg/L)'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'pH'
+                                },
+                                min: 0,
+                                max: 14,
+                                grid: {
+                                    drawOnChartArea: false,
+                                },
+                            },
+                        }
+                    }
+                });
+                hideFisheryLoading();
+            })
+            .catch(error => {
+                console.error('Error loading water chart:', error);
+                hideFisheryLoading();
+            });
+    }
+
+    // Initialize chart with 7 days
+    document.addEventListener('DOMContentLoaded', function() {
+        loadWaterChart(7);
+    });
+
+    // Chart period buttons
+    document.querySelectorAll('[onclick^="loadWaterChart"]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+    {% endif %}
+</script>
+
+<style>
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+    }
+    
+    .nav-tabs .nav-link {
+        color: #495057;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+    
+    .nav-tabs .nav-link i {
+        font-size: 1rem;
+    }
+    
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+    
+    .table td, .table th {
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,383 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-exclamation-triangle{% endblock %}
+{% block page_title %}Delete Species - {{ species.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:species_list' %}">Species</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete {{ species.name }}</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:species_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Fish Species
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon & Message -->
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                {% if species.image %}
+                <img src="{{ species.image.url }}" alt="{{ species.name }}" 
+                     style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
+                {% else %}
+                <i class="bi bi-fish fs-1 text-danger"></i>
+                {% endif %}
+            </div>
+            <h4 class="fw-bold mb-2">Remove {{ species.name }}?</h4>
+            <p class="text-muted">
+                You are about to delete the fish species 
+                <strong>{{ species.name }}</strong>
+                {% if species.scientific_name %}
+                <br><em>({{ species.scientific_name }})</em>
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Species Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Category</small>
+                            <span class="fw-bold">{{ species.get_category_display }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Water Type</small>
+                            <span class="fw-bold">{{ species.get_water_type_display }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Growth Days</small>
+                            <span class="fw-bold">{{ species.average_growth_days }} days</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Market Price</small>
+                            <span class="fw-bold text-success">৳{{ species.market_price|default:"0"|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>This action will affect:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>
+                        <span class="badge bg-primary me-2">{{ cycle_count }}</span>
+                        Production Cycles using this species
+                    </li>
+                    <li>
+                        <span class="badge bg-info me-2">{{ batch_count }}</span>
+                        Fish Batches of this species
+                    </li>
+                    <li>
+                        <span class="badge bg-warning me-2">{{ harvest_count }}</span>
+                        Harvest Records
+                    </li>
+                    <li>
+                        <span class="badge bg-secondary me-2">{{ sale_count }}</span>
+                        Sales Records
+                    </li>
+                </ul>
+                <p class="mt-2 mb-0 text-danger">
+                    <i class="bi bi-exclamation-circle me-1"></i>
+                    These records will become orphaned or may be affected
+                </p>
+            </div>
+        </div>
+
+        <!-- Warning for Active Cycles -->
+        {% if active_cycles > 0 %}
+        <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div>
+                <strong>Warning: Active Cycles Detected!</strong>
+                <p class="mb-0 mt-1">
+                    This species is currently used in <span class="fw-bold">{{ active_cycles }}</span> active production cycles.
+                    Deleting it may cause issues with these cycles.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                I understand that deleting this species will affect all associated production cycles and historical data
+            </label>
+        </div>
+
+        <!-- Alternative Action Suggestion -->
+        {% if cycle_count > 0 %}
+        <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-info-circle-fill fs-4"></i>
+            <div>
+                <strong>Alternative Suggestion:</strong>
+                <p class="mb-0 mt-1">
+                    Instead of deleting, consider just archiving this species by marking it as inactive.
+                    <a href="#" class="alert-link" onclick="suggestArchive()">Learn more</a>
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'fishery:species_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger px-5 py-3" id="deleteBtn" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Permanently
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal Script -->
+<script>
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = !checkbox.checked;
+    }
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const confirmDelete = document.getElementById('confirmDelete');
+        if (!confirmDelete.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand the consequences of deleting this species.');
+        }
+    });
+
+    // Countdown timer for safety
+    let countdown = 5;
+    let countdownInterval = null;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const confirmCheck = document.getElementById('confirmDelete');
+
+    confirmCheck.addEventListener('change', function() {
+        if (this.checked && !countdownInterval) {
+            // Store original text
+            const originalText = deleteBtn.innerHTML;
+            
+            // Start countdown
+            deleteBtn.disabled = true;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                deleteBtn.innerHTML = `Wait ${countdown} seconds... <i class="bi bi-hourglass-split ms-2"></i>`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                    countdown = 5;
+                }
+            }, 1000);
+        } else if (!this.checked && countdownInterval) {
+            // Cancel countdown
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3-fill me-2"></i>Delete Permanently';
+            countdown = 5;
+        }
+    });
+
+    // Suggest archive alternative
+    function suggestArchive() {
+        alert('Consider adding an "Is Active" flag to the species model instead of deleting. This would preserve historical data while hiding the species from new cycle selection.');
+    }
+
+    // Keyboard shortcut warning
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const deleteBtn = document.getElementById('deleteBtn');
+            const confirmCheck = document.getElementById('confirmDelete');
+            
+            if (!deleteBtn.disabled && confirmCheck.checked) {
+                if (!confirm('Are you absolutely sure? This will permanently delete this species and affect all related records.')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // Add animation class on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.warning-icon').classList.add('pulse-animation');
+    });
+</script>
+
+<style>
+    .warning-icon {
+        width: 120px;
+        height: 120px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px 15px rgba(220, 53, 69, 0.2);
+        }
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+        margin-right: 5px;
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+    }
+    
+    /* Form check styling */
+    .form-check-input:checked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+        color: #dc3545;
+    }
+    
+    /* Disabled button style */
+    #deleteBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* Countdown timer text */
+    #deleteBtn i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Image styling */
+    .warning-icon img {
+        border: 3px solid #fff;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .warning-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .warning-icon i {
+            font-size: 3rem !important;
+        }
+        
+        .warning-icon img {
+            width: 60px;
+            height: 60px;
+        }
+        
+        .btn {
+            padding: 12px 15px !important;
+            font-size: 0.9rem;
+        }
+        
+        h4 {
+            font-size: 1.2rem;
+        }
+        
+        .detail-box {
+            padding: 10px !important;
+        }
+    }
+
+    /* Print styles */
+    @media print {
+        .btn, .form-check, .alert-info, #deleteBtn {
+            display: none;
+        }
+        
+        .warning-icon {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}

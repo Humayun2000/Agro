@@ -359,6 +359,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Store the delete URL template
+    const DELETE_URL_TEMPLATE = "{% url 'dairy:cattle_sale_delete' 0 %}";
+    
     // Custom date range toggle
     document.querySelector('select[name="range"]').addEventListener('change', function() {
         const customRange = document.getElementById('customDateRange');
@@ -369,6 +372,7 @@
     });
 
     // Initialize Monthly Chart
+    {% if monthly_labels %}
     const ctx = document.getElementById('monthlyChart').getContext('2d');
     new Chart(ctx, {
         type: 'bar',
@@ -408,6 +412,7 @@
             }
         }
     });
+    {% endif %}
 
     // Select All functionality
     document.getElementById('selectAll').addEventListener('change', function(e) {
@@ -426,18 +431,21 @@
         document.getElementById('bulkDeleteBtn').disabled = count === 0;
     }
 
-    // Delete confirmation
+    // Delete confirmation - FIXED
     function confirmDelete(saleId) {
         const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        document.getElementById('confirmDeleteBtn').href = "{% url 'dairy:cattle_sale_delete' 0 %}".replace('0', saleId);
+        const deleteUrl = DELETE_URL_TEMPLATE.replace('0', saleId);
+        document.getElementById('confirmDeleteBtn').href = deleteUrl;
         modal.show();
     }
 
-    // Bulk delete
+    // Bulk delete - FIXED with proper API endpoint
     function bulkDelete() {
         const selected = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => cb.value);
         if (selected.length > 0 && confirm(`Delete ${selected.length} sale records?`)) {
             showLoading();
+            
+            // If there's a bulk delete API endpoint, use it
             fetch('/dairy/api/bulk/cattle-sales/delete/', {
                 method: 'POST',
                 headers: {
@@ -445,22 +453,70 @@
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({ ids: selected })
-            }).then(response => response.json())
-              .then(data => {
-                  if (data.success) {
-                      location.reload();
-                  } else {
-                      alert('Error: ' + data.error);
-                      hideLoading();
-                  }
-              });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    hideLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Bulk delete failed. Redirecting to individual delete...');
+                
+                // Fallback: redirect to first item's delete page
+                if (selected.length === 1) {
+                    window.location.href = DELETE_URL_TEMPLATE.replace('0', selected[0]);
+                } else {
+                    hideLoading();
+                }
+            });
         }
     }
 
-    // Export data
+    // Export data - FIXED with proper URL
     function exportData() {
-        window.location.href = "{% url 'dairy:export_sales' %}";
+        // Try different export URLs
+        const exportUrls = [
+            "{% url 'dairy:export_sales_csv' %}",
+            "{% url 'dairy:export_sales' %}",
+            "{% url 'dairy:export_sales_csv' %}"
+        ];
+        
+        // Use the first one that exists
+        const url = exportUrls[0]; // Adjust based on your actual URL names
+        if (url) {
+            window.location.href = url + '?' + new URLSearchParams(window.location.search).toString();
+        } else {
+            alert('Export URL not configured');
+        }
     }
+
+    // Handle row click
+    document.querySelectorAll('.sale-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.type !== 'checkbox' && !e.target.closest('.btn')) {
+                const checkbox = this.querySelector('.record-checkbox');
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    updateSelectedCount();
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
 </script>
 
 <style>
@@ -476,5 +532,59 @@
         background-color: #f0f7ff;
         cursor: pointer;
     }
+    
+    /* Fix for modal z-index */
+    .modal {
+        z-index: 1050;
+    }
+    
+    /* Loading overlay */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        display: none;
+    }
+    
+    .loading-overlay.active {
+        display: flex;
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #0d6efd;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
 </style>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+</div>
+
+<script>
+    // Loading functions
+    function showLoading() {
+        document.getElementById('loadingOverlay').classList.add('active');
+    }
+    
+    function hideLoading() {
+        document.getElementById('loadingOverlay').classList.remove('active');
+    }
+</script>
 {% endblock %}

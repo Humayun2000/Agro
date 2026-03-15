@@ -1,0 +1,396 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-exclamation-triangle{% endblock %}
+{% block page_title %}Delete Cycle - {{ cycle.cycle_id|slice:":8" }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:cycle_list' %}">Cycles</a></li>
+<li class="breadcrumb-item"><a href="{% url 'fishery:cycle_detail' cycle.id %}">{{ cycle.cycle_id|slice:":8" }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:cycle_detail' cycle.id %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to Cycle
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Production Cycle
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon & Message -->
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-arrow-repeat fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove this production cycle?</h4>
+            <p class="text-muted">
+                You are about to delete cycle 
+                <strong>{{ cycle.cycle_id|slice:":8" }}</strong> for 
+                <strong>{{ cycle.pond.name }} - {{ cycle.species.name }}</strong>
+            </p>
+        </div>
+
+        <!-- Cycle Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="cycle-avatar bg-danger text-white rounded-3 p-3">
+                        <span class="fs-2 fw-bold">{{ cycle.species.name|first|upper }}</span>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ cycle.pond.name }} - {{ cycle.species.name }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-calendar me-1"></i> Stocked: {{ cycle.stocking_date|date:"M d, Y" }}
+                            <span class="mx-2">|</span>
+                            <i class="bi bi-clock me-1"></i> {{ cycle.days_in_production }} days
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Initial Stock</small>
+                            <span class="fw-bold">{{ cycle.initial_quantity }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Harvest (kg)</small>
+                            <span class="fw-bold">{{ cycle.total_harvest|floatformat:1 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Status</small>
+                            {% if cycle.status == 'RUNNING' %}
+                                <span class="fw-bold text-success">Running</span>
+                            {% elif cycle.status == 'COMPLETED' %}
+                                <span class="fw-bold text-primary">Completed</span>
+                            {% else %}
+                                <span class="fw-bold">{{ cycle.get_status_display }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Impact Analysis -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>This action will permanently delete:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>
+                        <span class="badge bg-primary me-2">{{ feed_count|default:cycle.feeds.count }}</span>
+                        Feeding Records (Total: {{ cycle.total_feed|floatformat:1 }} kg feed)
+                    </li>
+                    <li>
+                        <span class="badge bg-danger me-2">{{ mortality_count|default:cycle.mortalities.count }}</span>
+                        Mortality Records ({{ cycle.total_mortality }} fish)
+                    </li>
+                    <li>
+                        <span class="badge bg-success me-2">{{ harvest_count|default:cycle.harvests.count }}</span>
+                        Harvest Records ({{ cycle.total_harvest|floatformat:1 }} kg fish)
+                    </li>
+                    <li>
+                        <span class="badge bg-warning me-2">{{ expense_count|default:cycle.expenses.count }}</span>
+                        Expense Records (৳{{ cycle.total_expense|floatformat:0 }})
+                    </li>
+                    <li>
+                        <span class="badge bg-info me-2">{{ disease_count|default:cycle.diseases.count }}</span>
+                        Disease Records
+                    </li>
+                    <li>
+                        <span class="badge bg-secondary me-2">{{ sale_count|default:sales.count }}</span>
+                        Sales Records (৳{{ cycle.total_sales|floatformat:0 }} revenue)
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Financial Impact -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-cash-stack text-success me-2"></i>
+                            Revenue Lost
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Sales:</span>
+                            <span class="fw-bold fs-5 text-success">৳{{ cycle.total_sales|floatformat:0 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-receipt text-danger me-2"></i>
+                            Investment Lost
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Investment:</span>
+                            <span class="fw-bold fs-5 text-danger">৳{{ cycle.total_investment|floatformat:0 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pond Status Warning -->
+        {% if cycle.status == 'RUNNING' %}
+        <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-info-circle-fill fs-4"></i>
+            <div>
+                <strong>Note:</strong> This cycle is currently running. Deleting it will change the pond status 
+                <strong>{{ cycle.pond.name }}</strong> from <span class="badge bg-success">Stocked</span> to 
+                <span class="badge bg-warning">Preparing</span>.
+            </div>
+        </div>
+        {% elif cycle.status == 'COMPLETED' %}
+        <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-info-circle-fill fs-4"></i>
+            <div>
+                <strong>Note:</strong> This cycle is completed. Deleting it will affect financial reports and historical data.
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                I understand that this action cannot be undone and will permanently delete all associated records
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'fishery:cycle_detail' cycle.id %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger px-5 py-3" id="deleteBtn" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Permanently
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal Script -->
+<script>
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = !checkbox.checked;
+    }
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const confirmDelete = document.getElementById('confirmDelete');
+        if (!confirmDelete.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand this action cannot be undone.');
+        }
+    });
+
+    // Countdown timer for safety
+    let countdown = 5;
+    let countdownInterval = null;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const confirmCheck = document.getElementById('confirmDelete');
+
+    confirmCheck.addEventListener('change', function() {
+        if (this.checked && !countdownInterval) {
+            // Store original text
+            const originalText = deleteBtn.innerHTML;
+            
+            // Start countdown
+            deleteBtn.disabled = true;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                deleteBtn.innerHTML = `Wait ${countdown} seconds... <i class="bi bi-hourglass-split ms-2"></i>`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                    countdown = 5;
+                }
+            }, 1000);
+        } else if (!this.checked && countdownInterval) {
+            // Cancel countdown
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3-fill me-2"></i>Delete Permanently';
+            countdown = 5;
+        }
+    });
+
+    // Keyboard shortcut warning
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const deleteBtn = document.getElementById('deleteBtn');
+            const confirmCheck = document.getElementById('confirmDelete');
+            
+            if (!deleteBtn.disabled && confirmCheck.checked) {
+                if (!confirm('Are you absolutely sure? This will permanently delete all cycle data.')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // Add animation class on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.warning-icon').classList.add('pulse-animation');
+    });
+</script>
+
+<style>
+    .warning-icon {
+        width: 120px;
+        height: 120px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px 15px rgba(220, 53, 69, 0.2);
+        }
+    }
+    
+    .cycle-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+        margin-right: 5px;
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+    }
+    
+    /* Form check styling */
+    .form-check-input:checked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+        color: #dc3545;
+    }
+    
+    /* Disabled button style */
+    #deleteBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* Countdown timer text */
+    #deleteBtn i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .warning-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .warning-icon i {
+            font-size: 3rem !important;
+        }
+        
+        .cycle-avatar {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+        
+        .btn {
+            padding: 12px 15px !important;
+            font-size: 0.9rem;
+        }
+        
+        h4 {
+            font-size: 1.2rem;
+        }
+    }
+</style>
+{% endblock %}

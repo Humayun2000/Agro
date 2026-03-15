@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Profile - Sheikh Agro{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0 rounded-4 mt-4">
+                <div class="card-header bg-primary text-white text-center py-4 rounded-top-4">
+                    <h4 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        Edit Profile
+                    </h4>
+                    <p class="text-white-50 mb-0 mt-2">Update your personal information</p>
+                </div>
+                
+                <div class="card-body p-4">
+                    <!-- Messages -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <!-- Profile Picture Preview -->
+                    <div class="text-center mb-4">
+                        <div class="position-relative d-inline-block">
+                            {% if user.profile_picture %}
+                                <img src="{{ user.profile_picture.url }}" id="profilePreview" 
+                                     class="rounded-circle img-thumbnail" style="width: 120px; height: 120px; object-fit: cover;">
+                            {% else %}
+                                <div id="profilePreview" class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto"
+                                     style="width: 120px; height: 120px; font-size: 2.5rem;">
+                                    {{ user.username|first|upper }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Edit Form -->
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Username -->
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-person me-1"></i>Username
+                            </label>
+                            {{ form.username }}
+                            {% if form.username.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.username.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Email -->
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-envelope me-1"></i>Email
+                            </label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- First Name & Last Name Row -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label fw-semibold">
+                                    <i class="bi bi-person me-1"></i>First Name
+                                </label>
+                                {{ form.first_name }}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label fw-semibold">
+                                    <i class="bi bi-person me-1"></i>Last Name
+                                </label>
+                                {{ form.last_name }}
+                            </div>
+                        </div>
+                        
+                        <!-- Phone Number -->
+                        <div class="mb-3">
+                            <label for="{{ form.phone_number.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-phone me-1"></i>Phone Number
+                            </label>
+                            {{ form.phone_number }}
+                        </div>
+                        
+                        <!-- Profile Picture -->
+                        <div class="mb-3">
+                            <label for="{{ form.profile_picture.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-image me-1"></i>Profile Picture
+                            </label>
+                            {{ form.profile_picture }}
+                            <small class="text-muted">Leave empty to keep current picture</small>
+                        </div>
+                        
+                        <!-- Theme -->
+                        <div class="mb-3">
+                            <label for="{{ form.theme.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-palette me-1"></i>Theme Preference
+                            </label>
+                            {{ form.theme }}
+                        </div>
+                        
+                        <!-- Notification Preferences -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-bell me-1"></i>Notification Preferences
+                            </label>
+                            <div class="form-check">
+                                {{ form.notification_email }}
+                                <label class="form-check-label" for="{{ form.notification_email.id_for_label }}">
+                                    Receive email notifications
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                {{ form.notification_sms }}
+                                <label class="form-check-label" for="{{ form.notification_sms.id_for_label }}">
+                                    Receive SMS notifications
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="d-flex gap-2 justify-content-center">
+                            <a href="{% url 'accounts:profile' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-lg me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Preview profile picture before upload
+    document.getElementById('{{ form.profile_picture.id_for_label }}').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('profilePreview');
+                if (preview.tagName === 'IMG') {
+                    preview.src = e.target.result;
+                } else {
+                    // Replace div with img
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.id = 'profilePreview';
+                    img.className = 'rounded-circle img-thumbnail';
+                    img.style = 'width: 120px; height: 120px; object-fit: cover;';
+                    preview.parentNode.replaceChild(img, preview);
+                }
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,529 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-exclamation-triangle{% endblock %}
+{% block page_title %}Delete Water Quality Reading{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:water_list' %}">Water Quality</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete Reading</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:water_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Water Quality Reading
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon & Message -->
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-droplet fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove this water quality reading?</h4>
+            <p class="text-muted">
+                You are about to delete a water quality reading from 
+                <strong>{{ object.pond.name }}</strong> on 
+                <strong>{{ object.reading_date|date:"F d, Y H:i" }}</strong>
+            </p>
+        </div>
+
+        <!-- Reading Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="water-avatar bg-danger text-white rounded-3 p-3">
+                        <i class="bi bi-droplet fs-2"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ object.pond.name }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-calendar me-1"></i> {{ object.reading_date|date:"M d, Y H:i" }}
+                            <span class="mx-2">|</span>
+                            <i class="bi bi-person me-1"></i> {{ object.recorded_by.get_full_name|default:object.recorded_by.username|default:"Unknown" }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Temperature</small>
+                            <span class="fw-bold fs-5 {% if object.temperature < object.pond.optimal_temp_min or object.temperature > object.pond.optimal_temp_max %}text-danger{% endif %}">
+                                {{ object.temperature }}°C
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">pH Level</small>
+                            <span class="fw-bold fs-5 {% if object.ph_level < object.pond.min_ph or object.ph_level > object.pond.max_ph %}text-danger{% endif %}">
+                                {{ object.ph_level }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Dissolved Oxygen</small>
+                            <span class="fw-bold fs-5 {% if object.dissolved_oxygen < object.pond.min_oxygen %}text-danger{% endif %}">
+                                {{ object.dissolved_oxygen }} mg/L
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if object.ammonia or object.nitrite or object.nitrate %}
+                <div class="row g-3 mt-2">
+                    {% if object.ammonia %}
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Ammonia</small>
+                            <span class="fw-bold {% if object.ammonia > object.pond.max_ammonia %}text-danger{% endif %}">
+                                {{ object.ammonia }} mg/L
+                            </span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if object.nitrite %}
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Nitrite</small>
+                            <span class="fw-bold">{{ object.nitrite }} mg/L</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if object.nitrate %}
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Nitrate</small>
+                            <span class="fw-bold">{{ object.nitrate }} mg/L</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Alert Status -->
+        {% if object.alert_generated %}
+        <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="flex-grow-1">
+                <strong>This reading generated an alert!</strong>
+                <p class="mb-0 mt-1">{{ object.alert_message }}</p>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-success d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-check-circle-fill fs-4"></i>
+            <div class="flex-grow-1">
+                <strong>Normal Reading</strong>
+                <p class="mb-0 mt-1">All parameters were within optimal ranges.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>⚠️ This will affect historical data:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Remove trend data for water quality analysis</li>
+                    <li>Affect average statistics for this pond</li>
+                    <li>Remove alert history from records</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Statistics Impact -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-clock-history text-info me-2"></i>
+                            Pond Statistics
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Readings:</span>
+                            <span class="fw-bold">{{ pond_reading_count }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="text-muted">After Deletion:</span>
+                            <span class="fw-bold">{{ pond_reading_count|add:"-1" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                            Alert Statistics
+                        </h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Alerts:</span>
+                            <span class="fw-bold">{{ total_alerts }}</span>
+                        </div>
+                        {% if object.alert_generated %}
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="text-muted">After Deletion:</span>
+                            <span class="fw-bold">{{ total_alerts|add:"-1" }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parameter Distribution -->
+        {% if object.alert_generated %}
+        <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-pie-chart-fill fs-4"></i>
+            <div>
+                <strong>Parameter Distribution:</strong>
+                <p class="mb-0 mt-1">
+                    This reading contributed to 
+                    {% if object.temperature < object.pond.optimal_temp_min or object.temperature > object.pond.optimal_temp_max %}
+                    <span class="badge bg-warning me-1">Temperature</span>
+                    {% endif %}
+                    {% if object.ph_level < object.pond.min_ph or object.ph_level > object.pond.max_ph %}
+                    <span class="badge bg-warning me-1">pH</span>
+                    {% endif %}
+                    {% if object.dissolved_oxygen < object.pond.min_oxygen %}
+                    <span class="badge bg-warning me-1">DO</span>
+                    {% endif %}
+                    {% if object.ammonia and object.ammonia > object.pond.max_ammonia %}
+                    <span class="badge bg-warning me-1">Ammonia</span>
+                    {% endif %}
+                    statistics.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                I understand that deleting this reading will remove historical water quality data
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'fishery:water_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger px-5 py-3" id="deleteBtn" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Permanently
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal Script -->
+<script>
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = !checkbox.checked;
+    }
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const confirmDelete = document.getElementById('confirmDelete');
+        if (!confirmDelete.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand the impact of deleting this water quality reading.');
+        }
+    });
+
+    // Countdown timer for safety
+    let countdown = 5;
+    let countdownInterval = null;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const confirmCheck = document.getElementById('confirmDelete');
+
+    confirmCheck.addEventListener('change', function() {
+        if (this.checked && !countdownInterval) {
+            // Store original text
+            const originalText = deleteBtn.innerHTML;
+            
+            // Start countdown
+            deleteBtn.disabled = true;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                deleteBtn.innerHTML = `Wait ${countdown} seconds... <i class="bi bi-hourglass-split ms-2"></i>`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                    countdown = 5;
+                }
+            }, 1000);
+        } else if (!this.checked && countdownInterval) {
+            // Cancel countdown
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3-fill me-2"></i>Delete Permanently';
+            countdown = 5;
+        }
+    });
+
+    // Keyboard shortcut warning
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const deleteBtn = document.getElementById('deleteBtn');
+            const confirmCheck = document.getElementById('confirmDelete');
+            
+            if (!deleteBtn.disabled && confirmCheck.checked) {
+                if (!confirm('Are you absolutely sure? This will permanently delete this water quality reading.')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // Add animation class on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.warning-icon').classList.add('pulse-animation');
+        
+        // Animate parameter values
+        document.querySelectorAll('.detail-box .fw-bold').forEach(el => {
+            el.classList.add('fade-in');
+        });
+    });
+</script>
+
+<style>
+    .warning-icon {
+        width: 120px;
+        height: 120px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px 15px rgba(220, 53, 69, 0.2);
+        }
+    }
+    
+    .water-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Alert styling */
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-success {
+        border-left: 4px solid #28a745;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+        margin-right: 5px;
+    }
+    
+    .badge.bg-warning {
+        color: #000 !important;
+    }
+    
+    /* Form check styling */
+    .form-check-input:checked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+        color: #dc3545;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+    
+    /* Disabled button style */
+    #deleteBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* Countdown timer text */
+    #deleteBtn i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Fade in animation */
+    .fade-in {
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Text colors */
+    .text-danger {
+        font-weight: 600 !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .warning-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .warning-icon i {
+            font-size: 3rem !important;
+        }
+        
+        .water-avatar {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .water-avatar i {
+            font-size: 1.5rem !important;
+        }
+        
+        .btn {
+            padding: 12px 15px !important;
+            font-size: 0.9rem;
+        }
+        
+        h4 {
+            font-size: 1.2rem;
+        }
+        
+        .detail-box {
+            padding: 10px !important;
+        }
+        
+        .badge {
+            font-size: 0.8rem;
+            padding: 3px 6px;
+        }
+    }
+
+    /* Print styles */
+    @media print {
+        .btn, .form-check, .alert-info, #deleteBtn {
+            display: none;
+        }
+        
+        .warning-icon {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .bg-danger {
+            background-color: #dc3545 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .alert-danger, .alert-success, .alert-warning {
+            border: 1px solid #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,698 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}{% if action == 'add' %}bi bi-plus-circle{% else %}bi bi-pencil-square{% endif %}{% endblock %}
+{% block page_title %}{% if action == 'add' %}Record Fish Sale{% else %}Edit Sale - {{ form.instance.sale_number|slice:":8" }}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:sale_list' %}">Sales</a></li>
+<li class="breadcrumb-item active" aria-current="page">
+    {% if action == 'add' %}Record Sale{% else %}Edit Sale{% endif %}
+</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:sale_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Sale Form Card -->
+            <div class="fishery-form-card">
+                <div class="fishery-form-header" style="background: linear-gradient(135deg, #28a745 0%, #218838 100%);">
+                    <h3>
+                        {% if action == 'add' %}
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+                            Record Fish Sale
+                        {% else %}
+                            <i class="bi bi-pencil-fill me-2"></i>
+                            Edit Sale: {{ form.instance.sale_number|slice:":8" }}
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0 opacity-75">
+                        {% if action == 'add' %}
+                            Record a new fish sale transaction
+                        {% else %}
+                            Update sale information and payment details
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="saleForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Error Summary -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <!-- Left Column - Sale Details -->
+                        <div class="col-md-6">
+                            <!-- Sale Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-info-circle text-success me-2"></i>
+                                    Sale Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-upc-scan me-1 text-success"></i>
+                                        Sale Number
+                                    </label>
+                                    <input type="text" class="fishery-form-control" 
+                                           value="{{ form.instance.sale_number|default:'Auto-generated' }}" readonly>
+                                    <small class="text-muted">Unique sale identifier</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar me-1 text-success"></i>
+                                        Sale Date *
+                                    </label>
+                                    {{ form.sale_date }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar me-1 text-success"></i>
+                                        Delivery Date
+                                    </label>
+                                    {{ form.delivery_date }}
+                                </div>
+                            </div>
+
+                            <!-- Customer Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-person text-primary me-2"></i>
+                                    Customer Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-people me-1 text-primary"></i>
+                                        Select Customer
+                                    </label>
+                                    {{ form.customer }}
+                                    <div class="mt-2">
+                                        <a href="{% url 'fishery:customer_add' %}?next={% url 'fishery:sale_add' %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-plus-circle"></i> Add New Customer
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-person me-1 text-primary"></i>
+                                        Or Enter Customer Name
+                                    </label>
+                                    {{ form.customer_name }}
+                                    <small class="text-muted">For walk-in customers</small>
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-telephone me-1 text-primary"></i>
+                                        Customer Phone
+                                    </label>
+                                    {{ form.customer_phone }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Product & Payment -->
+                        <div class="col-md-6">
+                            <!-- Product Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-fish text-warning me-2"></i>
+                                    Product Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-scissors me-1 text-warning"></i>
+                                        Select Harvest *
+                                    </label>
+                                    {{ form.harvest }}
+                                    <small class="text-muted">Choose the harvest batch to sell from</small>
+                                </div>
+
+                                <!-- Harvest Preview -->
+                                <div id="harvestPreview" class="mt-3 p-3 bg-light rounded-3" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Pond:</small>
+                                            <span class="fw-bold" id="previewPond">—</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Species:</small>
+                                            <span class="fw-bold" id="previewSpecies">—</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Harvest Date:</small>
+                                            <span class="fw-bold" id="previewHarvestDate">—</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Available:</small>
+                                            <span class="fw-bold text-success" id="previewAvailable">—</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-cake me-1 text-warning"></i>
+                                                Quantity (kg) *
+                                            </label>
+                                            {{ form.quantity_kg }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fishery-form-group">
+                                            <label class="fishery-form-label">
+                                                <i class="bi bi-currency-dollar me-1 text-warning"></i>
+                                                Price per kg (৳) *
+                                            </label>
+                                            {{ form.price_per_kg }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Information -->
+                            <div class="section-card mb-4">
+                                <h5 class="section-title">
+                                    <i class="bi bi-credit-card text-info me-2"></i>
+                                    Payment Information
+                                </h5>
+                                
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-cash me-1 text-info"></i>
+                                        Payment Method
+                                    </label>
+                                    {{ form.payment_method }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-tag me-1 text-info"></i>
+                                        Payment Status
+                                    </label>
+                                    {{ form.payment_status }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-calendar-check me-1 text-info"></i>
+                                        Payment Date
+                                    </label>
+                                    {{ form.payment_date }}
+                                </div>
+
+                                <div class="fishery-form-group mb-3">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-upc-scan me-1 text-info"></i>
+                                        Payment Reference
+                                    </label>
+                                    {{ form.payment_reference }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sale Summary -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-calculator text-secondary me-2"></i>
+                            Sale Summary
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="summary-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Subtotal</small>
+                                    <h4 class="mb-0" id="subtotal">৳0.00</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="summary-box bg-light p-3 rounded-3 text-center">
+                                    <small class="text-muted">Transport Cost</small>
+                                    <h4 class="mb-0" id="transportDisplay">৳0.00</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="summary-box bg-success bg-opacity-10 p-3 rounded-3 text-center">
+                                    <small class="text-muted">Total Amount</small>
+                                    <h4 class="mb-0 text-success" id="totalAmount">৳0.00</h4>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-truck me-1 text-secondary"></i>
+                                        Transport Cost (৳)
+                                    </label>
+                                    {{ form.transport_cost }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="fishery-form-group">
+                                    <label class="fishery-form-label">
+                                        <i class="bi bi-truck-front me-1 text-secondary"></i>
+                                        Vehicle Number
+                                    </label>
+                                    {{ form.vehicle_number }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="section-card mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-chat-text text-secondary me-2"></i>
+                            Notes
+                        </h5>
+                        
+                        <div class="fishery-form-group">
+                            {{ form.notes }}
+                            <small class="text-muted">Any additional information about this sale</small>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Section (Edit mode only) -->
+                    {% if action == 'edit' %}
+                    <div class="section-card mb-4">
+                        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#metadataSection">
+                            <i class="bi bi-info-circle text-secondary me-2"></i>
+                            Metadata
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.9rem;"></i>
+                        </h5>
+                        <div class="collapse" id="metadataSection">
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created By</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_by.get_full_name|default:form.instance.created_by.username|default:'System' }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fishery-form-group">
+                                        <label class="fishery-form-label text-muted">Created At</label>
+                                        <input type="text" class="fishery-form-control" 
+                                               value="{{ form.instance.created_at|date:'M d, Y H:i' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Customer Credit Alert -->
+                    <div id="creditAlert" class="alert alert-warning mt-3" style="display: none;">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <span id="creditMessage"></span>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-3 justify-content-center mt-5">
+                        <a href="{% url 'fishery:sale_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                            <i class="bi bi-x-lg me-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success px-5 py-3" id="submitBtn">
+                            <i class="bi bi-check-lg me-2"></i>
+                            {% if action == 'add' %}Record Sale{% else %}Update Sale{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const harvestSelect = document.getElementById('{{ form.harvest.id_for_label }}');
+        const quantityInput = document.getElementById('{{ form.quantity_kg.id_for_label }}');
+        const priceInput = document.getElementById('{{ form.price_per_kg.id_for_label }}');
+        const transportInput = document.getElementById('{{ form.transport_cost.id_for_label }}');
+        const customerSelect = document.getElementById('{{ form.customer.id_for_label }}');
+        const customerNameInput = document.getElementById('{{ form.customer_name.id_for_label }}');
+        const paymentStatusSelect = document.getElementById('{{ form.payment_status.id_for_label }}');
+        const paymentDateInput = document.getElementById('{{ form.payment_date.id_for_label }}');
+        
+        // Summary elements
+        const subtotalSpan = document.getElementById('subtotal');
+        const transportDisplay = document.getElementById('transportDisplay');
+        const totalAmountSpan = document.getElementById('totalAmount');
+        
+        // Preview elements
+        const harvestPreview = document.getElementById('harvestPreview');
+        const previewPond = document.getElementById('previewPond');
+        const previewSpecies = document.getElementById('previewSpecies');
+        const previewHarvestDate = document.getElementById('previewHarvestDate');
+        const previewAvailable = document.getElementById('previewAvailable');
+        
+        // Credit alert
+        const creditAlert = document.getElementById('creditAlert');
+        const creditMessage = document.getElementById('creditMessage');
+
+        // Harvest data (populated from Django)
+        const harvestData = {
+            {% for harvest in harvests %}
+                {{ harvest.id }}: {
+                    pond: "{{ harvest.cycle.pond.name }}",
+                    species: "{{ harvest.cycle.species.name }}",
+                    harvestDate: "{{ harvest.harvest_date|date:'Y-m-d' }}",
+                    available: {{ harvest.remaining_quantity }},
+                    grade: "{{ harvest.grade }}"
+                },
+            {% endfor %}
+        };
+
+        // Customer credit data
+        const customerCredit = {
+            {% for customer in customers %}
+                {{ customer.id }}: {
+                    limit: {{ customer.credit_limit|default:0 }},
+                    balance: {{ customer.current_balance|default:0 }},
+                    name: "{{ customer.name }}"
+                },
+            {% endfor %}
+        };
+
+        // Update harvest preview
+        function updateHarvestPreview() {
+            const harvestId = parseInt(harvestSelect.value);
+            if (harvestId && harvestData[harvestId]) {
+                const data = harvestData[harvestId];
+                harvestPreview.style.display = 'block';
+                previewPond.textContent = data.pond;
+                previewSpecies.textContent = data.species;
+                previewHarvestDate.textContent = data.harvestDate;
+                previewAvailable.textContent = data.available + ' kg';
+                
+                // Set max quantity
+                if (quantityInput) {
+                    quantityInput.max = data.available;
+                }
+            } else {
+                harvestPreview.style.display = 'none';
+            }
+        }
+
+        // Calculate total
+        function calculateTotal() {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const price = parseFloat(priceInput.value) || 0;
+            const transport = parseFloat(transportInput.value) || 0;
+            
+            const subtotal = quantity * price;
+            const total = subtotal + transport;
+            
+            subtotalSpan.textContent = '৳' + subtotal.toFixed(2);
+            transportDisplay.textContent = '৳' + transport.toFixed(2);
+            totalAmountSpan.textContent = '৳' + total.toFixed(2);
+            
+            // Check available quantity
+            const harvestId = parseInt(harvestSelect.value);
+            if (harvestId && harvestData[harvestId]) {
+                const available = harvestData[harvestId].available;
+                if (quantity > available) {
+                    quantityInput.setCustomValidity('Quantity exceeds available stock');
+                    quantityInput.classList.add('is-invalid');
+                } else {
+                    quantityInput.setCustomValidity('');
+                    quantityInput.classList.remove('is-invalid');
+                }
+            }
+        }
+
+        // Check customer credit
+        function checkCustomerCredit() {
+            const customerId = parseInt(customerSelect.value);
+            const total = parseFloat(totalAmountSpan.textContent.replace('৳', '')) || 0;
+            
+            if (customerId && customerCredit[customerId]) {
+                const credit = customerCredit[customerId];
+                const newBalance = credit.balance + total;
+                
+                if (newBalance > credit.limit && credit.limit > 0) {
+                    creditAlert.style.display = 'block';
+                    creditMessage.innerHTML = `⚠️ This sale will exceed ${credit.name}'s credit limit by ৳${(newBalance - credit.limit).toFixed(2)}`;
+                } else if (credit.limit === 0) {
+                    creditAlert.style.display = 'block';
+                    creditMessage.innerHTML = `ℹ️ ${credit.name} has no credit limit. Cash payment recommended.`;
+                } else {
+                    creditAlert.style.display = 'none';
+                }
+            } else {
+                creditAlert.style.display = 'none';
+            }
+        }
+
+        // Toggle payment date based on status
+        function togglePaymentDate() {
+            if (paymentStatusSelect) {
+                const status = paymentStatusSelect.value;
+                if (status === 'PAID' && paymentDateInput && !paymentDateInput.value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    paymentDateInput.value = today;
+                }
+            }
+        }
+
+        // Event listeners
+        if (harvestSelect) {
+            harvestSelect.addEventListener('change', function() {
+                updateHarvestPreview();
+                calculateTotal();
+            });
+        }
+        
+        if (quantityInput) {
+            quantityInput.addEventListener('input', calculateTotal);
+        }
+        
+        if (priceInput) {
+            priceInput.addEventListener('input', calculateTotal);
+        }
+        
+        if (transportInput) {
+            transportInput.addEventListener('input', calculateTotal);
+        }
+        
+        if (customerSelect) {
+            customerSelect.addEventListener('change', checkCustomerCredit);
+        }
+        
+        if (paymentStatusSelect) {
+            paymentStatusSelect.addEventListener('change', togglePaymentDate);
+        }
+
+        // Initialize
+        updateHarvestPreview();
+        calculateTotal();
+        togglePaymentDate();
+
+        // Set default date to today for sale date
+        const saleDateInput = document.getElementById('{{ form.sale_date.id_for_label }}');
+        if (saleDateInput && !saleDateInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            saleDateInput.value = today;
+        }
+
+        // Form validation
+        document.getElementById('saleForm').addEventListener('submit', function(e) {
+            const harvest = harvestSelect.value;
+            const quantity = quantityInput.value;
+            const price = priceInput.value;
+            const customer = customerSelect.value;
+            const customerName = customerNameInput.value;
+            
+            if (!harvest) {
+                e.preventDefault();
+                alert('Please select a harvest batch');
+                return;
+            }
+            
+            if (!quantity || parseFloat(quantity) <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid quantity');
+                return;
+            }
+            
+            if (!price || parseFloat(price) <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid price per kg');
+                return;
+            }
+            
+            if (!customer && !customerName.trim()) {
+                e.preventDefault();
+                alert('Please select a customer or enter a customer name');
+                return;
+            }
+            
+            // Check available quantity
+            const harvestId = parseInt(harvest);
+            if (harvestId && harvestData[harvestId]) {
+                const available = harvestData[harvestId].available;
+                if (parseFloat(quantity) > available) {
+                    e.preventDefault();
+                    alert('Quantity exceeds available stock');
+                    return;
+                }
+            }
+        });
+
+        // Unsaved changes warning
+        let formChanged = false;
+        document.getElementById('saleForm').addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    });
+</script>
+
+<style>
+    .section-card {
+        background: #f8fafc;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        border-color: #28a745;
+        box-shadow: 0 5px 20px rgba(40, 167, 69, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .fishery-form-control[readonly] {
+        background-color: #f8f9fa;
+        opacity: 0.8;
+        cursor: default;
+    }
+    
+    .is-invalid {
+        border-color: #dc3545;
+    }
+    
+    .is-invalid:focus {
+        box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
+    }
+    
+    /* Summary boxes */
+    .summary-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .summary-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    /* Harvest preview */
+    #harvestPreview {
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    #harvestPreview:hover {
+        border-color: #28a745;
+        background-color: #fff !important;
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-card {
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px !important;
+        }
+        
+        .row {
+            flex-direction: column;
+        }
+        
+        #harvestPreview {
+            padding: 10px !important;
+        }
+        
+        .summary-box {
+            margin-bottom: 10px;
+        }
+        
+        .summary-box h4 {
+            font-size: 1.2rem;
+        }
+    }
+</style>
+{% endblock %}

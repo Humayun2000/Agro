@@ -1,0 +1,801 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-pie-chart{% endblock %}
+{% block page_title %}Budget Management{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:budget_list' %}">Budgets</a></li>
+<li class="breadcrumb-item active" aria-current="page">All Budgets</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportBudgets()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:budget_add' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Create Budget
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-pie-chart"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_budgets }}</div>
+            <div class="fishery-stat-label">Total Budgets</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="fishery-stat-value">{{ on_track_count }}</div>
+            <div class="fishery-stat-label">On Track</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="fishery-stat-value">{{ at_risk_count }}</div>
+            <div class="fishery-stat-label">At Risk</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon danger">
+                <i class="bi bi-x-circle"></i>
+            </div>
+            <div class="fishery-stat-value">{{ exceeded_count }}</div>
+            <div class="fishery-stat-label">Exceeded</div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Budget Amount</h6>
+                    <h2 class="mb-0">৳{{ total_budget_amount|floatformat:0 }}</h2>
+                    <small class="text-success">Across all active budgets</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Spent</h6>
+                    <h2 class="mb-0">৳{{ total_spent|floatformat:0 }}</h2>
+                    <small class="text-warning">{{ total_spent_percentage|floatformat:1 }}% of budget</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Remaining Budget</h6>
+                    <h2 class="mb-0">৳{{ total_remaining|floatformat:0 }}</h2>
+                    <small class="text-info">{{ total_remaining_percentage|floatformat:1 }}% left</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Budgets
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Status</label>
+                        <select name="status" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Statuses</option>
+                            <option value="on_track" {% if current_status == 'on_track' %}selected{% endif %}>On Track</option>
+                            <option value="at_risk" {% if current_status == 'at_risk' %}selected{% endif %}>At Risk</option>
+                            <option value="exceeded" {% if current_status == 'exceeded' %}selected{% endif %}>Exceeded</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Pond</label>
+                        <select name="pond" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Ponds</option>
+                            {% for pond in ponds %}
+                            <option value="{{ pond.id }}" {% if current_pond == pond.id|stringformat:"s" %}selected{% endif %}>
+                                {{ pond.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="fishery-form-label">Search</label>
+                        <input type="text" name="search" class="fishery-form-control" 
+                               placeholder="Pond, species, cycle..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="fishery-btn-add w-100">
+                                <i class="bi bi-search me-1"></i> Apply
+                            </button>
+                            <a href="{% url 'fishery:budget_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Budget Alerts -->
+    {% if exceeded_count > 0 %}
+    <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+        <div class="flex-grow-1">
+            <strong>{{ exceeded_count }} Budget{{ exceeded_count|pluralize }} Exceeded!</strong>
+            <p class="mb-0 mt-1">These cycles have exceeded their budget. Review and adjust immediately.</p>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="scrollToExceeded()">
+            View Exceeded
+        </button>
+    </div>
+    {% endif %}
+
+    {% if at_risk_count > 0 %}
+    <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+        <div class="flex-grow-1">
+            <strong>{{ at_risk_count }} Budget{{ at_risk_count|pluralize }} At Risk</strong>
+            <p class="mb-0 mt-1">These cycles are approaching their budget limit.</p>
+        </div>
+        <button class="btn btn-sm btn-outline-warning" onclick="scrollToAtRisk()">
+            View At Risk
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Budgets Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Budget Plans
+                <span class="badge bg-primary ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeleteBudgets()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Pond / Cycle</th>
+                        <th>Budget Breakdown</th>
+                        <th>Total Budget</th>
+                        <th>Current Expenses</th>
+                        <th>Remaining</th>
+                        <th>Status</th>
+                        <th>Utilization</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for budget in budgets %}
+                    {% with total_expenses=budget.cycle.total_expense %}
+                    {% with remaining=budget.planned_revenue|add:total_expenses %}
+                    {% with utilization=total_expenses|div:budget.planned_revenue|mul:100 %}
+                    <tr class="budget-row 
+                        {% if utilization >= 100 %}table-danger
+                        {% elif utilization >= 80 %}table-warning
+                        {% else %}table-success{% endif %}" 
+                        data-id="{{ budget.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input budget-checkbox" value="{{ budget.id }}">
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="budget-avatar 
+                                    {% if utilization >= 100 %}bg-danger
+                                    {% elif utilization >= 80 %}bg-warning
+                                    {% else %}bg-success{% endif %} bg-opacity-10 rounded p-2">
+                                    <i class="bi bi-water 
+                                        {% if utilization >= 100 %}text-danger
+                                        {% elif utilization >= 80 %}text-warning
+                                        {% else %}text-success{% endif %}"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ budget.cycle.pond.name }}</div>
+                                    <small class="text-muted">{{ budget.cycle.species.name }}</small>
+                                    <div><small class="text-muted">Cycle: {{ budget.cycle.cycle_id|slice:":8" }}</small></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="small">
+                                <div><i class="bi bi-fish me-1 text-primary"></i> Fingerlings: ৳{{ budget.planned_fingerling_cost|floatformat:0 }}</div>
+                                <div><i class="bi bi-basket me-1 text-success"></i> Feed: ৳{{ budget.planned_feed_cost|floatformat:0 }}</div>
+                                <div><i class="bi bi-droplet me-1 text-info"></i> Medicine: ৳{{ budget.planned_medicine_cost|floatformat:0 }}</div>
+                                <div><i class="bi bi-people me-1 text-warning"></i> Labor: ৳{{ budget.planned_labor_cost|floatformat:0 }}</div>
+                                <div><i class="bi bi-tools me-1 text-secondary"></i> Other: ৳{{ budget.planned_other_cost|floatformat:0 }}</div>
+                            </div>
+                        </td>
+                        <td class="fw-bold">৳{{ budget.planned_revenue|floatformat:0 }}</td>
+                        <td>
+                            <span class="fw-bold {% if total_expenses > budget.planned_revenue %}text-danger{% endif %}">
+                                ৳{{ total_expenses|floatformat:0 }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="fw-bold {% if remaining < 0 %}text-danger{% elif remaining < budget.planned_revenue|mul:0.2 %}text-warning{% else %}text-success{% endif %}">
+                                ৳{{ remaining|floatformat:0 }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if utilization >= 100 %}
+                                <span class="fishery-badge fishery-badge-danger">Exceeded</span>
+                            {% elif utilization >= 80 %}
+                                <span class="fishery-badge fishery-badge-warning">At Risk</span>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-success">On Track</span>
+                            {% endif %}
+                        </td>
+                        <td style="min-width: 150px;">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="small {% if utilization >= 100 %}text-danger{% elif utilization >= 80 %}text-warning{% else %}text-success{% endif %}">
+                                    {{ utilization|floatformat:1 }}%
+                                </span>
+                                <div class="progress flex-grow-1" style="height: 6px;">
+                                    <div class="progress-bar 
+                                        {% if utilization >= 100 %}bg-danger
+                                        {% elif utilization >= 80 %}bg-warning
+                                        {% else %}bg-success{% endif %}" 
+                                        role="progressbar" 
+                                        style="width: {% if utilization > 100 %}100{% else %}{{ utilization }}{% endif %}%"></div>
+                                </div>
+                            </div>
+                            <small class="text-muted">vs Planned</small>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:budget_edit' budget.id %}" class="btn btn-sm btn-outline-warning" title="Edit Budget">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'fishery:budget_for_cycle' budget.cycle.id %}" class="btn btn-sm btn-outline-info" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteBudget({{ budget.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% endwith %}
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5">
+                            <i class="bi bi-pie-chart fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No budget plans found</h5>
+                            <p class="text-muted mb-3">Create your first budget plan</p>
+                            <a href="{% url 'fishery:budget_add' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Create Budget
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-primary border-primary">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Budget Analytics -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    Budget Distribution
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="budgetChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-trophy-fill text-warning"></i>
+                    Best Performing Budgets
+                </h5>
+                <div style="max-height: 250px; overflow-y: auto;">
+                    {% for budget in best_budgets %}
+                    {% with utilization=budget.cycle.total_expense|div:budget.planned_revenue|mul:100 %}
+                    <div class="d-flex align-items-center justify-content-between mb-2 p-2 bg-light rounded-3">
+                        <div>
+                            <span class="fw-bold">{{ budget.cycle.pond.name }}</span>
+                            <small class="text-muted d-block">{{ budget.cycle.species.name }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success">{{ utilization|floatformat:1 }}% used</span>
+                            <small class="text-muted d-block">৳{{ budget.cycle.total_expense|floatformat:0 }}/৳{{ budget.planned_revenue|floatformat:0 }}</small>
+                        </div>
+                    </div>
+                    {% endwith %}
+                    {% empty %}
+                    <p class="text-muted text-center py-3">No budget data available</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budget Summary by Category -->
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-bar-chart text-info"></i>
+                    Budget vs Actual by Category
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-end">Budgeted</th>
+                                <th class="text-end">Actual</th>
+                                <th class="text-end">Variance</th>
+                                <th class="text-end">Utilization</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><i class="bi bi-fish text-primary me-2"></i>Fingerlings</td>
+                                <td class="text-end">৳{{ total_budget_fingerlings|floatformat:0 }}</td>
+                                <td class="text-end">৳{{ total_actual_fingerlings|floatformat:0 }}</td>
+                                <td class="text-end {% if total_actual_fingerlings > total_budget_fingerlings %}text-danger{% else %}text-success{% endif %}">
+                                    ৳{{ total_actual_fingerlings|add:total_budget_fingerlings|floatformat:0 }}
+                                </td>
+                                <td class="text-end">
+                                    {% widthratio total_actual_fingerlings total_budget_fingerlings 100 as fingerling_percentage %}
+                                    <span class="{% if fingerling_percentage|add:'0' > 100 %}text-danger{% elif fingerling_percentage|add:'0' > 80 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ fingerling_percentage }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-basket text-success me-2"></i>Feed</td>
+                                <td class="text-end">৳{{ total_budget_feed|floatformat:0 }}</td>
+                                <td class="text-end">৳{{ total_actual_feed|floatformat:0 }}</td>
+                                <td class="text-end {% if total_actual_feed > total_budget_feed %}text-danger{% else %}text-success{% endif %}">
+                                    ৳{{ total_actual_feed|add:total_budget_feed|floatformat:0 }}
+                                </td>
+                                <td class="text-end">
+                                    {% widthratio total_actual_feed total_budget_feed 100 as feed_percentage %}
+                                    <span class="{% if feed_percentage|add:'0' > 100 %}text-danger{% elif feed_percentage|add:'0' > 80 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ feed_percentage }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-droplet text-info me-2"></i>Medicine</td>
+                                <td class="text-end">৳{{ total_budget_medicine|floatformat:0 }}</td>
+                                <td class="text-end">৳{{ total_actual_medicine|floatformat:0 }}</td>
+                                <td class="text-end {% if total_actual_medicine > total_budget_medicine %}text-danger{% else %}text-success{% endif %}">
+                                    ৳{{ total_actual_medicine|add:total_budget_medicine|floatformat:0 }}
+                                </td>
+                                <td class="text-end">
+                                    {% widthratio total_actual_medicine total_budget_medicine 100 as medicine_percentage %}
+                                    <span class="{% if medicine_percentage|add:'0' > 100 %}text-danger{% elif medicine_percentage|add:'0' > 80 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ medicine_percentage }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-people text-warning me-2"></i>Labor</td>
+                                <td class="text-end">৳{{ total_budget_labor|floatformat:0 }}</td>
+                                <td class="text-end">৳{{ total_actual_labor|floatformat:0 }}</td>
+                                <td class="text-end {% if total_actual_labor > total_budget_labor %}text-danger{% else %}text-success{% endif %}">
+                                    ৳{{ total_actual_labor|add:total_budget_labor|floatformat:0 }}
+                                </td>
+                                <td class="text-end">
+                                    {% widthratio total_actual_labor total_budget_labor 100 as labor_percentage %}
+                                    <span class="{% if labor_percentage|add:'0' > 100 %}text-danger{% elif labor_percentage|add:'0' > 80 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ labor_percentage }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-tools text-secondary me-2"></i>Other</td>
+                                <td class="text-end">৳{{ total_budget_other|floatformat:0 }}</td>
+                                <td class="text-end">৳{{ total_actual_other|floatformat:0 }}</td>
+                                <td class="text-end {% if total_actual_other > total_budget_other %}text-danger{% else %}text-success{% endif %}">
+                                    ৳{{ total_actual_other|add:total_budget_other|floatformat:0 }}
+                                </td>
+                                <td class="text-end">
+                                    {% widthratio total_actual_other total_budget_other 100 as other_percentage %}
+                                    <span class="{% if other_percentage|add:'0' > 100 %}text-danger{% elif other_percentage|add:'0' > 80 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ other_percentage }}%
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="fw-bold">
+                                <td>Total</td>
+                                <td class="text-end">৳{{ total_budget_amount|floatformat:0 }}</td>
+                                <td class="text-end">৳{{ total_spent|floatformat:0 }}</td>
+                                <td class="text-end {% if total_spent > total_budget_amount %}text-danger{% else %}text-success{% endif %}">
+                                    ৳{{ total_spent|add:total_budget_amount|floatformat:0 }}
+                                </td>
+                                <td class="text-end">{{ total_spent_percentage|floatformat:1 }}%</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteBudgetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this budget plan?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will remove budget tracking for this cycle.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteBudgetBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Store delete URL template
+    const DELETE_BUDGET_URL = "{% url 'fishery:budget_delete' 0 %}";
+    
+    // Initialize budget chart
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('budgetChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Fingerlings', 'Feed', 'Medicine', 'Labor', 'Other'],
+                datasets: [{
+                    data: [
+                        {{ total_budget_fingerlings|default:0 }},
+                        {{ total_budget_feed|default:0 }},
+                        {{ total_budget_medicine|default:0 }},
+                        {{ total_budget_labor|default:0 }},
+                        {{ total_budget_other|default:0 }}
+                    ],
+                    backgroundColor: [
+                        '#0d6efd',
+                        '#28a745',
+                        '#0dcaf0',
+                        '#ffc107',
+                        '#6c757d'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.budget-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.budget-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.budget-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeleteBudget(budgetId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteBudgetModal'));
+        document.getElementById('confirmDeleteBudgetBtn').href = DELETE_BUDGET_URL.replace('0', budgetId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeleteBudgets() {
+        const selected = Array.from(document.querySelectorAll('.budget-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} budget plans?`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/budgets/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportBudgets() {
+        window.location.href = "{% url 'fishery:export_budgets' %}";
+    }
+
+    // Scroll functions
+    function scrollToExceeded() {
+        const exceeded = document.querySelector('.table-danger');
+        if (exceeded) {
+            exceeded.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    function scrollToAtRisk() {
+        const atRisk = document.querySelector('.table-warning');
+        if (atRisk) {
+            atRisk.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    // Row click to edit
+    document.querySelectorAll('.budget-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:budget_edit' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .budget-avatar {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .budget-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .budget-row td {
+        vertical-align: middle;
+    }
+    
+    .table-success {
+        background-color: #d4edda !important;
+    }
+    
+    .table-success:hover {
+        background-color: #c3e6cb !important;
+    }
+    
+    .table-warning {
+        background-color: #fff3cd !important;
+    }
+    
+    .table-warning:hover {
+        background-color: #ffe69c !important;
+    }
+    
+    .table-danger {
+        background-color: #f8d7da !important;
+    }
+    
+    .table-danger:hover {
+        background-color: #f5c6cb !important;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        white-space: nowrap;
+    }
+    
+    .fishery-badge-success {
+        background-color: #d4edda;
+        color: #28a745;
+    }
+    
+    .fishery-badge-warning {
+        background-color: #fff3cd;
+        color: #ffc107;
+    }
+    
+    .fishery-badge-danger {
+        background-color: #f8d7da;
+        color: #dc3545;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 5px 8px;
+    }
+    
+    .badge.bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #000;
+    }
+    
+    .badge.bg-danger {
+        background-color: #dc3545 !important;
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 3px;
+    }
+    
+    .progress-bar {
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Category breakdown table */
+    .table-sm td, .table-sm th {
+        padding: 0.5rem;
+    }
+    
+    .table-sm tfoot {
+        border-top: 2px solid #dee2e6;
+    }
+    
+    /* Quick stats cards */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.85rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .budget-avatar {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .fishery-badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 5px;
+        }
+        
+        .progress {
+            height: 4px !important;
+        }
+    }
+</style>
+{% endblock %}

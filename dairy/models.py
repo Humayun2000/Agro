@@ -575,3 +575,287 @@ class YearlyReport(models.Model):
     
     def __str__(self):
         return f"{self.year} Annual Report"
+
+
+# Add to your existing models.py
+
+class MilkProductionReport(models.Model):
+    """Stores generated milk production reports"""
+    
+    REPORT_PERIODS = [
+        ('DAILY', 'Daily'),
+        ('WEEKLY', 'Weekly'),
+        ('MONTHLY', 'Monthly'),
+        ('QUARTERLY', 'Quarterly'),
+        ('YEARLY', 'Yearly'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    period = models.CharField(max_length=20, choices=REPORT_PERIODS)
+    year = models.IntegerField()
+    month = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(12)])
+    week = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(52)])
+    start_date = models.DateField()
+    end_date = models.DateField()
+    
+    # Summary statistics
+    total_milk = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    avg_daily_milk = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    avg_fat_percentage = models.DecimalField(max_digits=4, decimal_places=2, default=0)
+    peak_production_day = models.DateField(null=True, blank=True)
+    peak_production_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_lactating_cows = models.IntegerField(default=0)
+    avg_per_cow = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Financial summary
+    total_revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    avg_price_per_liter = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    
+    # Comparison data
+    previous_period_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    growth_percentage = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    
+    # Report metadata
+    generated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    generated_at = models.DateTimeField(auto_now_add=True)
+    report_file = models.FileField(upload_to='reports/milk/', null=True, blank=True)
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-year', '-month', '-week']
+        verbose_name = "Milk Production Report"
+        verbose_name_plural = "Milk Production Reports"
+    
+    def __str__(self):
+        if self.period == 'DAILY':
+            return f"Milk Report - {self.start_date}"
+        elif self.period == 'MONTHLY':
+            return f"Milk Report - {self.start_date.strftime('%B %Y')}"
+        else:
+            return self.title
+
+
+class DailyProductionSummary(models.Model):
+    """Daily milk production summary for reporting"""
+    
+    date = models.DateField(unique=True)
+    total_milk = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    morning_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    afternoon_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    evening_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    avg_fat = models.DecimalField(max_digits=4, decimal_places=2, default=0)
+    lactating_cows = models.IntegerField(default=0)
+    revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    class Meta:
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"Production Summary - {self.date}"
+    
+# Add to your existing models.py
+
+class HealthSummaryReport(models.Model):
+    """Stores generated health summary reports"""
+    
+    REPORT_TYPES = [
+        ('QUARTERLY', 'Quarterly'),
+        ('YEARLY', 'Yearly'),
+        ('CUSTOM', 'Custom Range'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    report_type = models.CharField(max_length=20, choices=REPORT_TYPES)
+    year = models.IntegerField()
+    quarter = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(4)])
+    start_date = models.DateField()
+    end_date = models.DateField()
+    
+    # Summary statistics
+    total_cases = models.IntegerField(default=0)
+    healthy_cattle = models.IntegerField(default=0)
+    under_treatment = models.IntegerField(default=0)
+    critical_cases = models.IntegerField(default=0)
+    recovered_cases = models.IntegerField(default=0)
+    
+    # Cost analysis
+    total_health_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    avg_cost_per_case = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Emergency stats
+    emergency_cases = models.IntegerField(default=0)
+    emergency_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Vaccination stats
+    vaccinations_scheduled = models.IntegerField(default=0)
+    vaccinations_completed = models.IntegerField(default=0)
+    vaccinations_overdue = models.IntegerField(default=0)
+    vaccinations_upcoming = models.IntegerField(default=0)
+    
+    # Report metadata
+    generated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    generated_at = models.DateTimeField(auto_now_add=True)
+    report_file = models.FileField(upload_to='reports/health/', null=True, blank=True)
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-year', '-quarter']
+        verbose_name = "Health Summary Report"
+        verbose_name_plural = "Health Summary Reports"
+    
+    def __str__(self):
+        if self.report_type == 'QUARTERLY':
+            return f"Health Report - Q{self.quarter} {self.year}"
+        elif self.report_type == 'YEARLY':
+            return f"Health Report - {self.year}"
+        else:
+            return self.title
+
+
+class HealthCaseSummary(models.Model):
+    """Summary of health cases by type"""
+    
+    report = models.ForeignKey(HealthSummaryReport, on_delete=models.CASCADE, 
+                               related_name='case_summaries')
+    health_type = models.CharField(max_length=20, choices=HealthRecord.HEALTH_TYPES)
+    count = models.IntegerField(default=0)
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    class Meta:
+        ordering = ['-count']
+    
+    def __str__(self):
+        return f"{self.get_health_type_display()}: {self.count} cases"
+
+
+class DiseaseTrend(models.Model):
+    """Track disease trends over time"""
+    
+    disease_name = models.CharField(max_length=100)
+    year = models.IntegerField()
+    month = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)])
+    cases_count = models.IntegerField(default=0)
+    seasonal_pattern = models.CharField(max_length=50, blank=True)
+    
+    class Meta:
+        unique_together = ['disease_name', 'year', 'month']
+        ordering = ['-year', '-month']
+    
+    def __str__(self):
+        return f"{self.disease_name} - {self.month}/{self.year}: {self.cases_count} cases"    
+    
+
+# Add to your existing models.py
+
+class BreedingPerformanceReport(models.Model):
+    """Stores generated breeding performance reports"""
+    
+    REPORT_PERIODS = [
+        ('MONTHLY', 'Monthly'),
+        ('QUARTERLY', 'Quarterly'),
+        ('YEARLY', 'Yearly'),
+        ('CUSTOM', 'Custom Range'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    period = models.CharField(max_length=20, choices=REPORT_PERIODS)
+    year = models.IntegerField()
+    month = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(12)])
+    quarter = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(4)])
+    start_date = models.DateField()
+    end_date = models.DateField()
+    
+    # Breeding statistics
+    total_breedings = models.IntegerField(default=0)
+    confirmed_pregnant = models.IntegerField(default=0)
+    failed_conceptions = models.IntegerField(default=0)
+    pending_results = models.IntegerField(default=0)
+    calved_count = models.IntegerField(default=0)
+    
+    # Success rates
+    conception_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    natural_success_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    ai_success_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Pregnancy stats
+    total_pregnant = models.IntegerField(default=0)
+    expected_calving_next_30_days = models.IntegerField(default=0)
+    expected_calving_next_90_days = models.IntegerField(default=0)
+    
+    # Heat detection
+    heat_cycles_detected = models.IntegerField(default=0)
+    successful_breedings = models.IntegerField(default=0)
+    missed_opportunities = models.IntegerField(default=0)
+    
+    # Calving stats
+    total_calves = models.IntegerField(default=0)
+    male_calves = models.IntegerField(default=0)
+    female_calves = models.IntegerField(default=0)
+    avg_birth_weight = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    calf_survival_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Financial
+    total_breeding_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cost_per_pregnancy = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Report metadata
+    generated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    generated_at = models.DateTimeField(auto_now_add=True)
+    report_file = models.FileField(upload_to='reports/breeding/', null=True, blank=True)
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-year', '-month', '-quarter']
+        verbose_name = "Breeding Performance Report"
+        verbose_name_plural = "Breeding Performance Reports"
+    
+    def __str__(self):
+        if self.period == 'MONTHLY':
+            return f"Breeding Report - {self.get_month_display()} {self.year}"
+        elif self.period == 'QUARTERLY':
+            return f"Breeding Report - Q{self.quarter} {self.year}"
+        elif self.period == 'YEARLY':
+            return f"Breeding Report - {self.year}"
+        else:
+            return self.title
+    
+    def get_month_display(self):
+        months = ['January', 'February', 'March', 'April', 'May', 'June',
+                 'July', 'August', 'September', 'October', 'November', 'December']
+        return months[self.month - 1] if self.month else ""
+
+
+class SirePerformance(models.Model):
+    """Track performance of each sire"""
+    
+    report = models.ForeignKey(BreedingPerformanceReport, on_delete=models.CASCADE,
+                               related_name='sire_performances')
+    sire = models.ForeignKey(Cattle, on_delete=models.CASCADE, limit_choices_to={'gender': 'M'})
+    breed = models.CharField(max_length=20, choices=Cattle.BREED_TYPES)
+    total_services = models.IntegerField(default=0)
+    pregnancies = models.IntegerField(default=0)
+    success_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    class Meta:
+        ordering = ['-success_rate']
+    
+    def __str__(self):
+        return f"{self.sire.tag_number} - {self.success_rate}%"
+
+
+class MonthlyBreedingActivity(models.Model):
+    """Monthly breeding activity summary"""
+    
+    report = models.ForeignKey(BreedingPerformanceReport, on_delete=models.CASCADE,
+                               related_name='monthly_activities')
+    month = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)])
+    bred = models.IntegerField(default=0)
+    pregnant = models.IntegerField(default=0)
+    calved = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['month']
+    
+    def __str__(self):
+        return f"Month {self.month}: {self.bred} bred, {self.pregnant} pregnant"

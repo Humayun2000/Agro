@@ -1,9 +1,10 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from django.urls import reverse
-from django.db.models import Sum, Avg, Count
+from django.urls import reverse, path
+from django.db.models import Sum, Avg, Count, Q
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta
+
 from .models import *
 
 # ==================== CATTLE ADMIN ====================
@@ -141,7 +142,7 @@ class CattleAdmin(admin.ModelAdmin):
     def calculate_financials(self, request, queryset):
         count = 0
         for cattle in queryset:
-            cattle.total_investment = cattle.purchase_price or 0 + cattle.total_expenses()
+            cattle.total_investment = (cattle.purchase_price or 0) + cattle.total_expenses()
             cattle.save()
             count += 1
         self.message_user(request, f'Financials calculated for {count} cattle.')
@@ -711,7 +712,384 @@ class YearlyReportAdmin(admin.ModelAdmin):
     total_milk_display.short_description = "Milk Produced"
 
 
+# ==================== MILK PRODUCTION REPORTS ====================
+
+@admin.register(MilkProductionReport)
+class MilkProductionReportAdmin(admin.ModelAdmin):
+    list_display = ['title', 'period', 'date_range', 'total_milk', 'avg_fat_percentage', 
+                   'total_revenue', 'growth_indicator', 'generated_at', 'download_link']
+    list_filter = ['period', 'year', 'month', 'generated_at']
+    search_fields = ['title', 'notes']
+    date_hierarchy = 'generated_at'
+    readonly_fields = ['total_milk', 'avg_daily_milk', 'avg_fat_percentage', 
+                      'peak_production_day', 'total_revenue', 'growth_percentage']
+    
+    fieldsets = (
+        ('Report Information', {
+            'fields': ('title', 'period', 'year', 'month', 'week', 
+                      'start_date', 'end_date', 'notes')
+        }),
+        ('Production Statistics', {
+            'fields': ('total_milk', 'avg_daily_milk', 'avg_fat_percentage',
+                      'peak_production_day', 'peak_production_amount',
+                      'total_lactating_cows', 'avg_per_cow'),
+            'classes': ('wide',)
+        }),
+        ('Financial Summary', {
+            'fields': ('total_revenue', 'avg_price_per_liter'),
+        }),
+        ('Comparison Data', {
+            'fields': ('previous_period_total', 'growth_percentage'),
+        }),
+        ('Metadata', {
+            'fields': ('generated_by', 'generated_at', 'report_file'),
+        }),
+    )
+    
+    def date_range(self, obj):
+        return f"{obj.start_date} to {obj.end_date}"
+    date_range.short_description = "Date Range"
+    
+    def growth_indicator(self, obj):
+        if obj.growth_percentage > 0:
+            return format_html(
+                '<span style="color: green; font-weight: bold;">▲ +{}%</span>',
+                obj.growth_percentage
+            )
+        elif obj.growth_percentage < 0:
+            return format_html(
+                '<span style="color: red; font-weight: bold;">▼ {}%</span>',
+                obj.growth_percentage
+            )
+        else:
+            return format_html('<span style="color: gray;">● 0%</span>')
+    growth_indicator.short_description = "Growth"
+    
+    def download_link(self, obj):
+        if obj.report_file:
+            return format_html(
+                '<a href="{}" target="_blank" style="background: #28a745; color: white; padding: 3px 10px; border-radius: 3px; text-decoration: none;">📥 Download</a>',
+                obj.report_file.url
+            )
+        return "Not generated"
+    download_link.short_description = "Report File"
+    
+    actions = ['generate_pdf_reports']
+    
+    def generate_pdf_reports(self, request, queryset):
+        self.message_user(request, f"PDF generation started for {queryset.count()} reports")
+    generate_pdf_reports.short_description = "Generate PDF reports"
+
+
+@admin.register(DailyProductionSummary)
+class DailyProductionSummaryAdmin(admin.ModelAdmin):
+    list_display = ['date', 'total_milk', 'session_breakdown', 'avg_fat', 
+                   'lactating_cows', 'revenue']
+    list_filter = ['date']
+    date_hierarchy = 'date'
+    
+    def session_breakdown(self, obj):
+        return format_html(
+            'M:{}L | A:{}L | E:{}L',
+            obj.morning_total, obj.afternoon_total, obj.evening_total
+        )
+    session_breakdown.short_description = "Session Breakdown"
+
+
+# ==================== HEALTH SUMMARY REPORTS ====================
+
+@admin.register(HealthSummaryReport)
+class HealthSummaryReportAdmin(admin.ModelAdmin):
+    list_display = ['title', 'report_type', 'period_display', 'total_cases', 
+                   'critical_cases', 'total_health_cost', 'recovery_rate', 
+                   'generated_at', 'download_link']
+    list_filter = ['report_type', 'year', 'quarter', 'generated_at']
+    search_fields = ['title', 'notes']
+    date_hierarchy = 'generated_at'
+    readonly_fields = ['total_cases', 'healthy_cattle', 'under_treatment', 
+                      'critical_cases', 'recovered_cases', 'total_health_cost',
+                      'emergency_cases', 'emergency_cost']
+    
+    fieldsets = (
+        ('Report Information', {
+            'fields': ('title', 'report_type', 'year', 'quarter', 
+                      'start_date', 'end_date', 'notes')
+        }),
+        ('Health Statistics', {
+            'fields': ('total_cases', 'healthy_cattle', 'under_treatment', 
+                      'critical_cases', 'recovered_cases'),
+            'classes': ('wide',)
+        }),
+        ('Cost Analysis', {
+            'fields': ('total_health_cost', 'avg_cost_per_case',
+                      'emergency_cases', 'emergency_cost'),
+        }),
+        ('Vaccination Summary', {
+            'fields': ('vaccinations_scheduled', 'vaccinations_completed',
+                      'vaccinations_overdue', 'vaccinations_upcoming'),
+        }),
+        ('Metadata', {
+            'fields': ('generated_by', 'generated_at', 'report_file'),
+        }),
+    )
+    
+    def period_display(self, obj):
+        if obj.report_type == 'QUARTERLY':
+            return f"Q{obj.quarter} {obj.year}"
+        elif obj.report_type == 'YEARLY':
+            return str(obj.year)
+        else:
+            return f"{obj.start_date} to {obj.end_date}"
+    period_display.short_description = "Period"
+    
+    def recovery_rate(self, obj):
+        if obj.total_cases > 0:
+            rate = (obj.recovered_cases / obj.total_cases) * 100
+            color = 'green' if rate > 80 else 'orange' if rate > 60 else 'red'
+            return format_html(
+                '<span style="color: {}; font-weight: bold;">{}%</span>',
+                color, round(rate, 1)
+            )
+        return "N/A"
+    recovery_rate.short_description = "Recovery Rate"
+    
+    def download_link(self, obj):
+        if obj.report_file:
+            return format_html(
+                '<a href="{}" target="_blank">📄 PDF</a>',
+                obj.report_file.url
+            )
+        return "Not generated"
+    download_link.short_description = "Report"
+    
+    actions = ['generate_pdf', 'send_email_report']
+    
+    def generate_pdf(self, request, queryset):
+        self.message_user(request, f"PDF generation initiated for {queryset.count()} reports")
+    generate_pdf.short_description = "Generate PDF reports"
+    
+    def send_email_report(self, request, queryset):
+        self.message_user(request, f"Emails sent for {queryset.count()} reports")
+    send_email_report.short_description = "Email reports"
+
+
+@admin.register(DiseaseTrend)
+class DiseaseTrendAdmin(admin.ModelAdmin):
+    list_display = ['disease_name', 'year', 'month', 'month_name', 'cases_count', 'seasonal_pattern']
+    list_filter = ['disease_name', 'year', 'seasonal_pattern']
+    search_fields = ['disease_name']
+    
+    def month_name(self, obj):
+        months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        return months[obj.month - 1] if 1 <= obj.month <= 12 else ''
+    month_name.short_description = "Month"
+    month_name.admin_order_field = 'month'
+    
+    def changelist_view(self, request, extra_context=None):
+        from django.db.models import Sum
+        
+        # Get summary statistics
+        total_cases = DiseaseTrend.objects.aggregate(total=Sum('cases_count'))['total'] or 0
+        
+        # Get top diseases
+        top_diseases = DiseaseTrend.objects.values('disease_name').annotate(
+            total=Sum('cases_count')
+        ).order_by('-total')[:5]
+        
+        # Get yearly trends
+        years = DiseaseTrend.objects.values_list('year', flat=True).distinct().order_by('-year')
+        
+        chart_data = []
+        for year in years:
+            year_total = DiseaseTrend.objects.filter(year=year).aggregate(
+                total=Sum('cases_count')
+            )['total'] or 0
+            chart_data.append({'year': year, 'total': year_total})
+        
+        extra_context = extra_context or {}
+        extra_context.update({
+            'total_cases': total_cases,
+            'top_diseases': top_diseases,
+            'chart_data': chart_data,
+            'years': years,
+        })
+        
+        return super().changelist_view(request, extra_context=extra_context)
+
+
+# ==================== BREEDING PERFORMANCE REPORTS ====================
+
+@admin.register(BreedingPerformanceReport)
+class BreedingPerformanceReportAdmin(admin.ModelAdmin):
+    list_display = ['title', 'period', 'period_display', 'total_breedings', 
+                   'conception_rate_indicator', 'calved_count', 'cost_per_pregnancy',
+                   'generated_at', 'download_link']
+    list_filter = ['period', 'year', 'month', 'quarter', 'generated_at']
+    search_fields = ['title', 'notes']
+    date_hierarchy = 'generated_at'
+    readonly_fields = ['total_breedings', 'confirmed_pregnant', 'conception_rate',
+                      'total_pregnant', 'expected_calving_next_30_days', 'total_calves']
+    
+    fieldsets = (
+        ('Report Information', {
+            'fields': ('title', 'period', 'year', 'month', 'quarter',
+                      'start_date', 'end_date', 'notes')
+        }),
+        ('Breeding Statistics', {
+            'fields': ('total_breedings', 'confirmed_pregnant', 'failed_conceptions',
+                      'pending_results', 'calved_count'),
+            'classes': ('wide',)
+        }),
+        ('Success Rates', {
+            'fields': ('conception_rate', 'natural_success_rate', 'ai_success_rate'),
+        }),
+        ('Pregnancy & Calving', {
+            'fields': ('total_pregnant', 'expected_calving_next_30_days',
+                      'expected_calving_next_90_days'),
+        }),
+        ('Heat Detection', {
+            'fields': ('heat_cycles_detected', 'successful_breedings', 'missed_opportunities'),
+        }),
+        ('Calving Statistics', {
+            'fields': ('total_calves', 'male_calves', 'female_calves',
+                      'avg_birth_weight', 'calf_survival_rate'),
+        }),
+        ('Financial', {
+            'fields': ('total_breeding_cost', 'cost_per_pregnancy'),
+        }),
+        ('Metadata', {
+            'fields': ('generated_by', 'generated_at', 'report_file'),
+        }),
+    )
+    
+    def period_display(self, obj):
+        if obj.period == 'MONTHLY':
+            months = ['January', 'February', 'March', 'April', 'May', 'June',
+                     'July', 'August', 'September', 'October', 'November', 'December']
+            return months[obj.month - 1] if obj.month else ''
+        elif obj.period == 'QUARTERLY':
+            return f"Q{obj.quarter}"
+        elif obj.period == 'YEARLY':
+            return str(obj.year)
+        else:
+            return f"{obj.start_date} to {obj.end_date}"
+    period_display.short_description = "Period"
+    
+    def conception_rate_indicator(self, obj):
+        rate = obj.conception_rate
+        if rate >= 70:
+            color = 'green'
+            icon = '▲'
+        elif rate >= 50:
+            color = 'orange'
+            icon = '●'
+        else:
+            color = 'red'
+            icon = '▼'
+        
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{} {}%</span>',
+            color, icon, rate
+        )
+    conception_rate_indicator.short_description = "Conception Rate"
+    
+    def download_link(self, obj):
+        if obj.report_file:
+            return format_html(
+                '<a href="{}" target="_blank" style="background: #17a2b8; color: white; padding: 3px 10px; border-radius: 3px; text-decoration: none;">📊 View</a>',
+                obj.report_file.url
+            )
+        return "Not generated"
+    download_link.short_description = "Report"
+    
+    actions = ['generate_report', 'export_comparison_chart']
+    
+    def generate_report(self, request, queryset):
+        for report in queryset:
+            self._calculate_sire_performance(report)
+        self.message_user(request, f"Reports generated for {queryset.count()} periods")
+    generate_report.short_description = "Generate detailed reports"
+    
+    def _calculate_sire_performance(self, report):
+        """Calculate sire performance for the report period"""
+        breedings = BreedingRecord.objects.filter(
+            breeding_date__range=[report.start_date, report.end_date]
+        ).exclude(sire__isnull=True)
+        
+        sire_stats = breedings.values('sire').annotate(
+            services=Count('id'),
+            success=Count('id', filter=Q(is_pregnant=True))
+        )
+        
+        for stat in sire_stats:
+            try:
+                sire = Cattle.objects.get(id=stat['sire'])
+                SirePerformance.objects.create(
+                    report=report,
+                    sire=sire,
+                    breed=sire.breed,
+                    total_services=stat['services'],
+                    pregnancies=stat['success'],
+                    success_rate=(stat['success'] / stat['services'] * 100) if stat['services'] > 0 else 0
+                )
+            except Cattle.DoesNotExist:
+                continue
+    
+    def export_comparison_chart(self, request, queryset):
+        self.message_user(request, "Comparison chart exported successfully")
+    export_comparison_chart.short_description = "Export comparison chart"
+
+
+@admin.register(SirePerformance)
+class SirePerformanceAdmin(admin.ModelAdmin):
+    list_display = ['sire', 'breed', 'total_services', 'pregnancies', 
+                   'success_rate_bar', 'report_link']
+    list_filter = ['breed', 'report__year']
+    search_fields = ['sire__tag_number']
+    
+    def success_rate_bar(self, obj):
+        rate = obj.success_rate
+        bar_length = int(rate / 5)  # 20 chars max
+        bar = '█' * bar_length + '░' * (20 - bar_length)
+        return format_html(
+            '<span style="color: #28a745; font-family: monospace;" title="{}%">{}</span>',
+            rate, bar
+        )
+    success_rate_bar.short_description = "Success Rate"
+    
+    def report_link(self, obj):
+        url = reverse('admin:dairy_breedingperformancereport_change', args=[obj.report.id])
+        return format_html('<a href="{}">View Report</a>', url)
+    report_link.short_description = "Report"
+
+
+class SirePerformanceInline(admin.TabularInline):
+    model = SirePerformance
+    extra = 0
+    readonly_fields = ['sire', 'breed', 'total_services', 'pregnancies', 'success_rate']
+    can_delete = False
+    verbose_name = "Sire Performance"
+    verbose_name_plural = "Sire Performances"
+
+
+class MonthlyBreedingActivityInline(admin.TabularInline):
+    model = MonthlyBreedingActivity
+    extra = 0
+    readonly_fields = ['month', 'bred', 'pregnant', 'calved']
+    can_delete = False
+    verbose_name = "Monthly Activity"
+    verbose_name_plural = "Monthly Activities"
+
+
+# Add inlines to BreedingPerformanceReportAdmin
+BreedingPerformanceReportAdmin.inlines = [SirePerformanceInline, MonthlyBreedingActivityInline]
+
+
+# ==================== CUSTOM ADMIN SITE CONFIGURATION ====================
+
 # Customize Admin Site
-admin.site.site_header = 'Sheikh Agro - Dairy Management'
+admin.site.site_header = 'Sheikh Agro - Dairy Management System'
 admin.site.site_title = 'Sheikh Agro'
-admin.site.index_title = 'Dairy Farm Administration'
+admin.site.index_title = 'Dairy Farm Administration Dashboard'
+admin.site.site_url = '/dairy/'

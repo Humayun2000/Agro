@@ -1,0 +1,638 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-exclamation-triangle{% endblock %}
+{% block page_title %}Delete Sale - {{ object.sale_number|slice:":8" }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:sale_list' %}">Sales</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete Sale</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:sale_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Sale Record
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon & Message -->
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-cash-stack fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove this sale record?</h4>
+            <p class="text-muted">
+                You are about to delete sale 
+                <strong>{{ object.sale_number }}</strong> from 
+                <strong>{{ object.sale_date|date:"F d, Y" }}</strong>
+            </p>
+        </div>
+
+        <!-- Sale Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="sale-avatar bg-danger text-white rounded-3 p-3">
+                        <i class="bi bi-receipt fs-2"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">Sale #{{ object.sale_number|slice:":8" }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-calendar me-1"></i> {{ object.sale_date|date:"M d, Y" }}
+                            <span class="mx-2">|</span>
+                            <i class="bi bi-person me-1"></i> 
+                            {% if object.customer %}
+                                {{ object.customer.name }}
+                            {% else %}
+                                {{ object.customer_name|default:"Walk-in Customer" }}
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Product</small>
+                            <span class="fw-bold">
+                                {% if object.harvest and object.harvest.cycle %}
+                                    {{ object.harvest.cycle.species.name }} from {{ object.harvest.cycle.pond.name }}
+                                {% else %}
+                                    Unknown Product
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Quantity</small>
+                            <span class="fw-bold">{{ object.quantity_kg }} kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Price/kg</small>
+                            <span class="fw-bold">৳{{ object.price_per_kg|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Subtotal</small>
+                            <span class="fw-bold">৳{{ object.quantity_kg|floatformat:2|add:object.price_per_kg|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Total</small>
+                            <span class="fw-bold text-success">৳{{ object.total_amount|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Payment Status</small>
+                            <span class="fw-bold 
+                                {% if object.payment_status == 'PAID' %}text-success
+                                {% elif object.payment_status == 'PENDING' %}text-warning
+                                {% elif object.payment_status == 'CANCELLED' %}text-danger
+                                {% else %}text-info{% endif %}">
+                                {{ object.get_payment_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-box bg-white rounded-3 p-3">
+                            <small class="text-muted d-block">Payment Method</small>
+                            <span class="fw-bold">{{ object.get_payment_method_display|default:"—" }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if object.transport_cost %}
+                <div class="mt-3 p-2 bg-white rounded-3">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Transport Cost:</span>
+                        <span class="fw-bold">৳{{ object.transport_cost|floatformat:2 }}</span>
+                    </div>
+                    {% if object.vehicle_number %}
+                    <div class="d-flex justify-content-between mt-1">
+                        <span class="text-muted">Vehicle:</span>
+                        <span class="fw-bold">{{ object.vehicle_number }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Financial Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>⚠️ This will affect financial records:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>
+                        <span class="badge bg-danger me-2">৳{{ object.total_amount|floatformat:2 }}</span>
+                        Revenue will be deducted
+                    </li>
+                    <li>
+                        <span class="badge bg-info me-2">{{ object.quantity_kg }} kg</span>
+                        Stock will be returned to harvest
+                    </li>
+                    <li>
+                        {% if object.customer %}
+                            <span class="badge bg-warning me-2">৳{{ object.customer.current_balance|floatformat:2 }}</span>
+                            Customer balance will be adjusted
+                        {% endif %}
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Stock Impact -->
+        <div class="card border-0 bg-light mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-box-seam text-info me-2"></i>
+                    Stock Impact
+                </h6>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">Current Harvest Stock:</span>
+                            <span class="fw-bold" id="currentStock">
+                                {% if object.harvest %}
+                                    {{ object.harvest.remaining_quantity|floatformat:1 }} kg
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">After Deletion:</span>
+                            <span class="fw-bold text-success" id="newStock">
+                                {% if object.harvest %}
+                                    {{ object.harvest.remaining_quantity|add:object.quantity_kg|floatformat:1 }} kg
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Impact -->
+        {% if object.customer %}
+        <div class="card border-0 bg-light mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-person text-primary me-2"></i>
+                    Customer Impact
+                </h6>
+                
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="customer-avatar bg-primary text-white rounded-3 p-2">
+                        <span class="fw-bold">{{ object.customer.name|first|upper }}</span>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">{{ object.customer.name }}</h6>
+                        <small class="text-muted">{{ object.customer.customer_id }}</small>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">Current Balance:</span>
+                            <span class="fw-bold {% if object.customer.current_balance > 0 %}text-warning{% else %}text-success{% endif %}">
+                                ৳{{ object.customer.current_balance|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">After Deletion:</span>
+                            <span class="fw-bold text-success">
+                                ৳{{ object.customer.current_balance|add:object.total_amount|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if object.customer.current_balance > 0 %}
+                <div class="alert alert-warning mt-3 mb-0 py-2">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Customer has outstanding balance. Deleting this sale will not affect their credit history.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Payment Status Warning -->
+        {% if object.payment_status == 'PAID' %}
+        <div class="alert alert-success d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-check-circle-fill fs-4"></i>
+            <div>
+                <strong>Paid Sale</strong>
+                <p class="mb-0 mt-1">This sale has been marked as paid. Deleting it will require financial reconciliation.</p>
+            </div>
+        </div>
+        {% elif object.payment_status == 'PENDING' %}
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-clock-history fs-4"></i>
+            <div>
+                <strong>Pending Payment</strong>
+                <p class="mb-0 mt-1">This sale has pending payment. Consider collecting payment before deletion.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- High Value Warning -->
+        {% if object.total_amount > 50000 %}
+        <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div>
+                <strong>High Value Transaction!</strong>
+                <p class="mb-0 mt-1">
+                    This sale is worth <strong>৳{{ object.total_amount|floatformat:2 }}</strong>. 
+                    Consider keeping this record for financial accuracy.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                I understand that deleting this sale will:
+                <ul class="mb-0 mt-2">
+                    <li>Remove ৳{{ object.total_amount|floatformat:2 }} from revenue</li>
+                    <li>Return {{ object.quantity_kg }} kg to harvest stock</li>
+                    {% if object.customer %}
+                    <li>Adjust customer balance from ৳{{ object.customer.current_balance|floatformat:2 }} to ৳{{ object.customer.current_balance|add:object.total_amount|floatformat:2 }}</li>
+                    {% endif %}
+                </ul>
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'fishery:sale_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger px-5 py-3" id="deleteBtn" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Permanently
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal Script -->
+<script>
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = !checkbox.checked;
+    }
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const confirmDelete = document.getElementById('confirmDelete');
+        if (!confirmDelete.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand the financial impact of deleting this sale.');
+        }
+    });
+
+    // Countdown timer for safety
+    let countdown = 5;
+    let countdownInterval = null;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const confirmCheck = document.getElementById('confirmDelete');
+
+    confirmCheck.addEventListener('change', function() {
+        if (this.checked && !countdownInterval) {
+            // Store original text
+            const originalText = deleteBtn.innerHTML;
+            
+            // Start countdown
+            deleteBtn.disabled = true;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                deleteBtn.innerHTML = `Wait ${countdown} seconds... <i class="bi bi-hourglass-split ms-2"></i>`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                    countdown = 5;
+                }
+            }, 1000);
+        } else if (!this.checked && countdownInterval) {
+            // Cancel countdown
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3-fill me-2"></i>Delete Permanently';
+            countdown = 5;
+        }
+    });
+
+    // Keyboard shortcut warning
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const deleteBtn = document.getElementById('deleteBtn');
+            const confirmCheck = document.getElementById('confirmDelete');
+            
+            if (!deleteBtn.disabled && confirmCheck.checked) {
+                if (!confirm('Are you absolutely sure? This will permanently delete this sale and affect financial records.')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // Add animation class on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.warning-icon').classList.add('pulse-animation');
+        
+        // Animate detail boxes
+        document.querySelectorAll('.detail-box').forEach(el => {
+            el.classList.add('fade-in');
+        });
+    });
+</script>
+
+<style>
+    .warning-icon {
+        width: 120px;
+        height: 120px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px 15px rgba(220, 53, 69, 0.2);
+        }
+    }
+    
+    .sale-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .customer-avatar {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-success {
+        border-left: 4px solid #28a745;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+        margin-right: 5px;
+    }
+    
+    .badge.bg-danger {
+        background-color: #dc3545 !important;
+    }
+    
+    .badge.bg-info {
+        background-color: #0dcaf0 !important;
+        color: #000;
+    }
+    
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #000;
+    }
+    
+    /* Payment status colors */
+    .text-success { color: #28a745 !important; }
+    .text-warning { color: #ffc107 !important; }
+    .text-danger { color: #dc3545 !important; }
+    .text-info { color: #0dcaf0 !important; }
+    
+    /* Form check styling */
+    .form-check-input:checked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+        color: #dc3545;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+    
+    .form-check-label ul {
+        color: #495057;
+        margin-top: 8px;
+    }
+    
+    /* Disabled button style */
+    #deleteBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* Countdown timer text */
+    #deleteBtn i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Fade in animation */
+    .fade-in {
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .warning-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .warning-icon i {
+            font-size: 3rem !important;
+        }
+        
+        .sale-avatar {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .sale-avatar i {
+            font-size: 1.5rem !important;
+        }
+        
+        .customer-avatar {
+            width: 30px;
+            height: 30px;
+            font-size: 1rem;
+        }
+        
+        .btn {
+            padding: 12px 15px !important;
+            font-size: 0.9rem;
+        }
+        
+        h4 {
+            font-size: 1.2rem;
+        }
+        
+        .detail-box {
+            padding: 10px !important;
+        }
+        
+        .badge {
+            font-size: 0.8rem;
+            padding: 3px 6px;
+        }
+        
+        .row.g-3 {
+            --bs-gutter-y: 0.5rem;
+        }
+        
+        .form-check-label ul {
+            font-size: 0.9rem;
+            padding-left: 20px;
+        }
+    }
+
+    /* Print styles */
+    @media print {
+        .btn, .form-check, .alert-info, #deleteBtn {
+            display: none;
+        }
+        
+        .warning-icon {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .bg-danger {
+            background-color: #dc3545 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .alert-warning, .alert-success, .alert-danger {
+            border: 1px solid #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}

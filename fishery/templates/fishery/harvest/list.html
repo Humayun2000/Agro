@@ -1,0 +1,739 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-scissors{% endblock %}
+{% block page_title %}Harvest Records{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:harvest_list' %}">Harvest</a></li>
+<li class="breadcrumb-item active" aria-current="page">All Harvests</li>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" onclick="exportHarvests()">
+        <i class="bi bi-download me-1"></i> Export
+    </button>
+    <a href="{% url 'fishery:harvest_add' %}" class="btn btn-success">
+        <i class="bi bi-plus-circle me-1"></i> Record Harvest
+    </a>
+</div>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container-fluid px-0">
+    <!-- Statistics Cards -->
+    <div class="fishery-stats-grid mb-4">
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon blue">
+                <i class="bi bi-scissors"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_harvests }}</div>
+            <div class="fishery-stat-label">Total Harvests</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon green">
+                <i class="bi bi-cake"></i>
+            </div>
+            <div class="fishery-stat-value">{{ total_quantity|floatformat:0 }} kg</div>
+            <div class="fishery-stat-label">Total Quantity</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon warning">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="fishery-stat-value">৳{{ total_revenue|floatformat:0 }}</div>
+            <div class="fishery-stat-label">Total Revenue</div>
+        </div>
+
+        <div class="fishery-stat-card">
+            <div class="fishery-stat-icon info">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <div class="fishery-stat-value">{{ harvests_today }}</div>
+            <div class="fishery-stat-label">Today's Harvests</div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <i class="bi bi-trophy fs-3 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Grade A</h6>
+                            <h3 class="mb-0">{{ grade_a_quantity|floatformat:0 }} kg</h3>
+                            <small class="text-success">{{ grade_a_percentage }}%</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded p-3">
+                                <i class="bi bi-trophy fs-3 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Grade B</h6>
+                            <h3 class="mb-0">{{ grade_b_quantity|floatformat:0 }} kg</h3>
+                            <small class="text-info">{{ grade_b_percentage }}%</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded p-3">
+                                <i class="bi bi-trophy fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Grade C</h6>
+                            <h3 class="mb-0">{{ grade_c_quantity|floatformat:0 }} kg</h3>
+                            <small class="text-warning">{{ grade_c_percentage }}%</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-secondary bg-opacity-10 rounded p-3">
+                                <i class="bi bi-trophy fs-3 text-secondary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Reject</h6>
+                            <h3 class="mb-0">{{ grade_reject_quantity|floatformat:0 }} kg</h3>
+                            <small class="text-secondary">{{ grade_reject_percentage }}%</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-funnel"></i>
+                Filter Harvest Records
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Pond</label>
+                        <select name="pond" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Ponds</option>
+                            {% for pond in ponds %}
+                            <option value="{{ pond.id }}" {% if current_pond == pond.id|stringformat:"s" %}selected{% endif %}>
+                                {{ pond.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="fishery-form-label">Species</label>
+                        <select name="species" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Species</option>
+                            {% for species in species_list %}
+                            <option value="{{ species.id }}" {% if current_species == species.id|stringformat:"s" %}selected{% endif %}>
+                                {{ species.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">Grade</label>
+                        <select name="grade" class="fishery-form-control" onchange="this.form.submit()">
+                            <option value="">All Grades</option>
+                            {% for value, label in grade_choices %}
+                            <option value="{{ value }}" {% if current_grade == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">From Date</label>
+                        <input type="date" name="date_from" class="fishery-form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="fishery-form-label">To Date</label>
+                        <input type="date" name="date_to" class="fishery-form-control" value="{{ date_to }}">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12 d-flex justify-content-end gap-2">
+                        <button type="submit" class="fishery-btn-add">
+                            <i class="bi bi-search me-1"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'fishery:harvest_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i> Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Harvest Summary Alert -->
+    {% if pending_sales > 0 %}
+    <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+        <div class="flex-grow-1">
+            <strong>{{ pending_sales }} Harvests with Unsold Stock</strong>
+            <p class="mb-0 mt-1">{{ pending_quantity|floatformat:0 }} kg fish awaiting sale</p>
+        </div>
+        <button class="btn btn-sm btn-outline-warning" onclick="scrollToPending()">
+            View Pending
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Harvest Records Table -->
+    <div class="fishery-table-container">
+        <div class="fishery-table-header">
+            <h5 class="fishery-table-title">
+                <i class="bi bi-list-ul"></i>
+                Harvest Records
+                <span class="badge bg-success ms-2">{{ paginator.count }}</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled onclick="bulkDeleteHarvests()">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <span class="text-muted" id="selectedCount">0 selected</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="fishery-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Date</th>
+                        <th>Pond</th>
+                        <th>Cycle</th>
+                        <th>Species</th>
+                        <th>Quantity (kg)</th>
+                        <th>Pieces</th>
+                        <th>Avg Weight</th>
+                        <th>Grade</th>
+                        <th>Sold</th>
+                        <th>Revenue</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for harvest in harvests %}
+                    <tr class="harvest-row {% if harvest.remaining_quantity > 0 %}table-warning{% endif %}" data-id="{{ harvest.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input harvest-checkbox" value="{{ harvest.id }}">
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ harvest.harvest_date|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ harvest.harvest_date|timesince }} ago</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="pond-avatar bg-success bg-opacity-10 rounded p-2">
+                                    <i class="bi bi-water text-success"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ harvest.cycle.pond.name }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="{% url 'fishery:cycle_detail' harvest.cycle.id %}" class="text-decoration-none">
+                                {{ harvest.cycle.cycle_id|slice:":8" }}
+                            </a>
+                        </td>
+                        <td>{{ harvest.cycle.species.name }}</td>
+                        <td class="fw-bold">{{ harvest.quantity_kg }} kg</td>
+                        <td>{{ harvest.piece_count|default:"—" }}</td>
+                        <td>{{ harvest.avg_weight|default:"—" }} g</td>
+                        <td>
+                            {% if harvest.grade == 'A' %}
+                                <span class="fishery-badge fishery-badge-success">A</span>
+                            {% elif harvest.grade == 'B' %}
+                                <span class="fishery-badge fishery-badge-info">B</span>
+                            {% elif harvest.grade == 'C' %}
+                                <span class="fishery-badge fishery-badge-warning">C</span>
+                            {% else %}
+                                <span class="fishery-badge fishery-badge-secondary">{{ harvest.get_grade_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% with sold=harvest.sales.all|length %}
+                                {% if sold > 0 %}
+                                    <span class="badge bg-success">{{ sold }} sales</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Unsold</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-success fw-bold">৳{{ harvest.total_sales|floatformat:2 }}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'fishery:harvest_edit' harvest.id %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'fishery:sale_add' %}?harvest={{ harvest.id }}" class="btn btn-sm btn-outline-success" title="Add Sale">
+                                    <i class="bi bi-cash"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteHarvest({{ harvest.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="12" class="text-center py-5">
+                            <i class="bi bi-scissors fs-1 text-muted d-block mb-3"></i>
+                            <h5 class="text-muted">No harvest records found</h5>
+                            <p class="text-muted mb-3">Record your first harvest</p>
+                            <a href="{% url 'fishery:harvest_add' %}" class="btn btn-success">
+                                <i class="bi bi-plus-circle me-2"></i>Record Harvest
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link bg-success border-success">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Harvest Analytics -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    Harvest by Grade
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="gradeChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-graph-up text-info"></i>
+                    Monthly Harvest Trend
+                </h5>
+                <div style="height: 250px;">
+                    <canvas id="harvestTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Harvests by Pond -->
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="fishery-table-container">
+                <h5 class="fishery-table-title mb-3">
+                    <i class="bi bi-trophy-fill text-warning"></i>
+                    Top Performing Ponds
+                </h5>
+                <div class="row">
+                    {% for pond in top_ponds %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="fw-bold mb-1">{{ pond.pond__name }}</h6>
+                                        <small class="text-muted">{{ pond.harvest_count }} harvests</small>
+                                    </div>
+                                    <span class="badge bg-success">{{ pond.total_quantity|floatformat:0 }} kg</span>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">Revenue:</small>
+                                    <span class="fw-bold text-success float-end">৳{{ pond.total_revenue|floatformat:0 }}</span>
+                                </div>
+                                <div class="progress mt-2" style="height: 5px;">
+                                    {% widthratio pond.total_quantity max_harvest 100 as harvest_percentage %}
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                         style="width: {{ harvest_percentage }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <p class="text-muted text-center py-3">No harvest data available</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteHarvestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this harvest record?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will also delete all associated sales records.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmDeleteHarvestBtn" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Store delete URL template
+    const DELETE_HARVEST_URL = "{% url 'fishery:harvest_delete' 0 %}";
+    
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function() {
+        // Grade distribution chart
+        const gradeCtx = document.getElementById('gradeChart').getContext('2d');
+        new Chart(gradeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Grade A', 'Grade B', 'Grade C', 'Reject'],
+                datasets: [{
+                    data: [
+                        {{ grade_a_quantity|default:0 }},
+                        {{ grade_b_quantity|default:0 }},
+                        {{ grade_c_quantity|default:0 }},
+                        {{ grade_reject_quantity|default:0 }}
+                    ],
+                    backgroundColor: [
+                        '#28a745',
+                        '#17a2b8',
+                        '#ffc107',
+                        '#6c757d'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Harvest trend chart
+        const trendCtx = document.getElementById('harvestTrendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ trend_labels|safe }},
+                datasets: [{
+                    label: 'Harvest Quantity (kg)',
+                    data: {{ trend_data|safe }},
+                    backgroundColor: '#28a745',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Kilograms'
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.harvest-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    document.querySelectorAll('.harvest-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.harvest-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+        document.getElementById('bulkDeleteBtn').disabled = count === 0;
+    }
+
+    // Delete confirmation
+    function confirmDeleteHarvest(harvestId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteHarvestModal'));
+        document.getElementById('confirmDeleteHarvestBtn').href = DELETE_HARVEST_URL.replace('0', harvestId);
+        modal.show();
+    }
+
+    // Bulk delete
+    function bulkDeleteHarvests() {
+        const selected = Array.from(document.querySelectorAll('.harvest-checkbox:checked')).map(cb => cb.value);
+        if (selected.length > 0 && confirm(`Delete ${selected.length} harvest records? This will also delete associated sales.`)) {
+            showFisheryLoading();
+            fetch('/fishery/api/bulk/harvests/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: selected })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    hideFisheryLoading();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                hideFisheryLoading();
+            });
+        }
+    }
+
+    // Export data
+    function exportHarvests() {
+        window.location.href = "{% url 'fishery:export_harvests' %}";
+    }
+
+    // Scroll to pending sales
+    function scrollToPending() {
+        const pending = document.querySelector('.table-warning');
+        if (pending) {
+            pending.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    // Row click to edit
+    document.querySelectorAll('.harvest-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('input[type="checkbox"]') && !e.target.closest('.btn')) {
+                const id = this.dataset.id;
+                if (id) {
+                    window.location.href = "{% url 'fishery:harvest_edit' 0 %}".replace('0', id);
+                }
+            }
+        });
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+
+<style>
+    .pond-avatar {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .harvest-row:hover {
+        background-color: #f0f7ff !important;
+        cursor: pointer;
+    }
+    
+    .harvest-row td {
+        vertical-align: middle;
+    }
+    
+    .table-warning {
+        background-color: #fff3cd !important;
+    }
+    
+    .table-warning:hover {
+        background-color: #ffe69c !important;
+    }
+    
+    .fishery-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        white-space: nowrap;
+    }
+    
+    .fishery-badge-success {
+        background-color: #d4edda;
+        color: #28a745;
+    }
+    
+    .fishery-badge-info {
+        background-color: #d1ecf1;
+        color: #17a2b8;
+    }
+    
+    .fishery-badge-warning {
+        background-color: #fff3cd;
+        color: #ffc107;
+    }
+    
+    .fishery-badge-secondary {
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 5px 8px;
+    }
+    
+    .badge.bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #000;
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Quick stats cards */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.85rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .pond-avatar {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .fishery-badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 5px;
+        }
+    }
+</style>
+{% endblock %}

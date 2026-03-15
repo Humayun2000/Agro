@@ -1,0 +1,531 @@
+{% extends 'fishery/base_fishery.html' %}
+{% load static %}
+
+{% block page_icon %}bi bi-exclamation-triangle{% endblock %}
+{% block page_title %}Delete Mortality Record{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'fishery:mortality_list' %}">Mortality</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete Record</li>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'fishery:mortality_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to List
+</a>
+{% endblock %}
+
+{% block fishery_content %}
+<div class="container" style="max-width: 700px;">
+    <!-- Delete Confirmation Card -->
+    <div class="fishery-form-card border-0 shadow-lg">
+        <div class="fishery-form-header bg-danger text-white">
+            <h3 class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Delete Mortality Record
+            </h3>
+            <p class="mb-0 opacity-75">This action cannot be undone</p>
+        </div>
+
+        <!-- Warning Icon & Message -->
+        <div class="text-center mb-4">
+            <div class="warning-icon mx-auto my-4">
+                <i class="bi bi-emoji-frown fs-1 text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Remove this mortality record?</h4>
+            <p class="text-muted">
+                You are about to delete a mortality record from 
+                <strong>{{ object.date|date:"F d, Y" }}</strong>
+            </p>
+        </div>
+
+        <!-- Mortality Summary Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div class="mortality-avatar bg-danger text-white rounded-3 p-3">
+                        <i class="bi bi-exclamation-triangle fs-2"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ object.cycle.pond.name }} - {{ object.cycle.species.name }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-calendar me-1"></i> {{ object.date|date:"M d, Y" }}
+                            <span class="mx-2">|</span>
+                            <i class="bi bi-water me-1"></i> Cycle: {{ object.cycle.cycle_id|slice:":8" }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Deaths</small>
+                            <span class="fw-bold fs-5 text-danger">{{ object.quantity_dead }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">Reason</small>
+                            <span class="fw-bold 
+                                {% if object.reason == 'DISEASE' %}text-danger
+                                {% elif object.reason == 'PREDATOR' %}text-warning
+                                {% elif object.reason == 'OXYGEN' %}text-info
+                                {% elif object.reason == 'WATER_QUALITY' %}text-primary
+                                {% elif object.reason == 'STRESS' %}text-success
+                                {% elif object.reason == 'CANNIBALISM' %}text-secondary
+                                {% else %}text-muted{% endif %}">
+                                {{ object.get_reason_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-box bg-white rounded-3 p-3 text-center">
+                            <small class="text-muted d-block">% of Stock</small>
+                            {% widthratio object.quantity_dead object.cycle.current_population|add:object.quantity_dead 100 as percentage %}
+                            <span class="fw-bold {% if percentage|add:'0' > 10 %}text-danger{% elif percentage|add:'0' > 5 %}text-warning{% endif %}">
+                                {{ percentage }}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if object.symptoms_observed %}
+                <div class="mt-3 p-3 bg-white rounded-3">
+                    <small class="text-muted d-block">Symptoms</small>
+                    <p class="mb-0">{{ object.symptoms_observed|truncatechars:100 }}</p>
+                </div>
+                {% endif %}
+
+                {% if object.disease %}
+                <div class="mt-2 p-2 bg-white rounded-3">
+                    <small class="text-muted d-block">Related Disease</small>
+                    <p class="mb-0 fw-bold text-danger">{{ object.disease.disease_name }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Stock Impact Alert -->
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div class="text-start">
+                <strong>⚠️ This will affect cycle statistics:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Survival rate will be recalculated</li>
+                    <li>Total mortality count will decrease</li>
+                    <li>FCR calculations may be affected</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Cycle Impact -->
+        <div class="card border-0 bg-light mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-arrow-repeat text-info me-2"></i>
+                    Cycle Impact
+                </h6>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">Current Population:</span>
+                            <span class="fw-bold">{{ object.cycle.current_population }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded-3">
+                            <span class="text-muted">Mortality Rate:</span>
+                            {% widthratio object.cycle.total_mortality object.cycle.initial_quantity 100 as mortality_rate %}
+                            <span class="fw-bold {% if mortality_rate|add:'0' > 20 %}text-danger{% elif mortality_rate|add:'0' > 10 %}text-warning{% endif %}">
+                                {{ mortality_rate }}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <div class="progress" style="height: 10px;">
+                        {% widthratio object.cycle.current_population object.cycle.initial_quantity 100 as survival_rate %}
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ survival_rate }}%">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">Current Survival: {{ survival_rate }}%</small>
+                        {% with new_survival=object.cycle.current_population|add:object.quantity_dead %}
+                            {% widthratio new_survival object.cycle.initial_quantity 100 as new_rate %}
+                            <small class="text-success">After deletion: {{ new_rate }}%</small>
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disease Association Warning -->
+        {% if object.disease %}
+        <div class="alert alert-info d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-bug-fill fs-4"></i>
+            <div>
+                <strong>Disease Association:</strong>
+                <p class="mb-0 mt-1">
+                    This mortality is linked to disease record 
+                    <a href="{% url 'fishery:disease_edit' object.disease.id %}" class="alert-link">
+                        {{ object.disease.disease_name }}
+                    </a>. 
+                    Deleting this record will not delete the disease record.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- High Impact Warning -->
+        {% with percentage=object.quantity_dead|default:0|floatformat:1 %}
+            {% widthratio object.quantity_dead object.cycle.current_population|add:object.quantity_dead 100 as impact_percentage %}
+            {% if impact_percentage|add:'0' > 10 %}
+            <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+                <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                <div>
+                    <strong>High Impact Warning!</strong>
+                    <p class="mb-0 mt-1">
+                        This mortality represents <strong>{{ impact_percentage }}%</strong> of the cycle's current population. 
+                        Consider keeping this record for accurate historical data.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Safety Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light rounded-3">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" onchange="toggleDeleteButton()">
+            <label class="form-check-label fw-bold" for="confirmDelete">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                I understand that deleting this mortality record will affect survival rate calculations
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{% url 'fishery:mortality_list' %}" class="btn btn-outline-secondary px-5 py-3">
+                <i class="bi bi-x-lg me-2"></i>
+                Cancel
+            </a>
+            
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger px-5 py-3" id="deleteBtn" disabled>
+                    <i class="bi bi-trash3-fill me-2"></i>
+                    Delete Permanently
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal Script -->
+<script>
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = !checkbox.checked;
+    }
+
+    // Prevent accidental form submission
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const confirmDelete = document.getElementById('confirmDelete');
+        if (!confirmDelete.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand the impact of deleting this mortality record.');
+        }
+    });
+
+    // Countdown timer for safety
+    let countdown = 5;
+    let countdownInterval = null;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const confirmCheck = document.getElementById('confirmDelete');
+
+    confirmCheck.addEventListener('change', function() {
+        if (this.checked && !countdownInterval) {
+            // Store original text
+            const originalText = deleteBtn.innerHTML;
+            
+            // Start countdown
+            deleteBtn.disabled = true;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                deleteBtn.innerHTML = `Wait ${countdown} seconds... <i class="bi bi-hourglass-split ms-2"></i>`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                    countdown = 5;
+                }
+            }, 1000);
+        } else if (!this.checked && countdownInterval) {
+            // Cancel countdown
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3-fill me-2"></i>Delete Permanently';
+            countdown = 5;
+        }
+    });
+
+    // Keyboard shortcut warning
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const deleteBtn = document.getElementById('deleteBtn');
+            const confirmCheck = document.getElementById('confirmDelete');
+            
+            if (!deleteBtn.disabled && confirmCheck.checked) {
+                if (!confirm('Are you absolutely sure? This will permanently delete this mortality record and affect survival statistics.')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // Add animation class on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.warning-icon').classList.add('pulse-animation');
+        
+        // Animate detail boxes
+        document.querySelectorAll('.detail-box').forEach(el => {
+            el.classList.add('fade-in');
+        });
+    });
+</script>
+
+<style>
+    .warning-icon {
+        width: 120px;
+        height: 120px;
+        background: rgba(220, 53, 69, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px 15px rgba(220, 53, 69, 0.2);
+        }
+    }
+    
+    .mortality-avatar {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .detail-box {
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .detail-box:hover {
+        border-color: #dc3545;
+        background-color: #fff !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Alert styling */
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Form check styling */
+    .form-check-input:checked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+        color: #dc3545;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+    
+    /* Disabled button style */
+    #deleteBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* Countdown timer text */
+    #deleteBtn i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Fade in animation */
+    .fade-in {
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Progress bar */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+    
+    /* Text colors */
+    .text-danger {
+        font-weight: 600 !important;
+    }
+    
+    .text-warning {
+        font-weight: 600 !important;
+        color: #ffc107 !important;
+    }
+    
+    .text-success {
+        font-weight: 600 !important;
+    }
+    
+    .text-info {
+        font-weight: 600 !important;
+    }
+    
+    .text-primary {
+        font-weight: 600 !important;
+    }
+    
+    /* Reason colors */
+    .text-danger { color: #dc3545 !important; }
+    .text-warning { color: #ffc107 !important; }
+    .text-info { color: #0dcaf0 !important; }
+    .text-primary { color: #0d6efd !important; }
+    .text-success { color: #198754 !important; }
+    .text-secondary { color: #6c757d !important; }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .warning-icon {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .warning-icon i {
+            font-size: 3rem !important;
+        }
+        
+        .mortality-avatar {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .mortality-avatar i {
+            font-size: 1.5rem !important;
+        }
+        
+        .btn {
+            padding: 12px 15px !important;
+            font-size: 0.9rem;
+        }
+        
+        h4 {
+            font-size: 1.2rem;
+        }
+        
+        .detail-box {
+            padding: 10px !important;
+        }
+        
+        .row.g-3 {
+            --bs-gutter-y: 0.5rem;
+        }
+        
+        .progress {
+            height: 8px !important;
+        }
+    }
+
+    /* Print styles */
+    @media print {
+        .btn, .form-check, .alert-info, #deleteBtn {
+            display: none;
+        }
+        
+        .warning-icon {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .bg-danger {
+            background-color: #dc3545 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .alert-warning, .alert-danger, .alert-info {
+            border: 1px solid #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}
